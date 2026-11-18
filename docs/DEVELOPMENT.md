@@ -53,7 +53,7 @@ Nothing is code signed yet. The workflow has comments where signing would go.
 | | Built in CI | Tested in CI | Used day to day |
 |---|---|---|---|
 | Windows x64 | yes | unit tests | yes, with Docker in WSL2 |
-| Windows ARM64 | yes, cross-compiled | not run | no |
+| Windows ARM64 | yes, cross-compiled | not run | installed and run on an ARM64 device (0.1.0) |
 | Linux x64 | yes | unit tests, and the app is started under Xvfb | no |
 | macOS ARM64 | yes, optional | unit tests | no |
 
