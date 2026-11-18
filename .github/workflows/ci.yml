@@ -3,7 +3,10 @@ name: CI
 on:
   push:
     branches: [main]
+    # Text and pictures cannot break the build.
+    paths-ignore: ["**/*.md", "docs/**", "LICENSE"]
   pull_request:
+    paths-ignore: ["**/*.md", "docs/**", "LICENSE"]
 
 concurrency:
   group: ci-${{ github.ref }}
