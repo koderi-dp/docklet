@@ -2,8 +2,6 @@
 
 A desktop client for **existing** Docker Engines, built with Wails v3, Go, React, TypeScript and shadcn/ui. It does not install, bundle or replace Docker Engine, and it does not need Docker Desktop.
 
-`DESIGN.md` is the source of truth for visuals and interaction; `docker-desktop-alternative-spec.md` for backend behaviour.
-
 ## Requirements
 
 - Go 1.26+, Node 22+, and the Wails v3 CLI: `go install github.com/wailsapp/wails/v3/cmd/wails3@v3.1.0`
