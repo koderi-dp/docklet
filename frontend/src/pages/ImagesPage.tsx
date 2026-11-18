@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { Activity, Download, Hammer, Layers, MoreHorizontal, Trash2 } from "lucide-react";
+import type { BuildRecord } from "@bindings/model";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -17,7 +19,10 @@ import { CheckUpdatesButton } from "@/components/images/update/CheckUpdatesButto
 import { UpdateHost } from "@/components/images/update/UpdateHost";
 import { ImageConfirmDialogs } from "@/components/images/ImageConfirmDialogs";
 import { PullImageDialog } from "@/components/images/PullImageDialog";
-import { BuildImageDialog } from "@/components/images/BuildImageDialog";
+import { BuildImageDialog } from "@/components/images/build/BuildImageDialog";
+import { BuildsPanel } from "@/components/images/build/BuildsPanel";
+import { formFromRecord, type BuildForm } from "@/components/images/build/buildForm";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PushImageDialog } from "@/components/images/PushImageDialog";
 import { TagImageDialog } from "@/components/images/TagImageDialog";
 import { useImagesPage } from "@/components/images/useImagesPage";
@@ -33,6 +38,17 @@ function ImagesView({ connectionId }: { connectionId: string }) {
   const { list, summary, selectedRows, transfers } = pg;
   const engineName = profile?.name ?? "the active Engine";
   const hiddenSelected = selectedRows.some((r) => !pg.visible.includes(r));
+  const [view, setView] = useState<"images" | "builds">("images");
+  const [buildInitial, setBuildInitial] = useState<BuildForm | null>(null);
+  const openBuild = (initial: BuildForm | null) => {
+    setBuildInitial(initial);
+    pg.setBuildOpen(true);
+  };
+  const showImage = (r: BuildRecord) => {
+    setView("images");
+    pg.setFilter("all");
+    pg.setQuery(r.tags?.[0] ?? r.imageId.replace(/^sha256:/, "").slice(0, 12));
+  };
 
   const subtitle = list.data ? (
     <span aria-live="polite">
@@ -68,7 +84,7 @@ function ImagesView({ connectionId }: { connectionId: string }) {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onSelect={() => pg.setBuildOpen(true)}><Hammer /> Build Image…</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => openBuild(null)}><Hammer /> Build Image…</DropdownMenuItem>
                   <DropdownMenuItem disabled={transfers.busy} onSelect={() => void transfers.loadImage()}>
                     <Download className="rotate-180" /> Load Image…
                   </DropdownMenuItem>
@@ -78,7 +94,16 @@ function ImagesView({ connectionId }: { connectionId: string }) {
           }
         />
 
-        {list.isLoading ? (
+        <Tabs value={view} onValueChange={(v) => setView(v as "images" | "builds")} className="mb-3">
+          <TabsList variant="line" className="justify-start">
+            <TabsTrigger value="images">Images</TabsTrigger>
+            <TabsTrigger value="builds">Builds</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {view === "builds" ? (
+          <BuildsPanel connectionId={connectionId} images={list.data ?? []} onBuild={() => openBuild(null)} onBuildAgain={(r) => openBuild(formFromRecord(r))} onShowImage={showImage} />
+        ) : list.isLoading ? (
           <Skeleton className="h-72 w-full rounded-[10px]" />
         ) : list.error ? (
           <EmptyState icon={<Activity />} title="Could not load images">
@@ -153,7 +178,7 @@ function ImagesView({ connectionId }: { connectionId: string }) {
         )}
       </div>
 
-      {pg.inspected && (
+      {view === "images" && pg.inspected && (
         <ImageInspector
           key={pg.inspected.key}
           connectionId={connectionId}
@@ -166,7 +191,14 @@ function ImagesView({ connectionId }: { connectionId: string }) {
 
       <UpdateHost />
       <PullImageDialog connectionId={connectionId} engineName={engineName} open={pg.pullOpen} onOpenChange={pg.setPullOpen} />
-      <BuildImageDialog connectionId={connectionId} engineName={engineName} open={pg.buildOpen} onOpenChange={pg.setBuildOpen} />
+      <BuildImageDialog
+        connectionId={connectionId}
+        engineName={engineName}
+        open={pg.buildOpen}
+        onOpenChange={pg.setBuildOpen}
+        initial={buildInitial}
+        onStarted={() => setView("builds")}
+      />
       <PushImageDialog connectionId={connectionId} engineName={engineName} image={pg.pushTarget} onClose={() => pg.setPushTarget(null)} />
       <TagImageDialog connectionId={connectionId} image={pg.tagTarget} onClose={() => pg.setTagTarget(null)} />
       <CreateContainerDialog

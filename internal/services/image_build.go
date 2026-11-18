@@ -56,16 +56,9 @@ func validateBuildSpec(spec model.BuildSpec) (validatedBuild, error) {
 	}
 	v.ContextDir = dir
 
-	df := strings.TrimSpace(spec.Dockerfile)
-	if df == "" {
-		df = "Dockerfile"
-	}
-	if filepath.IsAbs(df) || strings.HasPrefix(df, "/") || strings.HasPrefix(df, `\`) || filepath.VolumeName(df) != "" {
-		return v, errors.New("the Dockerfile path must be relative to the build context")
-	}
-	rel := path.Clean(filepath.ToSlash(df))
-	if rel == ".." || strings.HasPrefix(rel, "../") || rel == "." {
-		return v, errors.New("the Dockerfile must be inside the build context")
+	rel, err := cleanDockerfileRel(spec.Dockerfile)
+	if err != nil {
+		return v, err
 	}
 	full := filepath.Join(dir, filepath.FromSlash(rel))
 	if r, err := filepath.Rel(dir, full); err != nil || strings.HasPrefix(filepath.ToSlash(r), "../") {
@@ -82,7 +75,27 @@ func validateBuildSpec(spec model.BuildSpec) (validatedBuild, error) {
 		return v, fmt.Errorf("%q is a directory, not a Dockerfile", rel)
 	}
 	v.Dockerfile = rel
+	return v, validateBuildOptions(spec, &v)
+}
 
+// cleanDockerfileRel validates a spec's Dockerfile path: relative, inside the context; returns it slash-separated.
+func cleanDockerfileRel(df string) (string, error) {
+	df = strings.TrimSpace(df)
+	if df == "" {
+		df = "Dockerfile"
+	}
+	if filepath.IsAbs(df) || strings.HasPrefix(df, "/") || strings.HasPrefix(df, `\`) || filepath.VolumeName(df) != "" {
+		return "", errors.New("the Dockerfile path must be relative to the build context")
+	}
+	rel := path.Clean(filepath.ToSlash(df))
+	if rel == ".." || strings.HasPrefix(rel, "../") || rel == "." {
+		return "", errors.New("the Dockerfile must be inside the build context")
+	}
+	return rel, nil
+}
+
+// validateBuildOptions checks tags, arguments, target and platform and stores them in v.
+func validateBuildOptions(spec model.BuildSpec, v *validatedBuild) error {
 	seen := map[string]bool{}
 	for _, raw := range spec.Tags {
 		raw = strings.TrimSpace(raw)
@@ -91,7 +104,7 @@ func validateBuildSpec(spec model.BuildSpec) (validatedBuild, error) {
 		}
 		t, err := validateTarget(raw)
 		if err != nil {
-			return v, err
+			return err
 		}
 		if !seen[t] {
 			seen[t] = true
@@ -104,7 +117,7 @@ func validateBuildSpec(spec model.BuildSpec) (validatedBuild, error) {
 		for k, val := range spec.BuildArgs {
 			k = strings.TrimSpace(k)
 			if !envKeyRe.MatchString(k) {
-				return v, fmt.Errorf("invalid build argument name %q", k)
+				return fmt.Errorf("invalid build argument name %q", k)
 			}
 			val := val
 			v.BuildArgs[k] = &val
@@ -113,13 +126,13 @@ func validateBuildSpec(spec model.BuildSpec) (validatedBuild, error) {
 
 	if t := strings.TrimSpace(spec.Target); t != "" {
 		if !stageNameRe.MatchString(t) {
-			return v, fmt.Errorf("invalid target stage %q", t)
+			return fmt.Errorf("invalid target stage %q", t)
 		}
 		v.Target = t
 	}
 	if p := strings.TrimSpace(spec.Platform); p != "" {
 		if !platformRe.MatchString(p) {
-			return v, fmt.Errorf("invalid platform %q (expected os/arch[/variant], e.g. linux/amd64)", p)
+			return fmt.Errorf("invalid platform %q (expected os/arch[/variant], e.g. linux/amd64)", p)
 		}
 		parts := strings.Split(p, "/")
 		pl := &ocispec.Platform{OS: parts[0], Architecture: parts[1]}
@@ -129,7 +142,7 @@ func validateBuildSpec(spec model.BuildSpec) (validatedBuild, error) {
 		v.Platform = pl
 	}
 	v.NoCache, v.Pull = spec.NoCache, spec.Pull
-	return v, nil
+	return nil
 }
 
 // fromRegistries returns the registry hosts of the base images in a Dockerfile.

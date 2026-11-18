@@ -1,0 +1,60 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 412B done
+#1 DONE 0.0s
+
+#2 resolve image config for docker-image://docker.io/docker/dockerfile:1
+#2 DONE 0.3s
+
+#3 docker-image://docker.io/docker/dockerfile:1@sha256:4edf897a3ffa55b89f906fc8cc78afdb3f1834cc9c7083565e611a8a7d5fe99e
+#3 resolve docker.io/docker/dockerfile:1@sha256:4edf897a3ffa55b89f906fc8cc78afdb3f1834cc9c7083565e611a8a7d5fe99e 0.0s done
+#3 CACHED
+
+#4 [internal] load metadata for docker.io/library/alpine:3.20
+#4 DONE 0.2s
+
+#5 [1/3] FROM docker.io/library/alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+#5 resolve docker.io/library/alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc 0.0s done
+#5 DONE 0.0s
+
+#6 [internal] load .dockerignore
+#6 transferring context: 2B done
+#6 DONE 0.0s
+
+#7 [internal] load build context
+#7 transferring context: 28B done
+#7 DONE 0.0s
+
+#8 [deps 3/4] COPY app.txt /app.txt
+#8 CACHED
+
+#9 [deps 4/4] RUN echo "greet $GREETING" && echo token-len ${#API_TOKEN}
+#9 CACHED
+
+#10 [deps 1/4] RUN --mount=type=cache,target=/var/cache/x echo cache > /var/cache/x/a && echo deps
+#10 CACHED
+
+#11 [base 2/2] RUN echo base > /base.txt
+#11 CACHED
+
+#12 [deps 2/4] RUN <<EOT (echo heredoc > /h.txt...)
+#12 CACHED
+
+#13 [final 1/1] RUN cat /app.txt
+#13 CACHED
+
+#14 exporting to image
+#14 exporting layers done
+#14 exporting manifest sha256:0319ed2ab66e1ef62b378e9995b5432cccc291acd1e6e33e78296071479b47e6 done
+#14 exporting config sha256:e660a27c87ad3023c4b1b6e06c7ef48251f0cb038efc49ddb39631e28d04ef2b done
+#14 exporting attestation manifest sha256:0ca3666228a1e00f52bfe930995100d6f1d8ec85b1adcdfd8333bc569f38aef6 done
+#14 exporting manifest list sha256:71442364d8293a55818344ca57fe5c6c8236735abd18cf62283f1641ba34e15a done
+#14 naming to docker.io/library/docklet-test-build:ok done
+#14 unpacking to docker.io/library/docklet-test-build:ok done
+#14 DONE 0.0s
+
+ [33m1 warning found (use docker --debug to expand):
+[0m - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "API_TOKEN") (line 12)
+
+View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/bv8lrx8np6hs0ro72rm4dkkvg

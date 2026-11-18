@@ -59,6 +59,15 @@ CREATE TABLE operation_history (
 );
 CREATE INDEX idx_operation_history_finished ON operation_history (finished_at DESC);
 `},
+	{2, `
+CREATE TABLE build_history (
+  id TEXT PRIMARY KEY,
+  connection_id TEXT NOT NULL,
+  started_at INTEGER NOT NULL,
+  data TEXT NOT NULL
+);
+CREATE INDEX idx_build_history_connection ON build_history (connection_id, started_at DESC);
+`},
 }
 
 func migrate(ctx context.Context, db *sql.DB, list []migration) error {

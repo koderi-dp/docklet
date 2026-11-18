@@ -110,7 +110,7 @@ func (r *appRuntime) buildServices(osNotifications *notifications.NotificationSe
 		application.NewService(&services.CopyAsService{Engines: m, Profiles: m}),
 		application.NewService(&services.OperationService{Ops: o, History: r.db.ListOperationHistory}),
 		application.NewService(&services.DialogService{Picker: r.picker}),
-		application.NewService(&services.ImageService{Engines: m, Events: e, Ops: o}),
+		application.NewService(&services.ImageService{Engines: m, Events: e, Ops: o, Profiles: m, Builds: r.db}),
 		application.NewService(&services.RegistryService{Engines: m}),
 		application.NewService(&services.VolumeService{Engines: m, Events: e, Ops: o}),
 		application.NewService(&services.NetworkService{Engines: m, Events: e, Ops: o}),

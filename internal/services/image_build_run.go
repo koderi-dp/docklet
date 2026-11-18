@@ -21,10 +21,31 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-// Build builds an image from a local context directory as a background
-// operation. The context is read on this computer and uploaded to the Engine
-// (the classic builder of the Engine API; BuildKit-only features are not used).
+// Build builds an image as a background operation. With BuildKit (the default when the docker CLI can do it
+// for this connection) the CLI runs where it lives and loads the image into the Engine; with the Classic
+// builder the context is read on this computer and uploaded through the Engine API.
 func (s *ImageService) Build(ctx context.Context, connectionID string, spec model.BuildSpec) (model.Operation, error) {
+	switch spec.Builder {
+	case "", model.BuilderAuto, model.BuilderBuildKit, model.BuilderClassic:
+	default:
+		return model.Operation{}, fmt.Errorf("unknown builder %q", spec.Builder)
+	}
+	if spec.Builder != model.BuilderClassic {
+		cap, env, err := s.capability(ctx, connectionID)
+		if err == nil && cap.Available {
+			return s.startCLIBuild(ctx, connectionID, spec, cap, env)
+		}
+		if spec.Builder == model.BuilderBuildKit {
+			if err != nil {
+				return model.Operation{}, err
+			}
+			return model.Operation{}, fmt.Errorf("BuildKit is not available for this connection: %s", cap.Reason)
+		}
+	}
+	return s.startClassicBuild(ctx, connectionID, spec)
+}
+
+func (s *ImageService) startClassicBuild(ctx context.Context, connectionID string, spec model.BuildSpec) (model.Operation, error) {
 	v, err := validateBuildSpec(spec)
 	if err != nil {
 		return model.Operation{}, err
@@ -44,14 +65,22 @@ func (s *ImageService) Build(ctx context.Context, connectionID string, spec mode
 	op := s.Ops.Start(ops.Spec{
 		Kind: "image.build", Title: title, ConnectionID: connectionID, Resource: resource, Cancellable: true,
 	}, func(octx context.Context, h *ops.Handle) error {
-		err := s.runBuild(octx, cli, v, h)
+		meta := classicMeta(connectionID, spec, v)
+		sink := &classicSink{h: h}
+		err := s.runBuild(octx, cli, v, sink)
+		err = s.suggestBuildKit(octx, connectionID, err)
 		s.emitChanged(connectionID)
+		out := buildOutcome{err: err, cancelled: err != nil && octx.Err() != nil, imageID: sink.imageID, stepsTotal: sink.total, stepsCached: sink.cached, tail: sink.tail.Lines()}
+		if err == nil && out.imageID == "" {
+			out.imageID = s.imageIDOf(cli, v.Tags)
+		}
+		s.saveBuild(meta, out, h.Log)
 		return err
 	})
 	return op, nil
 }
 
-func (s *ImageService) runBuild(ctx context.Context, cli *client.Client, v validatedBuild, h *ops.Handle) error {
+func (s *ImageService) runBuild(ctx context.Context, cli *client.Client, v validatedBuild, h pullSink) error {
 	h.Log("Preparing build context from " + v.ContextDir)
 	entries, err := buildContextEntries(v.ContextDir, v.Dockerfile)
 	if err != nil {
@@ -161,4 +190,16 @@ func consumeBuild(ctx context.Context, r io.Reader, h pullSink) error {
 	}
 	h.Progress(1)
 	return nil
+}
+
+// suggestBuildKit adds a pointer to the BuildKit builder when the Engine's classic builder refused a Dockerfile
+// because it uses BuildKit-only syntax.
+func (s *ImageService) suggestBuildKit(ctx context.Context, connectionID string, err error) error {
+	if err == nil || ctx.Err() != nil || !strings.Contains(strings.ToLower(err.Error()), "buildkit") {
+		return err
+	}
+	if c, _, cerr := s.capability(context.Background(), connectionID); cerr == nil && c.Available {
+		return fmt.Errorf("%w: this Dockerfile needs BuildKit. Set the builder to BuildKit (or Automatic) in the Build dialog and build again", err)
+	}
+	return fmt.Errorf("%w: BuildKit is not available through the docker CLI for this connection, so this Dockerfile cannot be built here", err)
 }

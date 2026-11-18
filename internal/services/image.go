@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/client"
 
+	"docklet/internal/compose"
 	"docklet/internal/engine"
 	"docklet/internal/model"
 	"docklet/internal/ops"
@@ -24,6 +26,17 @@ type ImageService struct {
 	Registry *registryauth.Resolver
 	// updates caches registry update checks (zero value ready).
 	updates updateCache
+
+	// Profiles tells builds where the docker CLI runs for a connection (nil disables BuildKit builds).
+	Profiles engine.ProfileSource
+	// Builds stores the build history (nil disables it).
+	Builds BuildHistoryStore
+
+	// runner executes CLI commands; nil means real processes (tests inject a fake).
+	runner compose.Runner
+	capMu  sync.Mutex
+	caps   map[string]capEntry
+	live   liveBuilds
 }
 
 func (s *ImageService) client(ctx context.Context, connectionID string) (*client.Client, error) {

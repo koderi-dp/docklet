@@ -90,4 +90,6 @@ type BuildSpec struct {
 	Platform   string            `json:"platform"` // e.g. linux/amd64, empty = Engine default
 	NoCache    bool              `json:"noCache"`
 	Pull       bool              `json:"pull"`
+	// Builder is "auto" (default), "buildkit" (docker CLI) or "classic" (Engine API).
+	Builder string `json:"builder"`
 }

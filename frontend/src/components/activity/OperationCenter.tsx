@@ -11,6 +11,7 @@ import { useConnections } from "@/hooks/useActiveConnection";
 import { useAlertEvents, useAlerts } from "@/hooks/useNotifications";
 import { useOperationLogs, useOperations } from "@/hooks/useOperations";
 import { RegistryAuthOffer } from "@/components/registries/RegistryAuthOffer";
+import { BuildProgressView } from "@/components/images/build/BuildProgressView";
 import { StatusIcon } from "./OperationStatusIcon";
 import { OperationHistory } from "./OperationHistory";
 
@@ -89,6 +90,7 @@ function LogView({ id }: { id: string }) {
 
 function OperationRow({ op, connectionName, onCancel }: { op: Operation; connectionName: string; onCancel: () => void }) {
   const [expanded, setExpanded] = useState(false);
+  const [stepsOpen, setStepsOpen] = useState(false);
   const running = op.status === OperationStatus.OpRunning;
   return (
     <li className="border-b border-border/60 px-3 py-2.5 last:border-b-0">
@@ -129,15 +131,33 @@ function OperationRow({ op, connectionName, onCancel }: { op: Operation; connect
             )
           )}
           <RegistryAuthOffer op={op} />
-          <button
-            type="button"
-            className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-            aria-expanded={expanded}
-            onClick={() => setExpanded((v) => !v)}
-          >
-            {expanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
-            Logs
-          </button>
+          <div className="mt-1 flex items-center gap-3">
+            {op.kind === "image.build" && (
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                aria-expanded={stepsOpen}
+                onClick={() => setStepsOpen((v) => !v)}
+              >
+                {stepsOpen ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                Steps
+              </button>
+            )}
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              aria-expanded={expanded}
+              onClick={() => setExpanded((v) => !v)}
+            >
+              {expanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+              Logs
+            </button>
+          </div>
+          {stepsOpen && (
+            <div className="mt-1.5 max-h-72 overflow-auto">
+              <BuildProgressView op={op} />
+            </div>
+          )}
           {expanded && <LogView id={op.id} />}
         </div>
       </div>
