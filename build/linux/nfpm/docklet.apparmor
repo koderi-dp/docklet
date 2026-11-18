@@ -1,0 +1,8 @@
+abi <abi/4.0>,
+include <tunables/global>
+
+profile docklet /usr/bin/docklet flags=(unconfined) {
+  userns,
+
+  include if exists <local/docklet>
+}

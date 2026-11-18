@@ -164,42 +164,55 @@ jobs:
           echo "$reported"
           echo "$reported" | grep -q "^Docklet "
 
-      # Start the real app under a virtual display and a private session bus, wait, and require
-      # that it is still running. A crash on startup (missing library, WebKit failure) fails the job.
-      - name: Smoke test (xvfb)
+      - name: Build the .deb
+        run: wails3 task linux:create:deb VERSION=0.0.0-ci
+
+      # The runner is a stock Ubuntu 24.04: unprivileged user namespaces are restricted by AppArmor and
+      # nothing here relaxes that. The smoke steps below use .github/scripts/linux-smoke.sh (Xvfb + a
+      # private session bus) and print the application log whether they pass or fail.
+      - name: Runner restricts user namespaces
         shell: bash
-        env:
-          WEBKIT_DISABLE_DMABUF_RENDERER: "1"
-          WEBKIT_DISABLE_COMPOSITING_MODE: "1"
-          GDK_BACKEND: x11
         run: |
           set -euo pipefail
-          # WebKitGTK sandboxes its helper processes with bubblewrap, which needs unprivileged user
-          # namespaces. Ubuntu 24.04 runners block those through AppArmor, so allow them for this job.
-          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-          export HOME="$RUNNER_TEMP/docklet-home"
-          mkdir -p "$HOME"
-          cat > "$RUNNER_TEMP/smoke.sh" <<'SMOKE'
-          #!/usr/bin/env bash
-          set -uo pipefail
-          ./bin/docklet > "$RUNNER_TEMP/docklet.log" 2>&1 &
-          pid=$!
-          sleep 15
-          if kill -0 "$pid" 2>/dev/null; then
-            echo "docklet is still running after 15s"
-            kill "$pid"
-            exit 0
+          value="$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns)"
+          echo "kernel.apparmor_restrict_unprivileged_userns=$value"
+          command -v bwrap
+          if [ "$value" != "1" ]; then
+            echo "::warning::The runner no longer restricts user namespaces; the next steps prove nothing about AppArmor."
           fi
-          wait "$pid"
-          echo "docklet exited early with status $?"
-          exit 1
-          SMOKE
-          chmod +x "$RUNNER_TEMP/smoke.sh"
-          status=0
-          xvfb-run -a --server-args="-screen 0 1440x900x24" dbus-run-session -- "$RUNNER_TEMP/smoke.sh" || status=$?
-          echo "---- application log ----"
-          cat "$RUNNER_TEMP/docklet.log" || true
-          exit "$status"
+
+      # No profile applies to ./bin/docklet, so WebKit's sandbox cannot start. Docklet must say so and exit
+      # with status 78 instead of crashing with SIGTRAP inside WebKit.
+      - name: Binary without a profile refuses with a clear message
+        shell: bash
+        env:
+          HOME: ${{ runner.temp }}/home-refuses
+          DOCKLET_LOG: ${{ runner.temp }}/refuses.log
+        run: bash .github/scripts/linux-smoke.sh refuses "$PWD/bin/docklet"
+
+      - name: Binary without a profile starts with the sandbox opt-out
+        shell: bash
+        env:
+          HOME: ${{ runner.temp }}/home-optout
+          DOCKLET_LOG: ${{ runner.temp }}/optout.log
+          DOCKLET_DISABLE_WEBKIT_SANDBOX: "1"
+        run: bash .github/scripts/linux-smoke.sh stays-up "$PWD/bin/docklet"
+
+      - name: Install the .deb and check the AppArmor profile is loaded
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y ./bin/*.deb
+          test -x /usr/bin/docklet
+          sudo cat /sys/kernel/security/apparmor/profiles | grep -E '^docklet '
+
+      # The installed binary is covered by the profile, so it starts with the WebKit sandbox enabled.
+      - name: Installed binary starts with the sandbox enabled
+        shell: bash
+        env:
+          HOME: ${{ runner.temp }}/home-installed
+          DOCKLET_LOG: ${{ runner.temp }}/installed.log
+        run: bash .github/scripts/linux-smoke.sh stays-up /usr/bin/docklet
 
       - uses: actions/upload-artifact@v4
         with:

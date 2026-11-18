@@ -58,6 +58,8 @@ Download the latest installer from the [Releases](https://github.com/koderi-dp/d
 
 The installers are not code signed yet, so Windows SmartScreen and macOS Gatekeeper will show a warning the first time.
 
+On Ubuntu 24.04 and newer, use the `.deb`: it installs the AppArmor profile that lets the web view start. The AppImage cannot install one, so run Ubuntu's profile once (`sudo apt install apparmor-profiles`, then `sudo cp /usr/share/apparmor/extra-profiles/bwrap-userns-restrict /etc/apparmor.d/ && sudo apparmor_parser -r /etc/apparmor.d/bwrap-userns-restrict`) or start it with `DOCKLET_DISABLE_WEBKIT_SANDBOX=1`.
+
 Windows is the main platform. Linux and macOS builds are new and have had little real-world use; please open an issue if something does not work.
 
 ## Requirements

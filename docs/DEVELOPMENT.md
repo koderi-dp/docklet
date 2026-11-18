@@ -57,6 +57,14 @@ Nothing is code signed yet. The workflow has comments where signing would go.
 
 On Linux a Secret Service (GNOME Keyring or KWallet) is needed to store SSH passwords. On Linux and macOS, well-known local Docker sockets (`/var/run/docker.sock`, rootless Docker, Docker Desktop, Colima, OrbStack) are offered when they exist.
 
+## Linux sandbox
+
+WebKitGTK 6.0 starts its helper processes inside bubblewrap, which needs unprivileged user namespaces. Ubuntu 24.04 restricts them (`kernel.apparmor_restrict_unprivileged_userns=1`): AppArmor lets the namespace be created but strips its capabilities, so `bwrap` fails with `setting up uid map: Permission denied` and WebKit aborts with SIGTRAP. CI runs on such a runner and does not relax the setting.
+
+- The `.deb` installs `/etc/apparmor.d/docklet` (`build/linux/nfpm/docklet.apparmor`, an `unconfined` profile with `userns` for `/usr/bin/docklet`). `postinstall.sh` loads it when AppArmor is running and removes it if the parser rejects it (22.04 does not know `abi <abi/4.0>` and does not need it); `preremove.sh` unloads it. Child processes such as `bwrap` inherit the profile. Ubuntu 25.04+ also ships its own `bwrap-userns-restrict` profile.
+- `internal/linuxsandbox` runs first in `main` and probes by running `bwrap --unshare-user` the way WebKit does. If user namespaces are denied it prints the fixes (the `.deb`, Ubuntu's `bwrap-userns-restrict` profile, a per-binary profile, the opt-out) and exits with status 78. A dev build or the AppImage hits this path.
+- `DOCKLET_DISABLE_WEBKIT_SANDBOX=1` sets `WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1` for that run, only when the probe fails. It removes the isolation of the web view's helper processes. The view only loads the bundled UI (links open in the system browser, there are no iframes), so the exposure is a bug in WebKit or the UI rendering untrusted container output.
+
 ## Known limitations
 
 - Image builds use the Engine's classic builder; BuildKit-only Dockerfile features such as `RUN --mount` do not work.

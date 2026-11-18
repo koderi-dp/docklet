@@ -7,6 +7,7 @@ import (
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 
+	"docklet/internal/linuxsandbox"
 	"docklet/internal/model"
 	"docklet/internal/secrets"
 )
@@ -37,6 +38,8 @@ func main() {
 	if handleVersionFlag(os.Args[1:]) {
 		return
 	}
+	// On Linux, explain a blocked WebKit sandbox before WebKit would crash on it.
+	linuxsandbox.Guard()
 	rt, err := newRuntime()
 	if err != nil {
 		log.Fatal(err)
