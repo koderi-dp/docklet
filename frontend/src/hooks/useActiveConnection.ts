@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Events } from "@wailsio/runtime";
 import { ConnectionService } from "@bindings/services";
 import { ConnectionState, type ConnectionProfile, type ConnectionStatus } from "@bindings/model";
@@ -15,6 +15,24 @@ export function useConnections() {
     queryFn: () => ConnectionService.List(),
     retry: false,
   });
+}
+
+/**
+ * Saved connections, other than `activeId`, whose last connection attempt failed. Used to flag a broken
+ * engine on the picker now that the sidebar no longer lists every connection. Reads the same cached
+ * status as useConnectionStatus; it never connects anything.
+ */
+export function useFailingConnections(conns: readonly ConnectionProfile[] | null | undefined, activeId: string | null): ConnectionProfile[] {
+  const others = (conns ?? []).filter((c) => c.id !== activeId);
+  const results = useQueries({
+    queries: others.map((c) => ({
+      queryKey: statusKey(c.id),
+      queryFn: () => ConnectionService.Status(c.id),
+      retry: false,
+      staleTime: 10_000,
+    })),
+  });
+  return others.filter((_, i) => results[i]?.data?.state === ConnectionState.StateError);
 }
 
 /** Status of one connection; connecting is an explicit action (see useSelectConnection), never implicit. */

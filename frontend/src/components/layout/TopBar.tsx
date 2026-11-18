@@ -1,8 +1,8 @@
-import { Check, ChevronDown, Moon, Plus, Search, Settings2, Sun } from "lucide-react";
+import { Check, ChevronDown, Moon, Plus, Search, Settings2, Sun, TriangleAlert } from "lucide-react";
 import { shortcutLabel } from "@/lib/platform";
 import { useNavigate } from "react-router-dom";
 import { useUI } from "@/stores/uiStore";
-import { useActiveConnection, useConnections, useConnectionStatus, useSelectConnection } from "@/hooks/useActiveConnection";
+import { useActiveConnection, useConnections, useConnectionStatus, useFailingConnections, useSelectConnection } from "@/hooks/useActiveConnection";
 import { ConnectionDot } from "@/components/connections/ConnectionStatus";
 import { stateText } from "@/components/connections/connectionMeta";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -35,6 +36,8 @@ export default function TopBar() {
   const { profile, status, connectionId } = useActiveConnection();
   const { data: conns } = useConnections();
   const select = useSelectConnection();
+  const failing = useFailingConnections(conns, connectionId);
+  const failingNote = failing.length === 1 ? `${failing[0].name} could not connect` : `${failing.length} other engines could not connect`;
   const navigate = useNavigate();
   const theme = useUI((s) => s.theme);
   const setTheme = useUI((s) => s.setTheme);
@@ -50,10 +53,18 @@ export default function TopBar() {
               <span className="truncate">{profile?.name ?? "No engine selected"}</span>
               {profile && <span className="hidden text-xs text-muted-foreground xl:inline">{stateText(status?.state)}</span>}
             </span>
-            <ChevronDown className="size-4 shrink-0 opacity-60" />
+            <span className="flex shrink-0 items-center gap-1">
+              {failing.length > 0 && (
+                <span title={failingNote} className="inline-flex">
+                  <TriangleAlert className="size-3.5 text-warning" aria-label={failingNote} />
+                </span>
+              )}
+              <ChevronDown className="size-4 opacity-60" />
+            </span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-72">
+          <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Docker engines</DropdownMenuLabel>
           {conns?.map((c) => (
             <PickerItem key={c.id} c={c} active={c.id === connectionId} onPick={() => void select(c.id)} />
           ))}
@@ -65,7 +76,7 @@ export default function TopBar() {
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => navigate("/connections")}>
             <Settings2 />
-            Manage connections
+            Manage connections…
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
