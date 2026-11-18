@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { LogLevel } from "@/lib/logLevel";
 import type { TimeRange } from "@/lib/logRange";
+import { mergeImported, type MergeResult } from "@/lib/logFilter/savedFiltersFile";
 import { newRuleId, ruleError, type IncludeMode, type Rule, type RuleKind, type RuleTarget } from "@/lib/logFilter/rules";
 import { useLogFilterStore, type SavedFilter } from "@/stores/logFilterStore";
 
@@ -44,6 +45,8 @@ export interface LogFilterState {
   applySaved: (id: string) => void;
   updateSaved: () => void;
   deleteSaved: (id: string) => void;
+  /** Adds filters read from a file (names that are taken get " (imported)"). */
+  importSaved: (incoming: SavedFilter[]) => MergeResult;
 }
 
 /**
@@ -155,12 +158,21 @@ export function useLogFilter({ restore }: { restore: boolean }): LogFilterState 
     [store],
   );
 
+  const importSaved = useCallback(
+    (incoming: SavedFilter[]) => {
+      const r = mergeImported(store.getState().saved, incoming);
+      store.getState().setSaved(r.merged);
+      return r;
+    },
+    [store],
+  );
+
   return {
     rules, includeMode, setIncludeMode, effectiveRules,
     text, setText, draftKind, setDraftKind, draftTarget, setDraftTarget, liveError, commitDraft,
     addRule, updateRule, removeRule,
     levels, toggleLevel, range, setRange,
     active: effectiveRules.length > 0 || levels.size > 0 || range !== "all",
-    clearAll, saved, activeSaved, modified, saveAs, applySaved, updateSaved, deleteSaved,
+    clearAll, saved, activeSaved, modified, saveAs, applySaved, updateSaved, deleteSaved, importSaved,
   };
 }

@@ -31,6 +31,14 @@
   --color-success: var(--status-success);
   --color-warning: var(--status-warning);
   --color-info: var(--status-info);
+  --color-log-tag-1: var(--log-tag-1);
+  --color-log-tag-2: var(--log-tag-2);
+  --color-log-tag-3: var(--log-tag-3);
+  --color-log-tag-4: var(--log-tag-4);
+  --color-log-tag-5: var(--log-tag-5);
+  --color-log-tag-6: var(--log-tag-6);
+  --color-log-tag-7: var(--log-tag-7);
+  --color-log-tag-8: var(--log-tag-8);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -68,6 +76,15 @@
   --status-success: #12853f;
   --status-warning: #a9650b;
   --status-info: #1370ad;
+  /* Container name colours in merged logs: eight hues spaced apart, same lightness. */
+  --log-tag-1: oklch(0.5 0.15 250);
+  --log-tag-2: oklch(0.5 0.15 75);
+  --log-tag-3: oklch(0.5 0.15 155);
+  --log-tag-4: oklch(0.5 0.15 335);
+  --log-tag-5: oklch(0.5 0.15 200);
+  --log-tag-6: oklch(0.5 0.15 300);
+  --log-tag-7: oklch(0.5 0.15 115);
+  --log-tag-8: oklch(0.5 0.15 25);
 }
 
 .dark {
@@ -98,6 +115,15 @@
   --status-success: #35d177;
   --status-warning: #f3b95b;
   --status-info: #54b9f9;
+  /* Container name colours in merged logs. */
+  --log-tag-1: oklch(0.76 0.13 250);
+  --log-tag-2: oklch(0.76 0.13 75);
+  --log-tag-3: oklch(0.76 0.13 155);
+  --log-tag-4: oklch(0.76 0.13 335);
+  --log-tag-5: oklch(0.76 0.13 200);
+  --log-tag-6: oklch(0.76 0.13 300);
+  --log-tag-7: oklch(0.76 0.13 115);
+  --log-tag-8: oklch(0.76 0.13 25);
 }
 
 /* Stock shadcn/ui base theme (neutral). Selected with <html data-palette="shadcn">. */

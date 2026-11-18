@@ -1,23 +1,45 @@
-import { useState } from "react";
-import { Bookmark, Check, Trash2 } from "lucide-react";
+import { useRef, useState } from "react";
+import { Bookmark, Check, Download, Trash2, Upload } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { downloadText } from "@/lib/downloadText";
+import { MAX_FILE_BYTES, parseSavedFilters, serializeSavedFilters } from "@/lib/logFilter/savedFiltersFile";
 import type { LogFilterState } from "./useLogFilter";
 
 /** Saved rule sets: save the open rules under a name, switch between sets, delete. */
 export function SavedFilters({ f }: { f: LogFilterState }) {
   const [name, setName] = useState("");
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
   const canSave = f.rules.length > 0 && name.trim() !== "";
   const save = () => {
     if (!canSave) return;
     f.saveAs(name);
     setName("");
   };
+  const exportAll = () => {
+    downloadText("docklet-log-filters.json", serializeSavedFilters(f.saved));
+    toast.success(`Exported ${f.saved.length} saved filter${f.saved.length === 1 ? "" : "s"}`);
+  };
+  const importFile = async (file: File) => {
+    setImportError(null);
+    if (file.size > MAX_FILE_BYTES) return setImportError("This file is too large to be a saved-filters file (over 1 MB).");
+    const parsed = parseSavedFilters(await file.text().catch(() => ""));
+    if (!parsed.ok) return setImportError(parsed.error);
+    const r = f.importSaved(parsed.filters);
+    toast.success(`Imported ${r.added} saved filter${r.added === 1 ? "" : "s"}`, { description: r.renamed > 0 ? `${r.renamed} had a name in use and got “(imported)” added.` : undefined });
+  };
   return (
-    <Popover onOpenChange={() => setConfirmId(null)}>
+    <Popover
+      onOpenChange={() => {
+        setConfirmId(null);
+        setImportError(null);
+      }}
+    >
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm" className="max-w-[200px] shrink-0 gap-1.5" title="Saved filters">
           <Bookmark className="size-3.5" />
@@ -74,6 +96,31 @@ export function SavedFilters({ f }: { f: LogFilterState }) {
             Save
           </Button>
         </form>
+        {importError && (
+          <p role="alert" className="rounded-md bg-destructive/10 px-2 py-1.5 text-xs text-destructive">
+            Could not import: {importError}
+          </p>
+        )}
+        <div className="flex items-center gap-1.5 border-t border-border pt-2">
+          <Button size="xs" variant="ghost" disabled={f.saved.length === 0} title={f.saved.length === 0 ? "Nothing saved to export yet" : "Save all saved filters to a JSON file"} onClick={exportAll}>
+            <Download /> Export…
+          </Button>
+          <Button size="xs" variant="ghost" title="Add saved filters from a JSON file made by Export" onClick={() => fileInput.current?.click()}>
+            <Upload /> Import…
+          </Button>
+          <input
+            ref={fileInput}
+            type="file"
+            accept=".json,application/json"
+            className="hidden"
+            aria-label="Saved filters file"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = "";
+              if (file) void importFile(file);
+            }}
+          />
+        </div>
       </PopoverContent>
     </Popover>
   );

@@ -43,5 +43,5 @@ export function useLogSelection(containers: readonly Container[] | undefined, on
     setCapped(null);
   }, []);
 
-  return { ticked, setMany, clear, capped };
+  return { ticked, setMany, clear, capped, /** The first selection has been made (containers loaded). */ ready: picked !== null };
 }

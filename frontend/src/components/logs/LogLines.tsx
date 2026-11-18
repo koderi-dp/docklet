@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ContextMenu, ContextMenuTrigger } from "@/components/ui/context-menu";
+import { cn } from "@/lib/utils";
 import type { LogEntry } from "@/lib/logEntry";
 import type { HighlightColour } from "@/lib/logFilter/rules";
 import { LineMenu, type LineActions, type LineContext } from "./LineMenu";
@@ -20,12 +21,14 @@ interface Props {
   ariaLabel: string;
   /** Shown instead of the list when there is nothing to show. */
   empty?: ReactNode;
+  /** Overrides the default frame (a split pane draws its own border and may be short). */
+  className?: string;
 }
 
 const ROW_ESTIMATE = 18;
 
 /** Virtualised log list: only the visible rows are in the DOM, however many lines are loaded. */
-export function LogLines({ entries, highlights, showContainer, tagWidth, timestamps, wrap, follow, onFollowChange, actions, ariaLabel, empty }: Props) {
+export function LogLines({ entries, highlights, showContainer, tagWidth, timestamps, wrap, follow, onFollowChange, actions, ariaLabel, empty, className }: Props) {
   const scroller = useRef<HTMLDivElement>(null);
   const lastTop = useRef(0);
   const [ctx, setCtx] = useState<LineContext | null>(null);
@@ -84,7 +87,7 @@ export function LogLines({ entries, highlights, showContainer, tagWidth, timesta
           aria-label={ariaLabel}
           onScroll={onScroll}
           onContextMenu={captureContext}
-          className="h-full min-h-[160px] overflow-auto rounded-md border border-border bg-muted/30 font-mono text-[11.5px] leading-[1.45]"
+          className={cn("h-full min-h-[160px] overflow-auto rounded-md border border-border bg-muted/30 font-mono text-[11.5px] leading-[1.45]", className)}
         >
           {entries.length === 0 ? (
             (empty ?? null)

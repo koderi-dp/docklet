@@ -1,4 +1,4 @@
-import { useCallback, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { ArrowDownToLine } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,8 @@ interface Props {
   ariaLabel: string;
   /** File name (without extension) for download. */
   downloadName: string;
+  /** Replaces the single list (the split view draws its panes here). Wrap and Time stay global. */
+  renderBody?: (ctx: { wrap: boolean; timestamps: boolean; actions: LineActions; empty: ReactNode }) => ReactNode;
   className?: string;
 }
 
@@ -54,10 +56,11 @@ export function LogView(p: Props) {
   const copyText = useCallback((text: string) => {
     navigator.clipboard.writeText(text).catch((e: unknown) => toast.error("Could not copy", { description: String(e) }));
   }, []);
-  const actions: LineActions = {
-    addRule: (kind, target, pattern) => filter.addRule({ kind, target, pattern }),
-    copy: copyText,
-  };
+  const addRule = filter.addRule;
+  const actions: LineActions = useMemo(
+    () => ({ addRule: (kind, target, pattern) => addRule({ kind, target, pattern }), copy: copyText }),
+    [addRule, copyText],
+  );
 
   const filteredOut = p.total > 0 && visible.length === 0;
   const empty = filteredOut ? (
@@ -96,26 +99,30 @@ export function LogView(p: Props) {
         }
       />
       <div className="min-w-0 text-xs text-muted-foreground">{p.status}</div>
-      <div className="relative min-h-0 flex-1">
-        <LogLines
-          entries={visible}
-          highlights={result.highlights}
-          showContainer={p.showContainer}
-          tagWidth={p.tagWidth}
-          timestamps={timestamps}
-          wrap={wrap}
-          follow={follow}
-          onFollowChange={setFollow}
-          actions={actions}
-          ariaLabel={p.ariaLabel}
-          empty={empty}
-        />
-        {!follow && visible.length > 0 && (
-          <Button size="sm" className="absolute right-4 bottom-3 shadow-sm" onClick={() => setFollow(true)}>
-            <ArrowDownToLine className="size-3.5" /> Jump to latest
-          </Button>
-        )}
-      </div>
+      {p.renderBody ? (
+        <div className="min-h-0 flex-1">{p.renderBody({ wrap, timestamps, actions, empty })}</div>
+      ) : (
+        <div className="relative min-h-0 flex-1">
+          <LogLines
+            entries={visible}
+            highlights={result.highlights}
+            showContainer={p.showContainer}
+            tagWidth={p.tagWidth}
+            timestamps={timestamps}
+            wrap={wrap}
+            follow={follow}
+            onFollowChange={setFollow}
+            actions={actions}
+            ariaLabel={p.ariaLabel}
+            empty={empty}
+          />
+          {!follow && visible.length > 0 && (
+            <Button size="sm" className="absolute right-4 bottom-3 shadow-sm" onClick={() => setFollow(true)}>
+              <ArrowDownToLine className="size-3.5" /> Jump to latest
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,17 +1,17 @@
 import type { HighlightColour } from "@/lib/logFilter/rules";
 import type { LogLevel } from "@/lib/logLevel";
 
-// Container tag colours: theme tokens only (status colours, primary and mixes of them), so both themes and
-// both palettes stay readable. Class strings are written out in full so Tailwind can see them.
+// Container tag colours: the --log-tag-* tokens from globals.css (eight hues spaced apart, tuned per theme).
+// Class strings are written out in full so Tailwind can see them.
 const TONES = [
-  { text: "text-primary", dot: "bg-primary" },
-  { text: "text-info", dot: "bg-info" },
-  { text: "text-success", dot: "bg-success" },
-  { text: "text-warning", dot: "bg-warning" },
-  { text: "text-[color:color-mix(in_oklab,var(--primary),var(--destructive))]", dot: "bg-[color-mix(in_oklab,var(--primary),var(--destructive))]" },
-  { text: "text-[color:color-mix(in_oklab,var(--status-info),var(--status-success))]", dot: "bg-[color-mix(in_oklab,var(--status-info),var(--status-success))]" },
-  { text: "text-[color:color-mix(in_oklab,var(--status-warning),var(--destructive))]", dot: "bg-[color-mix(in_oklab,var(--status-warning),var(--destructive))]" },
-  { text: "text-[color:color-mix(in_oklab,var(--primary),var(--status-info))]", dot: "bg-[color-mix(in_oklab,var(--primary),var(--status-info))]" },
+  { text: "text-log-tag-1", dot: "bg-log-tag-1" },
+  { text: "text-log-tag-2", dot: "bg-log-tag-2" },
+  { text: "text-log-tag-3", dot: "bg-log-tag-3" },
+  { text: "text-log-tag-4", dot: "bg-log-tag-4" },
+  { text: "text-log-tag-5", dot: "bg-log-tag-5" },
+  { text: "text-log-tag-6", dot: "bg-log-tag-6" },
+  { text: "text-log-tag-7", dot: "bg-log-tag-7" },
+  { text: "text-log-tag-8", dot: "bg-log-tag-8" },
 ] as const;
 
 const assigned = new Map<string, number>();

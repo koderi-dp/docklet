@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { PanelLeftOpen, ScrollText } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -6,12 +6,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { useContainersQuery } from "@/hooks/useContainers";
+import { useElementWidth } from "@/hooks/useElementWidth";
 import { OVERALL_CAP, PER_CONTAINER_CAP } from "@/lib/logMerge";
 import { MAX_STREAMS } from "@/lib/logSources";
+import type { TickedItem } from "@/lib/logPanes";
 import { useUI } from "@/stores/uiStore";
 import { useLogFilterStore } from "@/stores/logFilterStore";
 import { ContainerPicker } from "./ContainerPicker";
 import { LogView } from "./LogView";
+import { LayoutSwitch } from "./split/LayoutSwitch";
+import { SplitLayout } from "./split/SplitLayout";
+import { usePaneAssignments } from "./split/usePaneAssignments";
 import { useFilteredLogs } from "./useFilteredLogs";
 import { useLogFilter } from "./useLogFilter";
 import { useLogSelection } from "./useLogSelection";
@@ -21,6 +26,9 @@ import { useMergedLogStreams } from "./useMergedLogStreams";
 function initialTail(setting: number): number {
   return setting > 0 ? Math.min(setting, 1000) : 500;
 }
+
+/** Below this width of the log area, side-by-side panes are stacked instead. */
+const NARROW_PX = 760;
 
 /** The Logs screen: pick containers on the left, read one merged, filterable stream on the right. */
 export function LogsScreen({ connectionId }: { connectionId: string }) {
@@ -41,6 +49,15 @@ export function LogsScreen({ connectionId }: { connectionId: string }) {
     [containers, sel.ticked],
   );
   const streams = useMergedLogStreams(connectionId, targets, initialTail(logTail));
+  const items = useMemo<TickedItem[]>(
+    () => (containers ?? []).filter((c) => sel.ticked.has(c.id)).map((c) => ({ name: c.name, project: c.composeProject || null })),
+    [containers, sel.ticked],
+  );
+  const split = usePaneAssignments(connectionId, items, sel.ready);
+  const area = useRef<HTMLDivElement>(null);
+  const areaWidth = useElementWidth(area);
+  const narrow = areaWidth > 0 && areaWidth < NARROW_PX;
+  const drawn = narrow && split.layout === "cols" ? "stack2" : narrow && split.layout === "grid" ? "stack4" : split.layout;
   const filter = useLogFilter({ restore: true });
   const result = useFilteredLogs(streams.lines, filter);
 
@@ -99,6 +116,31 @@ export function LogsScreen({ connectionId }: { connectionId: string }) {
         paused={streams.paused}
         onPause={() => streams.setPaused(!streams.paused)}
         canPause
+        extra={<LayoutSwitch layout={split.layout} onChange={split.setLayout} narrow={narrow} />}
+        renderBody={
+          split.layout === "single"
+            ? undefined
+            : (ctx) => (
+                <SplitLayout
+                  key={split.layout}
+                  layout={drawn}
+                  panes={split.panes}
+                  items={items}
+                  visible={result.visible}
+                  highlights={result.highlights}
+                  wrap={ctx.wrap}
+                  timestamps={ctx.timestamps}
+                  actions={ctx.actions}
+                  streamEmpty={ctx.empty}
+                  note={split.note}
+                  sizes={split.sizes}
+                  onSizes={split.setSizes}
+                  onPaneAll={split.setPaneAll}
+                  onPaneNames={split.setPaneNames}
+                  downloadName="docklet-logs"
+                />
+              )
+        }
         onClear={streams.clear}
         emptyNoLines={<p className="p-3 text-muted-foreground">{connecting > 0 ? "Connecting to log streams…" : "No log output yet. New lines appear as the containers write them."}</p>}
         ariaLabel="Merged container logs"
@@ -124,7 +166,9 @@ export function LogsScreen({ connectionId }: { connectionId: string }) {
             <ContainerPicker containers={containers} ticked={sel.ticked} onSet={sel.setMany} onClear={sel.clear} infos={streams.infos} capped={sel.capped} onCollapse={() => setCollapsed(true)} />
           )
         )}
-        <div className="min-w-0 flex-1">{body}</div>
+        <div ref={area} className="min-w-0 flex-1">
+          {body}
+        </div>
       </div>
     </div>
   );
