@@ -1,5 +1,6 @@
 import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { emptyPort, type FormState, type MountRow } from "./createContainerForm";
 
@@ -107,7 +108,7 @@ export function ContainerFormFields({ form, onChange, edit, nameLabel }: Props) 
             <Input value={r.source} onChange={(e) => upd("mounts", i, { source: e.target.value })} placeholder={r.type === "bind" ? "Host path" : "Volume name"} className="font-mono" aria-label="Mount source" />
             <Input value={r.target} onChange={(e) => upd("mounts", i, { target: e.target.value })} placeholder="/container/path" className="font-mono" aria-label="Mount target" />
             <label className="flex items-center gap-1 text-xs text-muted-foreground">
-              <input type="checkbox" checked={r.readOnly} onChange={(e) => upd("mounts", i, { readOnly: e.target.checked })} /> RO
+              <Checkbox checked={r.readOnly} onCheckedChange={(c) => upd("mounts", i, { readOnly: c === true })} /> RO
             </label>
             <Button type="button" size="icon" variant="ghost" aria-label="Remove mount" title="Remove mount" onClick={() => del("mounts", i)}>
               <X className="size-4" />
@@ -138,7 +139,7 @@ export function ContainerFormFields({ form, onChange, edit, nameLabel }: Props) 
         </Field>
       )}
       <label className="flex items-center gap-2 text-[13px]">
-        <input type="checkbox" checked={form.autoStart} onChange={(e) => onChange({ autoStart: e.target.checked })} />
+        <Checkbox checked={form.autoStart} onCheckedChange={(c) => onChange({ autoStart: c === true })} />
         {edit ? "Start the new container after recreating" : "Start after create"}
       </label>
     </>

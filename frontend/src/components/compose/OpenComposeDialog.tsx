@@ -180,7 +180,9 @@ export function OpenComposeDialog({ connectionId, open, onOpenChange, onAdded, i
 
           <label className="flex items-center gap-2 text-xs">
             <Checkbox checked={startAfter} onCheckedChange={(c) => setStartAfter(c === true)} />
-            Start the project after adding (<span className="font-mono">docker compose up -d</span>)
+            <span>
+              Start the project after adding (<span className="font-mono">docker compose up -d</span>)
+            </span>
           </label>
 
           {error && (

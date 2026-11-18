@@ -1,4 +1,5 @@
 import { AlertTriangle } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import type { ContainerCreateSpec, ContainerRecreateInfo } from "@bindings/model";
 import { diffSpecs, isTagChange, type SpecChange } from "./specDiff";
 
@@ -47,8 +48,10 @@ export function RecreateSummary({ info, edited, copy, pullFirst, onPullFirst }: 
       )}
 
       <label className="flex items-center gap-2">
-        <input type="checkbox" checked={pullFirst} onChange={(e) => onPullFirst(e.target.checked)} />
-        Pull image first (<span className="font-mono text-xs">{edited.image.trim()}</span>)
+        <Checkbox checked={pullFirst} onCheckedChange={(c) => onPullFirst(c === true)} />
+        <span>
+          Pull image first (<span className="font-mono text-xs">{edited.image.trim()}</span>)
+        </span>
       </label>
 
       <p className="rounded-md border border-border bg-muted/40 px-3 py-2">

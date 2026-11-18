@@ -16,7 +16,8 @@ export function formatBytes(n: number): string {
 export function formatPortLong(p: PortBinding): string {
   const target = `${p.containerPort}/${p.protocol || "tcp"}`;
   if (!p.hostPort) return target;
-  return `${p.hostIp ? `${p.hostIp}:` : ""}${p.hostPort} → ${target}`;
+  const ip = p.hostIp?.includes(":") && !p.hostIp.startsWith("[") ? `[${p.hostIp}]` : p.hostIp;
+  return `${ip ? `${ip}:` : ""}${p.hostPort} → ${target}`;
 }
 
 function portLabel(p: PortBinding): string {

@@ -22,7 +22,7 @@ export function PortsCell({ container }: { container: Container }) {
   const ports = publishedBindings(container.ports ?? []);
   if (ports.length === 0) return <Dash />;
   return (
-    <span className="font-mono text-xs" title={ports.map((x) => x.label).join(", ")}>
+    <span className="block max-w-[190px] truncate font-mono text-xs" title={ports.map((x) => x.label).join(", ")}>
       {ports.slice(0, 2).map((x, i) => (
         <span key={x.label}>
           {i > 0 && ", "}

@@ -157,7 +157,7 @@ export function LogViewer({ connectionId, containerId, containerName, compact, c
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <span>
           {statusText}
-          {filtered ? ` · ${shown.length} of ${lines.length} lines` : ` · ${lines.length} lines`}
+          {filtered ? ` · ${shown.length} of ${lines.length} lines` : ` · ${lines.length} ${lines.length === 1 ? "line" : "lines"}`}
           {view.hasQuery && ` · ${totalMatches === 0 ? "no matches" : `${totalMatches} match${totalMatches === 1 ? "" : "es"} (${active + 1} of ${totalMatches})`}`}
           {lines.length >= MAX_LOG_LINES && ` (view keeps the latest ${MAX_LOG_LINES})`}
           {follow ? " · following" : ""}

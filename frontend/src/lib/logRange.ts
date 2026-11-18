@@ -4,7 +4,7 @@ export const TIME_RANGES: Array<{ id: TimeRange; label: string; ms: number | nul
   { id: "5m", label: "Last 5 min", ms: 5 * 60_000 },
   { id: "15m", label: "Last 15 min", ms: 15 * 60_000 },
   { id: "1h", label: "Last hour", ms: 60 * 60_000 },
-  { id: "all", label: "All", ms: null },
+  { id: "all", label: "All time", ms: null },
 ];
 
 /** Epoch ms of an Engine RFC3339(Nano) timestamp; undefined when missing or unreadable. */

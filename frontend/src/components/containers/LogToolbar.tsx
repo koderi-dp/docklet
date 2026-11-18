@@ -1,10 +1,11 @@
 import { ChevronDown, ChevronUp, Copy, Download, Eraser, Pause, Play, Regex, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { IconButton } from "@/components/shared/IconButton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { TIME_RANGES, type TimeRange } from "@/lib/logRange";
-import type { LogLevel } from "@/lib/logLevel";
 import { cn } from "@/lib/utils";
+import { LevelChips, LogFilterPopover, selectClass, TimeRangeSelect } from "./LogLevelFilters";
 import type { useLogView } from "./useLogView";
 
 export const TAIL_OPTIONS: Array<{ label: string; value: number }> = [
@@ -15,19 +16,7 @@ export const TAIL_OPTIONS: Array<{ label: string; value: number }> = [
   { label: "All", value: -1 },
 ];
 
-const LEVEL_LABEL: Record<LogLevel, string> = { error: "Error", warn: "Warn", info: "Info", debug: "Debug", other: "Other" };
-const LEVEL_DOT: Record<LogLevel, string> = {
-  error: "bg-destructive",
-  warn: "bg-warning",
-  info: "bg-info",
-  debug: "bg-muted-foreground/60",
-  other: "bg-border",
-};
-
 type View = ReturnType<typeof useLogView>;
-
-const selectClass =
-  "h-8 rounded-md border border-border bg-card px-2 text-[13px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/60";
 
 export interface LogToolbarProps {
   view: View;
@@ -51,8 +40,8 @@ export interface LogToolbarProps {
 export function LogToolbar(p: LogToolbarProps) {
   const v = p.view;
   return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="@container space-y-2">
+      <div className={cn("flex items-center gap-2", p.compact && "flex-wrap")}>
         <div className="relative min-w-[160px] flex-1">
           <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -94,64 +83,42 @@ export function LogToolbar(p: LogToolbarProps) {
             </Button>
           </div>
         </div>
-        <select aria-label="Tail lines" value={p.tail} onChange={(e) => p.onTail(Number(e.target.value))} className={selectClass}>
+        {/* Wide: chips and range inline; narrow: both inside the Filters popover. */}
+        <LevelChips view={v} className="hidden @[1020px]:flex" />
+        <TimeRangeSelect view={v} className="hidden @[1020px]:block" />
+        <div className="@[1020px]:hidden">
+          <LogFilterPopover view={v} />
+        </div>
+        <select aria-label="Tail lines" value={p.tail} onChange={(e) => p.onTail(Number(e.target.value))} className={cn(selectClass, "shrink-0")}>
           {TAIL_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
               {o.label}
             </option>
           ))}
         </select>
-        <label className="flex cursor-pointer items-center gap-1.5 text-[13px]">
-          <input type="checkbox" checked={p.timestamps} onChange={(e) => p.onTimestamps(e.target.checked)} className="accent-primary" />
+        <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-[13px]">
+          <Checkbox checked={p.timestamps} onCheckedChange={(c) => p.onTimestamps(c === true)} />
           Timestamps
         </label>
-        <Button size="sm" variant="outline" onClick={p.onPause} disabled={!p.canPause}>
+        <Button size="sm" variant="outline" className="shrink-0" onClick={p.onPause} disabled={!p.canPause}>
           {p.paused ? <Play className="size-3.5" /> : <Pause className="size-3.5" />}
           {p.paused ? "Resume" : "Pause"}
         </Button>
         {!p.compact && (
           <>
-            <Button size="sm" variant="outline" onClick={p.onCopy} disabled={p.visibleCount === 0} title="Copies the lines currently shown (after filters)">
-              <Copy className="size-3.5" /> Copy visible
-            </Button>
-            <Button size="sm" variant="outline" onClick={p.onDownload} disabled={p.visibleCount === 0}>
-              <Download className="size-3.5" /> Download
-            </Button>
+            <IconButton variant="outline" label="Copy visible" tooltip="Copy the lines currently shown (after filters)" onClick={p.onCopy} disabled={p.visibleCount === 0}>
+              <Copy className="size-3.5" />
+            </IconButton>
+            <IconButton variant="outline" label="Download" tooltip="Download the lines currently shown" onClick={p.onDownload} disabled={p.visibleCount === 0}>
+              <Download className="size-3.5" />
+            </IconButton>
           </>
         )}
-        <Button size="sm" variant="outline" onClick={p.onClear} disabled={!p.hasLines} title="Clears this view only; the container's logs are not touched">
-          <Eraser className="size-3.5" /> Clear view
-        </Button>
+        <IconButton variant="outline" label="Clear view" tooltip="Clears this view only; the container's logs are not touched" onClick={p.onClear} disabled={!p.hasLines}>
+          <Eraser className="size-3.5" />
+        </IconButton>
       </div>
 
-      <div className="flex flex-wrap items-center gap-1.5 text-xs">
-        {v.levelOrder.map((l) => {
-          const on = v.levels.has(l);
-          return (
-            <button
-              key={l}
-              type="button"
-              aria-pressed={on}
-              onClick={() => v.toggleLevel(l)}
-              className={cn(
-                "inline-flex h-6 items-center gap-1.5 rounded-md border px-2 transition-colors focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none",
-                on ? "border-primary/50 bg-primary/10 text-foreground" : "border-border text-muted-foreground hover:bg-muted/60",
-              )}
-            >
-              <span aria-hidden className={cn("size-1.5 rounded-full", LEVEL_DOT[l])} />
-              {LEVEL_LABEL[l]}
-              <span className="tabular-nums">{v.counts[l]}</span>
-            </button>
-          );
-        })}
-        <select aria-label="Time range" value={v.range} onChange={(e) => v.setRange(e.target.value as TimeRange)} className={cn(selectClass, "ml-auto h-6 text-xs")}>
-          {TIME_RANGES.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.label}
-            </option>
-          ))}
-        </select>
-      </div>
       {v.regexError && (
         <p role="alert" className="text-xs text-destructive">
           Invalid regular expression: {v.regexError}. No lines are filtered.

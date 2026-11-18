@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import type { Container, DiskUsage, EngineEvent, EngineInfo } from "@bindings/model";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { StatusBadge } from "@/components/shared/StatusBadge";
+import { ContainerStatusBadge } from "@/components/containers/ContainerStatusBadge";
 import { formatBytes } from "@/components/containers/format";
 import { Bytes, Card, InfoGrid, NotAvailable, formatEventTime } from "@/components/system/parts";
 import { attrSummary } from "@/components/system/EventsTab";
@@ -103,7 +103,7 @@ export function RecentContainersCard({ containers, onViewAll }: { containers: Q<
                 {c.name}
               </Link>
               <span className="hidden max-w-[160px] truncate text-muted-foreground sm:block" title={c.image}>{c.image}</span>
-              <StatusBadge state={c.state} />
+              <ContainerStatusBadge container={c} />
             </li>
           ))}
         </ul>

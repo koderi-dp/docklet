@@ -4,7 +4,8 @@ import { Layers, Play, RotateCw, Square } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { HealthBadge, StateDot, StatusBadge } from "@/components/shared/StatusBadge";
+import { ContainerStatusBadge } from "@/components/containers/ContainerStatusBadge";
+import { HealthBadge, StateDot } from "@/components/shared/StatusBadge";
 import { publishedPorts } from "@/components/containers/format";
 import { useComposeVerb, useProjectEngineBatch } from "@/hooks/useCompose";
 import { ineligibleReason, partitionByEligibility } from "@/lib/actionEligibility";
@@ -173,7 +174,7 @@ function ServiceRows({
               </span>
             </td>
             <td className="px-3">
-              <StatusBadge state={c.state} />
+              <ContainerStatusBadge container={c} />
             </td>
             <td className="px-3">
               <HealthBadge health={c.health} />

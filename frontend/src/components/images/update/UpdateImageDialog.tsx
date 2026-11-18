@@ -5,6 +5,7 @@ import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { ContainerService } from "@bindings/services";
 import type { ContainerRecreateInfo } from "@bindings/model";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/shared/StatusBadge";
@@ -108,7 +109,7 @@ function ContainerRow(p: {
   return (
     <div className="rounded-md border border-border px-3 py-2">
       <div className="flex items-center gap-2">
-        {kind === "recreate" && <input type="checkbox" checked={p.ticked} disabled={p.disabled} onChange={p.onToggle} aria-label={`Recreate ${info.name}`} />}
+        {kind === "recreate" && <Checkbox checked={p.ticked} disabled={p.disabled} onCheckedChange={() => p.onToggle()} aria-label={`Recreate ${info.name}`} />}
         <span className="min-w-0 flex-1 truncate font-medium">{info.name}</span>
         <StatusBadge state={p.state} />
         {p.item && <ItemState item={p.item} />}

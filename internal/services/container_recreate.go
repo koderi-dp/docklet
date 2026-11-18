@@ -199,7 +199,11 @@ func (s *ContainerService) swap(ctx context.Context, cli *client.Client, p *recr
 			}
 		}
 		h.Log("Rollback finished; the original container is back.")
-		return friendlyError(cause)
+		note := "The original container was kept"
+		if p.wasRunning && stopped {
+			note = "The original container was restored and started again"
+		}
+		return fmt.Errorf("%w (%s)", friendlyError(cause), note)
 	}
 
 	if p.wasRunning {

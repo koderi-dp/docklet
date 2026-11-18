@@ -3,10 +3,10 @@ import { Link } from "react-router-dom";
 import { Monitor, Moon, Sun } from "lucide-react";
 import pkg from "../../package.json";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { SettingRow as Row } from "@/components/settings/SettingRow";
 import { ExternalTerminalRow } from "@/components/settings/ExternalTerminalRow";
 import { NotificationSettingsSection } from "@/components/notifications/NotificationSettingsSection";
 import { cn } from "@/lib/utils";
@@ -21,20 +21,6 @@ function Section({ title, description, children }: { title: string; description?
       </div>
       <div className="divide-y">{children}</div>
     </section>
-  );
-}
-
-function Row({ label, htmlFor, hint, children }: { label: string; htmlFor?: string; hint?: ReactNode; children: ReactNode }) {
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-      <div className="min-w-0 max-w-md">
-        <Label htmlFor={htmlFor} className="text-sm font-medium">
-          {label}
-        </Label>
-        {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
-      </div>
-      <div className="shrink-0">{children}</div>
-    </div>
   );
 }
 

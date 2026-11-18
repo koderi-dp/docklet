@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
   columnVisibilityFeature,
@@ -27,7 +27,7 @@ const RESPONSIVE_COL: Record<string, string> = {
   project: "hidden @[900px]:table-cell",
   cpu: "hidden text-right @[900px]:table-cell",
   memory: "hidden text-right @[820px]:table-cell",
-  uptime: "hidden pl-6 @[1000px]:table-cell",
+  uptime: "hidden pl-6 @[1200px]:table-cell",
 };
 
 /** Columns the user can sort by (see lib/containerSort). */
@@ -79,6 +79,9 @@ export function ContainerTable(p: ContainerTableProps) {
   const allIds = useMemo(() => containerRows.map((r) => r.container.id), [containerRows]);
   const headerState = checkState(allIds, p.selected);
 
+  const live = useRef({ p, headerState, allIds });
+  live.current = { p, headerState, allIds };
+
   const columns = useMemo(
     () =>
       helper.columns([
@@ -86,8 +89,8 @@ export function ContainerTable(p: ContainerTableProps) {
           id: "select",
           header: () => (
             <TriCheckbox
-              state={headerState}
-              onToggle={() => p.onToggleSelectMany(allIds)}
+              state={live.current.headerState}
+              onToggle={() => live.current.p.onToggleSelectMany(live.current.allIds)}
               label="Select all visible containers"
             />
           ),
@@ -96,8 +99,8 @@ export function ContainerTable(p: ContainerTableProps) {
             if (r.kind !== "container") return null;
             return (
               <TriCheckbox
-                state={p.selected.has(r.container.id) ? "checked" : "unchecked"}
-                onToggle={(shift) => (shift ? p.onSelectRange(allIds, r.container.id) : p.onToggleSelect(r.container.id))}
+                state={live.current.p.selected.has(r.container.id) ? "checked" : "unchecked"}
+                onToggle={(shift) => (shift ? live.current.p.onSelectRange(live.current.allIds, r.container.id) : live.current.p.onToggleSelect(r.container.id))}
                 label={`Select ${r.container.name}`}
               />
             );
@@ -111,8 +114,8 @@ export function ContainerTable(p: ContainerTableProps) {
             if (r.kind !== "container") return null;
             const c = r.container;
             return (
-              <div className="flex min-w-0 items-center gap-2">
-                {p.inFlight.has(c.id) ? (
+              <div className="flex min-w-0 max-w-[260px] items-center gap-2">
+                {live.current.p.inFlight.has(c.id) ? (
                   <Loader2 className="size-3.5 shrink-0 animate-spin text-warning" aria-label="Action in progress" />
                 ) : (
                   <StateDot state={c.state} />
@@ -184,7 +187,7 @@ export function ContainerTable(p: ContainerTableProps) {
           header: "CPU",
           cell: (ctx) => {
             const r = ctx.row.original;
-            return r.kind === "container" ? <CpuCell container={r.container} stat={p.stats.get(r.container.id)} /> : null;
+            return r.kind === "container" ? <CpuCell container={r.container} stat={live.current.p.stats.get(r.container.id)} /> : null;
           },
         }),
         helper.display({
@@ -192,7 +195,7 @@ export function ContainerTable(p: ContainerTableProps) {
           header: "Memory",
           cell: (ctx) => {
             const r = ctx.row.original;
-            return r.kind === "container" ? <MemoryCell container={r.container} stat={p.stats.get(r.container.id)} /> : null;
+            return r.kind === "container" ? <MemoryCell container={r.container} stat={live.current.p.stats.get(r.container.id)} /> : null;
           },
         }),
         helper.display({
@@ -216,19 +219,20 @@ export function ContainerTable(p: ContainerTableProps) {
                   id={c.id}
                   name={c.name}
                   state={c.state}
-                  busy={p.inFlight.has(c.id)}
-                  onAction={(a) => p.onContainerAction(a, c)}
-                  onInspect={() => p.onInspect(c)}
-                  onOpenDetails={() => p.onOpenDetails(c)}
-                  onCopyId={() => p.onCopyId(c)}
+                  busy={live.current.p.inFlight.has(c.id)}
+                  onAction={(a) => live.current.p.onContainerAction(a, c)}
+                  onInspect={() => live.current.p.onInspect(c)}
+                  onOpenDetails={() => live.current.p.onOpenDetails(c)}
+                  onCopyId={() => live.current.p.onCopyId(c)}
                 />
               </div>
             );
           },
         }),
       ]),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [p.selected, p.inFlight, p.stats, headerState, allIds, p.onToggleSelect, p.onToggleSelectMany, p.onSelectRange, p.onInspect, p.onContainerAction, p.onCopyId],
+    // Cells read the latest props through `live`, so the columns (and with them every cell component) stay
+    // stable: new column functions would remount the cells and close an open row menu on every stats tick.
+    [],
   );
 
   const table = useTable({
