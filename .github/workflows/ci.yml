@@ -41,12 +41,13 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-          cache: true
+          # A self-hosted runner keeps its caches on disk; uploading them to GitHub only costs time.
+          cache: ${{ runner.environment != 'self-hosted' }}
 
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: npm
+          cache: ${{ runner.environment != 'self-hosted' && 'npm' || '' }}
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install Wails CLI
@@ -129,12 +130,13 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-          cache: true
+          # A self-hosted runner keeps its caches on disk; uploading them to GitHub only costs time.
+          cache: ${{ runner.environment != 'self-hosted' }}
 
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: npm
+          cache: ${{ runner.environment != 'self-hosted' && 'npm' || '' }}
           cache-dependency-path: frontend/package-lock.json
 
       # Wails v3.1 links GTK 4 and WebKitGTK 6.0 (the list `wails3 doctor` checks on apt systems).
@@ -273,12 +275,13 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-          cache: true
+          # A self-hosted runner keeps its caches on disk; uploading them to GitHub only costs time.
+          cache: ${{ runner.environment != 'self-hosted' }}
 
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: npm
+          cache: ${{ runner.environment != 'self-hosted' && 'npm' || '' }}
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install Wails CLI
