@@ -124,7 +124,9 @@ jobs:
           for arch in amd64 arm64; do
             GOARCH="$arch" wails3 package "VERSION=$VERSION"
             if [[ "$arch" == "amd64" ]]; then
-              ./bin/docklet.exe --version | tee /dev/stderr | grep -qx "Docklet $VERSION"
+              reported="$(./bin/docklet.exe --version | tr -d '')"
+              echo "$reported"
+              echo "$reported" | grep -qx "Docklet $VERSION"
             fi
             mv bin/docklet.exe "dist/docklet-$VERSION-windows-$arch.exe"
             mv "bin/docklet-$arch-installer.exe" "dist/docklet-$VERSION-windows-$arch-installer.exe"
@@ -199,7 +201,9 @@ jobs:
           set -euo pipefail
           wails3 task linux:create:appimage "VERSION=$VERSION"
           wails3 task linux:create:deb "VERSION=$VERSION"
-          ./bin/docklet --version | tee /dev/stderr | grep -qx "Docklet $VERSION"
+          reported="$(./bin/docklet --version | tr -d '')"
+          echo "$reported"
+          echo "$reported" | grep -qx "Docklet $VERSION"
           ls -l bin
           mkdir -p dist
           appimage=$(ls bin/*.AppImage | head -n 1)

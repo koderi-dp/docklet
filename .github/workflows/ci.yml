@@ -70,7 +70,9 @@ jobs:
         run: |
           set -euo pipefail
           wails3 build
-          ./bin/docklet.exe --version | tee /dev/stderr | grep -q "^Docklet "
+          reported="$(./bin/docklet.exe --version | tr -d '')"
+          echo "$reported"
+          echo "$reported" | grep -q "^Docklet "
           mkdir -p dist
           mv bin/docklet.exe dist/docklet-windows-amd64.exe
 
@@ -158,7 +160,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./bin/docklet --version | tee /dev/stderr | grep -q "^Docklet "
+          reported="$(./bin/docklet --version | tr -d '')"
+          echo "$reported"
+          echo "$reported" | grep -q "^Docklet "
 
       # Start the real app under a virtual display and a private session bus, wait, and require
       # that it is still running. A crash on startup (missing library, WebKit failure) fails the job.
