@@ -7,6 +7,7 @@ import { useConnections, useConnectionStatusEvents, useSelectConnection } from "
 import { useUI } from "@/stores/uiStore";
 import { ConnectionDialogHost } from "@/components/connections/ConnectionDialog";
 import { RemoveConnectionDialogHost } from "@/components/connections/RemoveConnectionDialog";
+import { PortGuardHost } from "@/components/ports/portGuard";
 import { CommandPalette } from "@/components/palette/CommandPalette";
 import { useTrayEvents } from "@/hooks/useApp";
 import { useGlobalShortcuts } from "@/components/palette/useGlobalShortcuts";
@@ -58,6 +59,7 @@ export default function AppShell() {
       </div>
       <ConnectionDialogHost />
       <RemoveConnectionDialogHost />
+      <PortGuardHost />
       <CommandPalette />
     </div>
   );

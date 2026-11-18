@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { portAwareDescription } from "@/components/ports/PortErrorHint";
 import type { Container } from "@bindings/model";
 import { useContainerAction, useContainersQuery, useContainerStats } from "@/hooks/useContainers";
 import { useUI } from "@/stores/uiStore";
@@ -115,7 +116,7 @@ export function useContainersPage(connectionId: string) {
         const verb = ACTION_LABEL[action];
         if (failed.length) {
           toast.error(`${verb}: ${failed.length} failed${ok ? `, ${ok} succeeded` : ""}`, {
-            description: failed.map((f) => `${f.name}: ${f.error}`).join("\n"),
+            description: portAwareDescription(connectionId, failed.map((f) => `${f.name}: ${f.error}`).join("\n")),
             duration: Infinity,
             closeButton: true,
           });

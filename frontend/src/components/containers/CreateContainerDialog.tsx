@@ -6,6 +6,9 @@ import { ContainerService } from "@bindings/services";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useConnections } from "@/hooks/useActiveConnection";
+import { PortErrorHint, portAwareDescription } from "@/components/ports/PortErrorHint";
+import { usePortChecks } from "@/hooks/usePortChecks";
+import { usePortSubmitGuard } from "@/components/ports/usePortSubmitGuard";
 import { containersKey } from "@/hooks/useContainers";
 import { errorMessage } from "@/lib/errors";
 import { ContainerFormFields } from "./ContainerFormFields";
@@ -37,19 +40,28 @@ export default function CreateContainerDialog({ connectionId, open, onOpenChange
   }, [open, imageProp]);
 
   const clientError = useMemo(() => validateForm({ ...form }), [form]);
+  const portChecks = usePortChecks(connectionId, form.ports);
+  const guard = usePortSubmitGuard({
+    connectionId,
+    rows: form.ports,
+    setRows: (ports) => setForm((f) => ({ ...f, ports })),
+    anywayLabel: "Create anyway",
+    what: "container",
+  });
 
   const submit = async () => {
     if (clientError) {
       setError(clientError);
       return;
     }
+    if (!(await guard.confirm())) return;
     setBusy(true);
     setError(null);
     try {
       const res = await ContainerService.Create(connectionId, specFromForm(form));
       void qc.invalidateQueries({ queryKey: containersKey(connectionId) });
       if (res.error) {
-        toast.warning(`Container ${res.name} created`, { description: res.error, duration: Infinity, closeButton: true });
+        toast.warning(`Container ${res.name} created`, { description: portAwareDescription(connectionId, res.error), duration: Infinity, closeButton: true });
       } else {
         toast.success(`Container ${res.name} ${form.autoStart ? "created and started" : "created"}`);
       }
@@ -62,6 +74,7 @@ export default function CreateContainerDialog({ connectionId, open, onOpenChange
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={(o) => !busy && onOpenChange(o)}>
       <DialogContent className="flex max-h-[88vh] flex-col gap-3 sm:max-w-2xl">
         <DialogHeader>
@@ -79,11 +92,12 @@ export default function CreateContainerDialog({ connectionId, open, onOpenChange
             void submit();
           }}
         >
-          <ContainerFormFields form={form} onChange={(p) => setForm((f) => ({ ...f, ...p }))} />
+          <ContainerFormFields form={form} onChange={(p) => setForm((f) => ({ ...f, ...p }))} portChecks={portChecks} />
           {error && (
-            <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-[13px] text-destructive">
-              {error}
-            </p>
+            <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-[13px] text-destructive">
+              <p>{error}</p>
+              <PortErrorHint connectionId={connectionId} message={error} />
+            </div>
           )}
           <button type="submit" className="hidden" aria-hidden tabIndex={-1} />
         </form>
@@ -99,5 +113,7 @@ export default function CreateContainerDialog({ connectionId, open, onOpenChange
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    {guard.dialog}
+    </>
   );
 }

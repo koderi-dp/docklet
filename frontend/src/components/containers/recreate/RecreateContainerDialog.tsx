@@ -7,6 +7,9 @@ import type { ContainerRecreateInfo } from "@bindings/model";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PortErrorHint } from "@/components/ports/PortErrorHint";
+import { usePortChecks } from "@/hooks/usePortChecks";
+import { usePortSubmitGuard } from "@/components/ports/usePortSubmitGuard";
 import { containersKey } from "@/hooks/useContainers";
 import { useOperations } from "@/hooks/useOperations";
 import { errorMessage } from "@/lib/errors";
@@ -61,6 +64,17 @@ function Editor({ connectionId, info, onClose }: { connectionId: string; info: C
   const [error, setError] = useState<string | null>(null);
 
   const edited = useMemo(() => specFromForm(form, info.spec), [form, info.spec]);
+  // The container being replaced stops holding its ports, so it is not a conflict (a copy keeps the original running).
+  const ignore = copy ? [] : [info.id];
+  const portChecks = usePortChecks(connectionId, form.ports, ignore);
+  const guard = usePortSubmitGuard({
+    connectionId,
+    rows: form.ports,
+    setRows: (ports) => setForm((f) => ({ ...f, ports })),
+    ignoreContainerIds: ignore,
+    anywayLabel: copy ? "Create anyway" : "Recreate anyway",
+    what: "replacement container",
+  });
 
   if (info.composeManaged && !copy) {
     return (
@@ -86,6 +100,10 @@ function Editor({ connectionId, info, onClose }: { connectionId: string; info: C
   };
 
   const submit = async () => {
+    if (!(await guard.confirm())) {
+      setStep("edit");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -116,16 +134,17 @@ function Editor({ connectionId, info, onClose }: { connectionId: string; info: C
             }}
           >
             {copy && <p className="text-[13px] text-muted-foreground">Standalone copy: the Compose container is not changed. Choose a new name and review the settings.</p>}
-            <ContainerFormFields form={form} onChange={(p) => setForm((f) => ({ ...f, ...p }))} edit nameLabel="Name *" />
+            <ContainerFormFields form={form} onChange={(p) => setForm((f) => ({ ...f, ...p }))} edit nameLabel="Name *" portChecks={portChecks} />
             <button type="submit" className="hidden" aria-hidden tabIndex={-1} />
           </form>
         ) : (
           <RecreateSummary info={info} edited={edited} copy={copy} pullFirst={pullFirst} onPullFirst={setPullFirst} />
         )}
         {error && (
-          <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-[13px] text-destructive">
-            {error}
-          </p>
+          <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-[13px] text-destructive">
+            <p>{error}</p>
+            <PortErrorHint connectionId={connectionId} message={error} />
+          </div>
         )}
       </div>
       <DialogFooter>
@@ -143,6 +162,7 @@ function Editor({ connectionId, info, onClose }: { connectionId: string; info: C
           </Button>
         )}
       </DialogFooter>
+      {guard.dialog}
     </>
   );
 }

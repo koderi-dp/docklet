@@ -2,6 +2,8 @@ import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { PortStatus } from "@/components/ports/PortStatus";
+import type { RowCheck } from "@/hooks/usePortChecks";
 import { emptyPort, type FormState, type MountRow } from "./createContainerForm";
 
 const selectCls = "h-8 rounded-md border border-border bg-card px-2 text-[13px] text-foreground";
@@ -33,10 +35,12 @@ interface Props {
   edit?: boolean;
   /** Name is required in edit mode. */
   nameLabel?: string;
+  /** Live host-port checks by port row index; shown under each row. */
+  portChecks?: Record<number, RowCheck>;
 }
 
 /** The container form body shared by "New container" and "Edit & recreate". */
-export function ContainerFormFields({ form, onChange, edit, nameLabel }: Props) {
+export function ContainerFormFields({ form, onChange, edit, nameLabel, portChecks }: Props) {
   const { env, ports, mounts } = form;
   const upd = <K extends "env" | "ports" | "mounts">(key: K, i: number, patch: Partial<FormState[K][number]>) =>
     onChange({ [key]: form[key].map((r, j) => (j === i ? { ...r, ...patch } : r)) } as Partial<FormState>);
@@ -81,18 +85,21 @@ export function ContainerFormFields({ form, onChange, edit, nameLabel }: Props) 
       <section>
         <SectionHeader title="Port mappings" onAdd={() => onChange({ ports: [...ports, emptyPort()] })} />
         {ports.map((r, i) => (
-          <div key={i} className="mb-1.5 grid grid-cols-[1.2fr_0.8fr_0.8fr_auto_auto] gap-2">
-            <Input value={r.hostIp} onChange={(e) => upd("ports", i, { hostIp: e.target.value })} placeholder="Host IP (all)" className="font-mono" aria-label="Host IP" />
-            <Input value={r.hostPort} onChange={(e) => upd("ports", i, { hostPort: e.target.value })} placeholder="Host port" className="font-mono" inputMode="numeric" aria-label="Host port" />
-            <Input value={r.containerPort} onChange={(e) => upd("ports", i, { containerPort: e.target.value })} placeholder="Container" className="font-mono" inputMode="numeric" aria-label="Container port" />
-            <select value={r.protocol} onChange={(e) => upd("ports", i, { protocol: e.target.value })} className={selectCls} aria-label="Protocol">
-              <option value="tcp">tcp</option>
-              <option value="udp">udp</option>
-              <option value="sctp">sctp</option>
-            </select>
-            <Button type="button" size="icon" variant="ghost" aria-label="Remove port mapping" title="Remove port mapping" onClick={() => del("ports", i)}>
-              <X className="size-4" />
-            </Button>
+          <div key={i}>
+            <div className="mb-1.5 grid grid-cols-[1.2fr_0.8fr_0.8fr_auto_auto] gap-2">
+              <Input value={r.hostIp} onChange={(e) => upd("ports", i, { hostIp: e.target.value })} placeholder="Host IP (all)" className="font-mono" aria-label="Host IP" />
+              <Input value={r.hostPort} onChange={(e) => upd("ports", i, { hostPort: e.target.value })} placeholder="Host port" className="font-mono" inputMode="numeric" aria-label="Host port" />
+              <Input value={r.containerPort} onChange={(e) => upd("ports", i, { containerPort: e.target.value })} placeholder="Container" className="font-mono" inputMode="numeric" aria-label="Container port" />
+              <select value={r.protocol} onChange={(e) => upd("ports", i, { protocol: e.target.value })} className={selectCls} aria-label="Protocol">
+                <option value="tcp">tcp</option>
+                <option value="udp">udp</option>
+                <option value="sctp">sctp</option>
+              </select>
+              <Button type="button" size="icon" variant="ghost" aria-label="Remove port mapping" title="Remove port mapping" onClick={() => del("ports", i)}>
+                <X className="size-4" />
+              </Button>
+            </div>
+            <PortStatus row={portChecks?.[i]} />
           </div>
         ))}
       </section>
