@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Copy, Layers, X } from "lucide-react";
+import { Copy, Layers, ListTree, X } from "lucide-react";
 import type { ImageRow } from "@bindings/model";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -9,6 +10,7 @@ import { useImageDetail, useImageHistory } from "@/hooks/useImages";
 import { InUseBadge, shortImageId } from "./ImagesTable";
 import { copyToClipboard } from "@/lib/clipboard";
 import { UpdateInspectorRow } from "./update/UpdateInspectorRow";
+import { ExploreLayersDialog } from "./layers/ExploreLayersDialog";
 
 interface Props {
   connectionId: string;
@@ -50,6 +52,7 @@ export function ImageInspector({ connectionId, row, width, onResize, onClose }: 
   // Dangling rows are addressed by ID; tagged rows by their reference.
   const { data: d, error, isLoading } = useImageDetail(connectionId, row.ref);
   const hist = useImageHistory(connectionId, row.ref);
+  const [layersOpen, setLayersOpen] = useState(false);
 
   const startDrag = (e: React.PointerEvent) => {
     e.preventDefault();
@@ -144,7 +147,19 @@ export function ImageInspector({ connectionId, row, width, onResize, onClose }: 
           )}
         </dl>
 
-        <h3 className="mb-1 mt-4 text-sm font-semibold">History</h3>
+        <div className="mb-1 mt-4 flex items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold">History</h3>
+          <Button variant="outline" size="sm" onClick={() => setLayersOpen(true)}>
+            <ListTree className="size-4" /> Explore layers
+          </Button>
+        </div>
+        <ExploreLayersDialog
+          connectionId={connectionId}
+          imageRef={row.ref}
+          title={row.dangling ? shortImageId(row.id) : row.ref}
+          open={layersOpen}
+          onOpenChange={setLayersOpen}
+        />
         {hist.isLoading && <Skeleton className="h-16 w-full" />}
         {hist.error && <p className="text-xs text-destructive">Could not load history: {String(hist.error)}</p>}
         {hist.data && (
