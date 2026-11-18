@@ -12,8 +12,12 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { type ContainerAction, partitionByEligibility } from "@/lib/actionEligibility";
 import { type CheckState, type ComposeGroup, type GroupState, oneShotNotes } from "@/lib/composeGrouping";
+import type { IdleInfo } from "@/lib/idleTracker";
+import type { ProjectTotals } from "@/lib/projectTotals";
 import { cn } from "@/lib/utils";
+import { CpuTotal, IdleChip, MemoryTotal } from "@/components/compose/ProjectTotalCells";
 import { TriCheckbox } from "./TriCheckbox";
+import type { GroupColumns } from "./useGroupColumns";
 
 const STATE_LABEL: Record<GroupState, string> = {
   running: "Running",
@@ -41,6 +45,11 @@ export interface ComposeGroupRowProps {
   /** Connection capabilities for Compose CLI (never implied by labels alone). */
   canRunCompose: boolean;
   composeReason?: string;
+  /** Which table columns exist right now, so the totals land in the CPU / Memory columns. */
+  cols: GroupColumns;
+  /** Live totals of the project's running containers (Compose groups only). */
+  totals?: ProjectTotals;
+  idle?: IdleInfo;
   onToggleCollapsed: () => void;
   onToggleSelect: () => void;
   /** Engine batch operation on this group's currently visible children. */
@@ -97,24 +106,60 @@ export function ComposeGroupRow(p: ComposeGroupRowProps) {
     ? "Compose CLI actions are not available in this build"
     : (p.composeReason ?? "Compose CLI is not available for this connection");
 
+  const menu = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="icon" className="size-7" aria-label={`Group actions for ${label}`} onClick={(e) => e.stopPropagation()}>
+          <MoreHorizontal className="size-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+            {!isCompose &&
+              (["start", "stop", "restart"] as const).map((a) => {
+                const part = partitionByEligibility(a, g.visible);
+                const c = part.eligible.length;
+                return (
+                  <DropdownMenuItem key={a} disabled={p.busy || c === 0} onSelect={() => p.onGroupAction(a)}>
+                    {a === "start" ? <Play /> : a === "stop" ? <Square /> : <RotateCw />}
+                    {VERB[a].label} {c} container{c === 1 ? "" : "s"}
+                  </DropdownMenuItem>
+                );
+              })}
+            {isCompose && (
+              <>
+                <DropdownMenuItem asChild>
+                  <Link to={`/compose/${encodeURIComponent(label)}`}>Open project</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem disabled title={composeDisabledReason}>
+                  Compose Up / Down… (unavailable)
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            )}
+            <DropdownMenuItem onSelect={p.onToggleCollapsed}>{p.collapsed ? "Expand" : "Collapse"}</DropdownMenuItem>
+            <DropdownMenuItem onSelect={p.onExpandAll}>Expand all</DropdownMenuItem>
+            <DropdownMenuItem onSelect={p.onCollapseAll}>Collapse all</DropdownMenuItem>
+          
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   return (
-    <div
-      className={cn(
-        "flex h-[46px] items-center gap-3 border-y border-border bg-primary/[0.07] px-3",
-        "outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/60",
-      )}
-      role="button"
-      tabIndex={0}
-      aria-expanded={!p.collapsed}
-      onClick={p.onToggleCollapsed}
-      onKeyDown={(e) => {
-        if (e.target !== e.currentTarget) return;
-        if (e.key === " " || e.key === "Enter") {
-          e.preventDefault();
-          p.onToggleCollapsed();
-        }
-      }}
-    >
+    <tr className="h-[46px] cursor-pointer border-y border-border bg-primary/[0.07]" onClick={p.onToggleCollapsed}>
+      <td colSpan={p.cols.before} className="max-w-0 p-0">
+        <div
+          className="flex h-[46px] items-center gap-3 px-3 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/60"
+          role="button"
+          tabIndex={0}
+          aria-expanded={!p.collapsed}
+          onKeyDown={(e) => {
+            if (e.target !== e.currentTarget) return;
+            if (e.key === " " || e.key === "Enter") {
+              e.preventDefault();
+              p.onToggleCollapsed();
+            }
+          }}
+        >
       <TriCheckbox state={p.checkState} onToggle={p.onToggleSelect} label={`Select visible containers in ${label}`} />
       <ChevronRight
         aria-hidden
@@ -164,6 +209,7 @@ export function ComposeGroupRow(p: ComposeGroupRowProps) {
           </>
         )}
       </span>
+      {isCompose && <IdleChip idle={p.idle} totals={p.totals} />}
 
       <div className="ml-auto flex shrink-0 items-center gap-1.5">
         {isCompose && (
@@ -173,47 +219,18 @@ export function ComposeGroupRow(p: ComposeGroupRowProps) {
             {actionBtn("restart", <RotateCw className="size-3.5" />)}
           </>
         )}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              size="icon"
-              className="size-7"
-              aria-label={`Group actions for ${label}`}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <MoreHorizontal className="size-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-            {!isCompose &&
-              (["start", "stop", "restart"] as const).map((a) => {
-                const part = partitionByEligibility(a, g.visible);
-                const c = part.eligible.length;
-                return (
-                  <DropdownMenuItem key={a} disabled={p.busy || c === 0} onSelect={() => p.onGroupAction(a)}>
-                    {a === "start" ? <Play /> : a === "stop" ? <Square /> : <RotateCw />}
-                    {VERB[a].label} {c} container{c === 1 ? "" : "s"}
-                  </DropdownMenuItem>
-                );
-              })}
-            {isCompose && (
-              <>
-                <DropdownMenuItem asChild>
-                  <Link to={`/compose/${encodeURIComponent(label)}`}>Open project</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem disabled title={composeDisabledReason}>
-                  Compose Up / Down… (unavailable)
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-              </>
-            )}
-            <DropdownMenuItem onSelect={p.onToggleCollapsed}>{p.collapsed ? "Expand" : "Collapse"}</DropdownMenuItem>
-            <DropdownMenuItem onSelect={p.onExpandAll}>Expand all</DropdownMenuItem>
-            <DropdownMenuItem onSelect={p.onCollapseAll}>Collapse all</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
-    </div>
+        </div>
+      </td>
+      {p.cols.cpu && (
+        <td className="whitespace-nowrap px-3 text-right">{isCompose && <CpuTotal totals={p.totals} />}</td>
+      )}
+      {p.cols.memory && (
+        <td className="whitespace-nowrap px-3 text-right">{isCompose && <MemoryTotal totals={p.totals} />}</td>
+      )}
+      <td colSpan={p.cols.after} className="whitespace-nowrap px-3 text-right">
+        <div className="flex justify-end">{menu}</div>
+      </td>
+    </tr>
   );
 }

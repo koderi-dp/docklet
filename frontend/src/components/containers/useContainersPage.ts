@@ -67,8 +67,10 @@ export function useContainersPage(connectionId: string) {
   const isCollapsed = useCallback((g: ComposeGroup) => !!collapsedGroups[g.collapseKey], [collapsedGroups]);
 
   const visibleContainers = useMemo(() => containers.filter((c) => matchesFilters(c, filters)), [containers, filters]);
-  const runningVisibleIds = useMemo(() => visibleContainers.filter(isRunning).map((c) => c.id), [visibleContainers]);
-  const { stats } = useContainerStats(connectionId, runningVisibleIds, true);
+  // ALL running containers are watched (not only the visible ones): Compose group rows sum their project's
+  // stats, and a filter must not change a project's total. Still one stream per container.
+  const runningIds = useMemo(() => containers.filter(isRunning).map((c) => c.id), [containers]);
+  const { stats } = useContainerStats(connectionId, runningIds, true);
 
   const { sort } = useTableSort("containers");
   const groups = useMemo(

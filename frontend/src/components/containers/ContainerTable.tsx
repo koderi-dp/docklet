@@ -16,10 +16,12 @@ import type { ContainerAction } from "@/lib/actionEligibility";
 import { checkState, type ComposeGroup, type FlatRow } from "@/lib/composeGrouping";
 import { cn } from "@/lib/utils";
 import { SortTh } from "@/components/tables/SortTh";
+import { useProjectTotals } from "@/hooks/useProjectTotals";
 import { ComposeGroupRow } from "./ComposeGroupRow";
 import { ContainerActionMenu } from "./ContainerActionMenu";
 import { CpuCell, MemoryCell, PortsCell, UptimeCell } from "./ContainerCells";
 import { TriCheckbox } from "./TriCheckbox";
+import { useGroupColumns } from "./useGroupColumns";
 import { ContainerStatusBadge } from "./ContainerStatusBadge";
 
 // Secondary columns drop out as the table's own width shrinks (inspector open / narrow window).
@@ -245,10 +247,13 @@ export function ContainerTable(p: ContainerTableProps) {
     onColumnVisibilityChange: p.onColumnVisibilityChange,
   });
 
-  const visibleColCount = table.getVisibleLeafColumns().length;
+  const { ref: wrapRef, cols: groupCols } = useGroupColumns(p.columnVisibility);
+  // Group rows sum the stats that already stream for the rows; memoised on the (cadence-limited) stats object.
+  const groupContainers = useMemo(() => p.rows.flatMap((r) => (r.kind === "group" ? r.group.all : [])), [p.rows]);
+  const projectLive = useProjectTotals(p.rows.find((r) => r.kind === "group")?.group.connectionId ?? "", groupContainers, p.stats);
 
   return (
-    <div className="@container overflow-x-auto">
+    <div ref={wrapRef} className="@container overflow-x-auto">
       <table className="w-full min-w-[560px] border-collapse text-[13px]">
         <thead>
           {table.getHeaderGroups().map((hg) => (
@@ -278,10 +283,12 @@ export function ContainerTable(p: ContainerTableProps) {
               const g = r.group;
               const ids = g.visible.map((c) => c.id);
               return (
-                <tr key={row.id}>
-                  <td colSpan={visibleColCount} className="p-0">
                     <ComposeGroupRow
+                      key={row.id}
                       group={g}
+                      cols={groupCols}
+                      totals={g.project ? projectLive.totals.get(g.project) : undefined}
+                      idle={g.project ? projectLive.idle.get(g.project) : undefined}
                       collapsed={p.isCollapsed(g)}
                       checkState={checkState(ids, p.selected)}
                       busy={g.visible.some((c) => p.inFlight.has(c.id))}
@@ -293,8 +300,6 @@ export function ContainerTable(p: ContainerTableProps) {
                       onExpandAll={p.onExpandAll}
                       onCollapseAll={p.onCollapseAll}
                     />
-                  </td>
-                </tr>
               );
             }
             const c = r.container;

@@ -1,4 +1,5 @@
 import { useComposeResources } from "@/hooks/useCompose";
+import { ProjectDiskPanel } from "./ProjectDiskPanel";
 
 function Table({ title, empty, head, rows }: { title: string; empty: string; head: string[]; rows: string[][] }) {
   return (
@@ -47,6 +48,7 @@ export function ResourcesTab({ connectionId, project }: { connectionId: string; 
   if (q.error) return <p className="text-destructive">Could not load resources: {(q.error as Error).message}</p>;
   return (
     <div className="space-y-5">
+      <ProjectDiskPanel connectionId={connectionId} project={project} />
       <Table
         title="Networks"
         empty="No networks are labelled for this project."

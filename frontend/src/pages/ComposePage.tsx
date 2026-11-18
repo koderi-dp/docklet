@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { FileText, Layers } from "lucide-react";
 import { toast } from "sonner";
 import { Events } from "@wailsio/runtime";
@@ -11,7 +11,9 @@ import { TableCard } from "@/components/shared/TableCard";
 import { OpenComposeDialog } from "@/components/compose/OpenComposeDialog";
 import { ProjectsTable } from "@/components/compose/ProjectsTable";
 import { useComposeProjects } from "@/hooks/useCompose";
-import { useContainersQuery } from "@/hooks/useContainers";
+import { useComposeDisk } from "@/hooks/useComposeDisk";
+import { useContainersQuery, useContainerStats } from "@/hooks/useContainers";
+import { useProjectTotals } from "@/hooks/useProjectTotals";
 import { composeFilesFromDrop } from "@/lib/composeDrop";
 import { cn } from "@/lib/utils";
 
@@ -31,10 +33,18 @@ function useDroppedComposeFiles(onFiles: (files: string[]) => void) {
   }, [onFiles]);
 }
 
+const NO_CONTAINERS: never[] = [];
+
 function ComposeView({ connectionId }: { connectionId: string }) {
   const projects = useComposeProjects(connectionId);
   const containers = useContainersQuery(connectionId, true);
   const list = projects.data ?? [];
+  // One stats watch for the running Compose containers; per-project totals are summed from it.
+  const runningIds = useMemo(() => (containers.data ?? []).filter((c) => c.state === "running" && c.composeProject).map((c) => c.id), [containers.data]);
+  const { stats } = useContainerStats(connectionId, runningIds, true);
+  const live = useProjectTotals(connectionId, containers.data ?? NO_CONTAINERS, stats);
+  const [calcDisk, setCalcDisk] = useState(false);
+  const disk = useComposeDisk(connectionId, calcDisk);
   const [openFile, setOpenFile] = useState(false);
   const [dropped, setDropped] = useState<string[] | undefined>();
   const onDrop = useCallback((files: string[]) => {
@@ -73,7 +83,13 @@ function ComposeView({ connectionId }: { connectionId: string }) {
         </EmptyState>
       ) : (
         <TableCard>
-          <ProjectsTable connectionId={connectionId} projects={list} containers={containers.data} />
+          <ProjectsTable
+            connectionId={connectionId}
+            projects={list}
+            containers={containers.data}
+            live={live}
+            disk={{ data: disk.data, loading: disk.isFetching, requested: calcDisk || !!disk.data, onCalculate: () => (calcDisk ? void disk.refetch() : setCalcDisk(true)) }}
+          />
         </TableCard>
       )}
     </div>

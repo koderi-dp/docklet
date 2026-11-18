@@ -11,10 +11,12 @@ import { ConfigTab } from "@/components/compose/ConfigTab";
 import { LogsTab } from "@/components/compose/LogsTab";
 import { ProjectActions } from "@/components/compose/ProjectActions";
 import { ProjectHealthText, ProjectStateBadge } from "@/components/compose/ProjectStateBadge";
+import { ProjectTotalsStrip } from "@/components/compose/ProjectTotalsStrip";
 import { ResourcesTab } from "@/components/compose/ResourcesTab";
 import { ServicesTab } from "@/components/compose/ServicesTab";
 import { projectContainers, useComposeProject } from "@/hooks/useCompose";
-import { useContainersQuery } from "@/hooks/useContainers";
+import { useContainersQuery, useContainerStats } from "@/hooks/useContainers";
+import { useProjectTotals } from "@/hooks/useProjectTotals";
 
 export default function ComposeProjectPage() {
   const { projectName = "" } = useParams();
@@ -27,6 +29,9 @@ function ProjectView({ connectionId, name }: { connectionId: string; name: strin
   const q = useComposeProject(connectionId, name);
   const all = useContainersQuery(connectionId, true);
   const containers = useMemo(() => projectContainers(all.data, { name }), [all.data, name]);
+  const runningIds = useMemo(() => containers.filter((c) => c.state === "running").map((c) => c.id), [containers]);
+  const { stats } = useContainerStats(connectionId, runningIds, true);
+  const live = useProjectTotals(connectionId, containers, stats);
 
   const back = (
     <Link to="/compose" className="hover:underline">
@@ -70,6 +75,7 @@ function ProjectView({ connectionId, name }: { connectionId: string; name: strin
         }
         actions={<ProjectActions connectionId={connectionId} project={p} containers={containers} labels onForgotten={() => (p.notCreated ? navigate("/compose") : undefined)} />}
       />
+      <ProjectTotalsStrip connectionId={connectionId} project={p} containers={containers} totals={live.totals.get(name)} idle={live.idle.get(name)} />
       <Tabs value={tab} onValueChange={setTab} className="gap-3">
         <TabsList className="w-fit">
           <TabsTrigger value="services">Services</TabsTrigger>
