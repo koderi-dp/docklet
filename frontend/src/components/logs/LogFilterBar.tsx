@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { CornerDownLeft, Search, X } from "lucide-react";
+import { Plus, Search, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
@@ -149,26 +150,27 @@ export function LogFilterBar({ filter: f, result, trailing, className }: Props) 
               placeholder={PLACEHOLDER[f.draftTarget]}
               aria-label="Filter log lines"
               aria-invalid={!!f.liveError}
-              className={cn("h-8 pr-16 pl-7 text-[13px]", f.liveError && "border-destructive")}
+              className={cn("h-8 pr-8 pl-7 text-[13px]", f.liveError && "border-destructive")}
             />
             {f.text !== "" && (
               <div className="absolute top-1/2 right-1 flex -translate-y-1/2 items-center gap-1">
                 <button type="button" aria-label="Clear text" title="Clear (Esc)" onClick={() => f.setText("")} className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground">
                   <X className="size-3" />
                 </button>
-                <button
-                  type="button"
-                  aria-label="Add as rule"
-                  title={f.liveError ? "Fix the pattern first" : "Add as a rule chip (Enter)"}
-                  disabled={!!f.liveError}
-                  onClick={f.commitDraft}
-                  className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40"
-                >
-                  <CornerDownLeft className="size-3.5" />
-                </button>
               </div>
             )}
           </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 shrink-0 gap-1.5 px-2.5 text-[13px]"
+            disabled={f.text.trim() === "" || !!f.liveError}
+            title={f.liveError ? "Fix the pattern first" : f.text.trim() === "" ? "Type what to filter on first" : "Keep this as a filter (Enter)"}
+            onClick={f.commitDraft}
+          >
+            <Plus className="size-3.5" /> Add filter
+          </Button>
         </div>
         <SavedFilters f={f} />
       </div>
@@ -183,6 +185,12 @@ export function LogFilterBar({ filter: f, result, trailing, className }: Props) 
       {f.liveError && (
         <p role="alert" className="text-xs text-destructive">
           Invalid regular expression: {f.liveError}. Not applied yet.
+        </p>
+      )}
+
+      {!hasChips && (
+        <p className="text-xs text-muted-foreground">
+          No filters yet. Type above and press Enter or Add filter to keep it, or right-click a log line and choose Include, Exclude or Highlight. Filters stack.
         </p>
       )}
 
