@@ -17,8 +17,9 @@ A fast, lightweight desktop app for managing the Docker Engines you already have
 - Compose-grouped or flat list with search, filters, sorting and bulk actions
 - Create, start, stop, restart, pause, kill and remove
 - Edit a container's settings and recreate it, with automatic rollback if the new one fails to start
-- Live logs with stackable include, exclude and highlight filters, wildcards and regex
-- One Logs screen for several containers or whole projects at once
+- Live logs with search, and stackable include, exclude and highlight filters (wildcards and regex)
+- One Logs screen for several containers or whole projects at once, merged or in up to four panes
+- Copy a container as a `docker run` command, a Compose service or a database connection string
 - Built-in terminal, or open your own; a debug shell for containers that have none
 - Port check before you create: see which program or container already holds a port
 - Live CPU and memory, processes, and a file browser that also works on stopped containers
@@ -28,9 +29,11 @@ A fast, lightweight desktop app for managing the Docker Engines you already have
 - Up, Down, Start, Stop, Restart, Pull and Build, for a whole project or one service
 - Open a compose file from disk and start it right away
 - Open the project in your editor or file manager
+- CPU, memory and disk use per project
 
 **Images, volumes and networks**
 - Pull, build, push, tag, save, load and remove images
+- See which build steps make an image large
 - See when a newer image is available, then update and recreate in one step
 - Create, browse, export and import volumes
 - Create networks and connect or disconnect containers
