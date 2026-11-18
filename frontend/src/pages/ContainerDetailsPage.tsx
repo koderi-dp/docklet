@@ -1,3 +1,4 @@
+import { portAwareDescription } from "@/components/ports/PortErrorHint";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
@@ -111,7 +112,7 @@ function Detail({ connectionId, param }: { connectionId: string; param: string }
       } else if (r?.skipped) {
         toast.info(`${verb}: nothing to do`, { description: `${c.name} is not eligible right now.` });
       } else {
-        toast.error(`${verb} failed`, { description: `${c.name}: ${r?.error ?? "unknown error"}`, duration: Infinity, closeButton: true });
+        toast.error(`${verb} failed`, { description: portAwareDescription(connectionId, `${c.name}: ${r?.error ?? "unknown error"}`), duration: Infinity, closeButton: true });
       }
     } catch (e) {
       toast.error(`${ACTION_LABEL[action]} failed`, { description: errorMessage(e), duration: Infinity, closeButton: true });

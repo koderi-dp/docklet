@@ -48,7 +48,8 @@ export function LogsScreen({ connectionId }: { connectionId: string }) {
         .sort((a, b) => a.id.localeCompare(b.id)),
     [containers, sel.ticked],
   );
-  const streams = useMergedLogStreams(connectionId, targets, initialTail(logTail));
+  const runningIds = useMemo(() => new Set((containers ?? []).filter((c) => c.state === "running").map((c) => c.id)), [containers]);
+  const streams = useMergedLogStreams(connectionId, targets, initialTail(logTail), runningIds);
   const items = useMemo<TickedItem[]>(
     () => (containers ?? []).filter((c) => sel.ticked.has(c.id)).map((c) => ({ name: c.name, project: c.composeProject || null })),
     [containers, sel.ticked],

@@ -35,7 +35,7 @@ function Row({ c, on, info, onSet }: { c: Container; on: boolean; info?: StreamI
           <AlertTriangle className="size-3.5 text-destructive" aria-label="Log stream failed" />
         </span>
       ) : on && info?.status === "ended" ? (
-        <span className="shrink-0 text-[11px] text-muted-foreground" title="The container stopped; untick and tick it again to reconnect">ended</span>
+        <span className="shrink-0 text-[11px] text-muted-foreground" title="The log stream ended because the container stopped. It is followed again when the container starts.">ended</span>
       ) : !running ? (
         <span className="shrink-0 text-[11px] text-muted-foreground">{c.state}</span>
       ) : null}

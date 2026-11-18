@@ -35,14 +35,22 @@ interface Live {
   name: string;
   streamId: string | null;
   cancelled: boolean;
+  /** Lines already shown, as "timestamp|text": a reconnect reloads the tail and must not show them twice. */
+  skip?: Set<string>;
+  attempts: number;
+  lastAttempt: number;
 }
+
+/** A stream that ended is reopened while its container runs, at most this often and this many times in a row. */
+const RECONNECT_MS = 2000;
+const MAX_RECONNECTS = 5;
 
 /**
  * One merged log buffer fed by one backend stream per target container. Incoming lines are batched and merged by
  * Engine timestamp every FLUSH_MS, so a noisy container never renders per line. Streams of containers that are
  * removed from `targets` are stopped (and their lines dropped); ALL streams are stopped on unmount.
  */
-export function useMergedLogStreams(connectionId: string, targets: readonly LogTarget[], tail: number) {
+export function useMergedLogStreams(connectionId: string, targets: readonly LogTarget[], tail: number, runningIds?: ReadonlySet<string>) {
   const [lines, setLines] = useState<LogEntry[]>([]);
   const [dropped, setDropped] = useState(0);
   const [infos, setInfos] = useState<Record<string, StreamInfo>>({});
@@ -65,11 +73,14 @@ export function useMergedLogStreams(connectionId: string, targets: readonly LogT
 
   const setInfo = useCallback((id: string, info: StreamInfo) => setInfos((p) => ({ ...p, [id]: info })), []);
 
-  const ingest = useCallback((name: string, raw: readonly LogLine[]) => {
+  const ingest = useCallback((name: string, raw: readonly LogLine[], live?: Live) => {
     if (raw.length === 0) return;
+    if (live) live.attempts = 0;
     for (const l of raw) {
       const fallback = lastKey.current.get(name) ?? Date.now();
-      const e = makeEntry(l, name, seq.current++, fallback);
+      const e = makeEntry(l, name, seq.current, fallback);
+      if (live?.skip?.delete(`${e.timestamp}|${e.text}`)) continue;
+      seq.current++;
       lastKey.current.set(name, e.sortKey);
       pending.current.push(e);
     }
@@ -100,7 +111,7 @@ export function useMergedLogStreams(connectionId: string, targets: readonly LogT
       const id = byStream.current.get(p.streamId);
       const l = id ? live.current.get(id) : undefined;
       if (l) {
-        ingest(l.name, p.lines ?? []);
+        ingest(l.name, p.lines ?? [], l);
       } else if (unknown.current.has(p.streamId) || unknown.current.size < MAX_UNKNOWN_STREAMS) {
         unknown.current.set(p.streamId, (unknown.current.get(p.streamId) ?? []).concat(p.lines ?? []));
       }
@@ -116,6 +127,29 @@ export function useMergedLogStreams(connectionId: string, targets: readonly LogT
       offEnd();
     };
   }, [ingest, setInfo]);
+
+  const open = useCallback(
+    (id: string, l: Live) => {
+      setInfo(id, { status: "connecting" });
+      ContainerService.StartLogStream(connectionId, id, tailRef.current, true)
+        .then((sid) => {
+          if (l.cancelled) {
+            void ContainerService.StopLogStream(sid).catch(() => undefined);
+            return;
+          }
+          l.streamId = sid;
+          byStream.current.set(sid, id);
+          const early = unknown.current.get(sid);
+          unknown.current.delete(sid);
+          if (early) ingest(l.name, early, l);
+          setInfos((p) => (p[id]?.status === "connecting" ? { ...p, [id]: { status: "live" } } : p));
+        })
+        .catch((e: unknown) => {
+          if (!l.cancelled) setInfo(id, { status: "error", error: errorMessage(e) });
+        });
+    },
+    [connectionId, ingest, setInfo],
+  );
 
   // Start / stop streams to match the targets.
   const key = targets.map((t) => t.id).join(",");
@@ -142,27 +176,35 @@ export function useMergedLogStreams(connectionId: string, targets: readonly LogT
     }
     for (const t of wanted.values()) {
       if (live.current.has(t.id)) continue;
-      const l: Live = { name: t.name, streamId: null, cancelled: false };
+      const l: Live = { name: t.name, streamId: null, cancelled: false, attempts: 0, lastAttempt: 0 };
       live.current.set(t.id, l);
-      setInfo(t.id, { status: "connecting" });
-      ContainerService.StartLogStream(connectionId, t.id, tailRef.current, true)
-        .then((sid) => {
-          if (l.cancelled) {
-            void ContainerService.StopLogStream(sid).catch(() => undefined);
-            return;
-          }
-          l.streamId = sid;
-          byStream.current.set(sid, t.id);
-          const early = unknown.current.get(sid);
-          unknown.current.delete(sid);
-          if (early) ingest(l.name, early);
-          setInfos((p) => (p[t.id]?.status === "connecting" ? { ...p, [t.id]: { status: "live" } } : p));
-        })
-        .catch((e: unknown) => {
-          if (!l.cancelled) setInfo(t.id, { status: "error", error: errorMessage(e) });
-        });
+      open(t.id, l);
     }
-  }, [connectionId, key, ingest, setInfo]);
+  }, [connectionId, key, open]);
+
+  // A ticked container that was restarted: its stream ended, the container runs again, so follow it again.
+  const runningKey = runningIds ? [...runningIds].sort().join(",") : "";
+  useEffect(() => {
+    if (!runningIds) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const now = Date.now();
+    for (const [id, l] of live.current) {
+      if (infos[id]?.status !== "ended" || !runningIds.has(id) || l.cancelled || l.attempts >= MAX_RECONNECTS) continue;
+      const wait = l.lastAttempt + RECONNECT_MS - now;
+      if (wait > 0) {
+        timer ??= setTimeout(() => setInfos((p) => ({ ...p })), wait);
+        continue;
+      }
+      if (l.streamId) byStream.current.delete(l.streamId);
+      l.streamId = null;
+      l.attempts++;
+      l.lastAttempt = now;
+      l.skip = new Set(buffer.current.concat(pending.current).filter((e) => e.container === l.name).map((e) => `${e.timestamp}|${e.text}`));
+      open(id, l);
+    }
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [infos, runningKey, open]);
 
   // Leaving the screen stops everything.
   useEffect(() => {
