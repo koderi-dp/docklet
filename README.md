@@ -6,7 +6,7 @@ A fast, lightweight desktop app for managing the Docker Engines you already have
 
 ## Why Docklet
 
-- **Works with your existing Docker.** Connect to Docker in WSL2, a local socket, a remote host over SSH, or TCP with TLS. Switch between engines in one click.
+- **Works with your existing Docker.** Connect to Docker in WSL2, a local socket, a remote host over SSH, or TCP with TLS. Switch between engines from the top bar.
 - **Compose is first class.** Containers are grouped by Compose project. Open a compose file from disk and run it, or manage projects that are already running.
 - **Everything for daily work in one place.** Logs, a terminal, live stats, a file browser, images, volumes, networks and cleanup.
 - **Stays out of your way.** No forced updates, no sign-in, no background services. The tray icon and update check are optional and off by default.
@@ -29,10 +29,12 @@ A fast, lightweight desktop app for managing the Docker Engines you already have
 - Up, Down, Start, Stop, Restart, Pull and Build, for a whole project or one service
 - Open a compose file from disk and start it right away
 - Open the project in your editor or file manager
+- Compose watch: start it, see what was synced or rebuilt, and stop it
 - CPU, memory and disk use per project
 
 **Images, volumes and networks**
 - Pull, build, push, tag, save, load and remove images
+- BuildKit builds with step-by-step progress, and a history of your builds
 - See which build steps make an image large
 - See when a newer image is available, then update and recreate in one step
 - Create, browse, export and import volumes
