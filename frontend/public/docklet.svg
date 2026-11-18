@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- D: "Docked" on violet — a solid white D (the dock) with three container slots cut into it -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8B7CFF"/>
+      <stop offset="1" stop-color="#4B3FD6"/>
+    </linearGradient>
+  </defs>
+  <rect x="64" y="64" width="896" height="896" rx="208" fill="url(#bg)"/>
+  <path d="M 292 232 H 500 A 280 280 0 0 1 500 792 H 292 A 36 36 0 0 1 256 756 V 268 A 36 36 0 0 1 292 232 Z" fill="#FFFFFF"/>
+  <g fill="#5A4CE6">
+    <rect x="352" y="356" width="200" height="80" rx="26"/>
+    <rect x="352" y="472" width="268" height="80" rx="26"/>
+    <rect x="352" y="588" width="200" height="80" rx="26"/>
+  </g>
+</svg>

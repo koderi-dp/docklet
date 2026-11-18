@@ -1,3 +1,4 @@
+import { Logo } from "./Logo";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   Box,
@@ -190,7 +191,7 @@ export default function SidebarNav() {
       )}
     >
       <div className={cn("flex h-[60px] items-center gap-2 px-4", collapsed && "justify-center px-0")}>
-        <Box className="size-6 shrink-0 text-primary" />
+        <Logo className="size-7" />
         {!collapsed && <span className="text-lg font-semibold">Docklet</span>}
         {!collapsed && (
           <Button variant="ghost" size="icon" className="ml-auto size-7" onClick={() => setCollapsed(true)} aria-label="Collapse sidebar">
