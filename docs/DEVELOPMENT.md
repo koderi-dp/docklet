@@ -44,6 +44,8 @@ A tag with a hyphen, such as `v0.2.0-rc.1`, becomes a pre-release. The release w
 
 It attaches Windows installers and binaries (x64 and ARM64), Linux AppImage and `.deb`, a macOS `.zip`, and `checksums.txt`. Only the Windows build is required; Linux and macOS files are included when their builds succeed.
 
+To bump the version, edit `version` in `build/config.yml` and run `wails3 task common:update:build-assets`. That task regenerates `build/linux/nfpm/nfpm.yaml` from its template, which drops the AppArmor profile entry: restore that file with `git checkout -- build/linux/nfpm/nfpm.yaml` afterwards. CI and the release workflow both fail if the `.deb` lacks the profile.
+
 Nothing is code signed yet. The workflow has comments where signing would go.
 
 ## Platform status
