@@ -54,6 +54,11 @@ jobs:
         working-directory: frontend
         run: npm test
 
+      # main.go embeds frontend/dist, so the frontend must be built before any Go step.
+      - name: Frontend build
+        working-directory: frontend
+        run: npm run build
+
       - name: Go vet
         run: go vet . ./internal/...
 

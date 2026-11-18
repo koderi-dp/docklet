@@ -23,9 +23,11 @@ wails3 package                                     # Windows installer (needs NS
 ```
 
 ```
+cd frontend && npx tsc --noEmit && npm test && npm run build && cd ..
 go vet . ./internal/... && go test ./internal/...
-cd frontend && npx tsc --noEmit && npm test && npm run build
 ```
+
+`main.go` embeds `frontend/dist`, so build the frontend before running Go commands on the main package.
 
 TypeScript bindings are generated from the Go services in interface mode (`wails3 generate bindings -clean=true -ts -i`). They are not committed; the build generates them.
 
