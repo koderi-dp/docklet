@@ -8,6 +8,7 @@ import { HealthBadge } from "@/components/shared/StatusBadge";
 import { ACTION_LABEL, ineligibleReason, type ContainerAction } from "@/lib/actionEligibility";
 import type { ReactNode } from "react";
 import { openRecreate } from "@/components/containers/recreate/recreateStore";
+import { CopyAsSubmenu } from "@/components/containers/copyas/CopyAsMenu";
 import { ContainerStatusBadge } from "./ContainerStatusBadge";
 
 interface Props {
@@ -77,6 +78,7 @@ export function ContainerDetailHeader({ container: c, health, busy, onRun, onCon
               <DropdownMenuItem disabled={busy} title={busy ? "Another action is in progress" : "Change settings and replace the container"} onSelect={() => openRecreate(c.id)}>
                 <Pencil /> Edit & recreate…
               </DropdownMenuItem>
+              <CopyAsSubmenu containerId={c.id} name={c.name} />
               <DropdownMenuSeparator />
               <DropdownMenuItem variant="destructive" disabled={!!reasonFor("kill")} title={reasonFor("kill")} onSelect={() => onConfirm("kill")}>
                 <Skull /> {ACTION_LABEL.kill}…

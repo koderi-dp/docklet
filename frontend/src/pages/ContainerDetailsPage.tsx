@@ -27,6 +27,7 @@ import { ProcessesPanel } from "@/components/containers/ProcessesPanel";
 import { OverviewPanel } from "@/components/containers/OverviewPanel";
 import { ContainerDetailHeader } from "@/components/containers/ContainerDetailHeader";
 import { RecreateHost } from "@/components/containers/recreate/RecreateHost";
+import { CopyAsHost } from "@/components/containers/copyas/CopyAsHost";
 import { useFollowRecreatedContainer } from "@/components/containers/recreate/useRecreate";
 import { ContainerFilesTab } from "@/components/files/ContainerFilesTab";
 import { useContainerAction, useContainerDetail, useContainersQuery } from "@/hooks/useContainers";
@@ -193,6 +194,7 @@ function Detail({ connectionId, param }: { connectionId: string; param: string }
       </Tabs>
 
       <RecreateHost />
+      <CopyAsHost />
       <AlertDialog open={confirm !== null} onOpenChange={(o) => !o && setConfirm(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

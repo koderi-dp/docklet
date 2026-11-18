@@ -14,6 +14,7 @@ import { useHostActions, useLocalPath } from "@/hooks/useHost";
 import { useNavigate } from "react-router-dom";
 import { debugShellDisabledReason } from "@/components/containers/debugShell/debugShell";
 import { openRecreate } from "@/components/containers/recreate/recreateStore";
+import { CopyAsSubmenu } from "@/components/containers/copyas/CopyAsMenu";
 
 export interface ContainerActionMenuProps {
   name: string;
@@ -102,6 +103,7 @@ export function ContainerActionMenu({ id, name, state, busy, onAction, onInspect
           <Copy />
           Copy ID
         </DropdownMenuItem>
+        <CopyAsSubmenu containerId={id} name={name} />
         <DropdownMenuItem onSelect={() => openRecreate(id)} disabled={!!busy} title={busy ? "Another action is in progress" : "Change settings and replace the container"}>
           <Pencil />
           Edit & recreate…

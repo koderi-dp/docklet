@@ -4,6 +4,7 @@ import type { ConnectionProfile } from "@bindings/model";
 import { DEFAULT_TEXT_SIZE, normalizeTextSize, type TextSize } from "@/lib/textSize";
 
 export type ContainerViewMode = "grouped" | "flat";
+export type CopyAsShell = "bash" | "powershell";
 export type ThemePreference = "dark" | "light" | "system";
 /** Colour palette: the Docklet navy/violet design palette or the stock shadcn/ui neutral base. */
 export type ThemePalette = "docklet" | "shadcn";
@@ -106,6 +107,9 @@ interface UIState {
   debugShellImage: string;
   setDebugShellImage: (v: string) => void;
   /** Skip the confirm panel before opening a debug shell. */
+  /** Shell flavour of the generated "Copy as docker run command" text. */
+  copyAsShell: CopyAsShell;
+  setCopyAsShell: (v: CopyAsShell) => void;
   debugShellSkipConfirm: boolean;
   setDebugShellSkipConfirm: (v: boolean) => void;
 }
@@ -167,6 +171,8 @@ export const useUI = create<UIState>()(
       setEditor: (editor) => set({ editor }),
       debugShellImage: "busybox:latest",
       setDebugShellImage: (debugShellImage) => set({ debugShellImage }),
+      copyAsShell: typeof navigator !== "undefined" && /Windows/i.test(navigator.userAgent) ? "powershell" : "bash",
+      setCopyAsShell: (copyAsShell) => set({ copyAsShell }),
       debugShellSkipConfirm: false,
       setDebugShellSkipConfirm: (debugShellSkipConfirm) => set({ debugShellSkipConfirm }),
     }),
@@ -190,6 +196,7 @@ export const useUI = create<UIState>()(
         externalTerminal: s.externalTerminal,
         editor: s.editor,
         debugShellImage: s.debugShellImage,
+        copyAsShell: s.copyAsShell,
         debugShellSkipConfirm: s.debugShellSkipConfirm,
       }),
     },

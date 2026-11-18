@@ -107,6 +107,7 @@ func (r *appRuntime) buildServices(osNotifications *notifications.NotificationSe
 	return []application.Service{
 		application.NewService(connections),
 		application.NewService(containers),
+		application.NewService(&services.CopyAsService{Engines: m, Profiles: m}),
 		application.NewService(&services.OperationService{Ops: o, History: r.db.ListOperationHistory}),
 		application.NewService(&services.DialogService{Picker: r.picker}),
 		application.NewService(&services.ImageService{Engines: m, Events: e, Ops: o}),

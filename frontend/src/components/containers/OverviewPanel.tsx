@@ -6,12 +6,16 @@ import type { Container, ContainerDetail } from "@bindings/model";
 import { Button } from "@/components/ui/button";
 import { formatCreated, uniquePortsLong } from "./format";
 import { PortList } from "./PortLink";
+import { CopyAsButton } from "./copyas/CopyAsMenu";
 import { ShowFolderButton } from "@/components/host/ShowFolderButton";
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className="rounded-[10px] border border-border bg-card p-4">
-      <h3 className="mb-2 text-sm font-semibold">{title}</h3>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold">{title}</h3>
+        {action}
+      </div>
       {children}
     </section>
   );
@@ -39,7 +43,7 @@ export function OverviewPanel({ c, d }: { c: Container; d: ContainerDetail }) {
       .catch(() => toast.error("Could not copy container ID"));
   return (
     <div className="grid gap-3 xl:grid-cols-2">
-      <Section title="Properties">
+      <Section title="Properties" action={<CopyAsButton containerId={c.id} name={c.name} />}>
         <dl>
           <Row label="Container ID">
             <span className="inline-flex items-center gap-1 break-all font-mono text-xs">
