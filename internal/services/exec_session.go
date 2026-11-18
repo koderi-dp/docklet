@@ -87,6 +87,7 @@ loop:
 	default:
 	}
 	ev := model.ExecExitEvent{SessionID: sess.id}
+	ev.Notice = s.releaseSidecar(sess) // the toolbox goes before the UI hears about the end
 	if err != nil {
 		ev.Error = "The terminal connection was lost: " + engine.Redact(err.Error())
 	}
@@ -147,12 +148,12 @@ func newSessionID() string {
 	return hex.EncodeToString(b)
 }
 
-func (s *ExecService) register(connectionID, containerID, execID, shell string, api execAPI, stream execStream) model.ExecSession {
+func (s *ExecService) register(connectionID, containerID, execID, shell string, api execAPI, stream execStream, sc *debugSidecar) model.ExecSession {
 	ctx, cancel := context.WithCancel(context.Background())
 	sess := &execSession{
 		id: newSessionID(), connectionID: connectionID, containerID: containerID, execID: execID,
 		api: api, stream: stream, cancel: cancel,
-		closed: make(chan struct{}), done: make(chan struct{}),
+		closed: make(chan struct{}), done: make(chan struct{}), sidecar: sc,
 	}
 	s.mu.Lock()
 	if s.sessions == nil {

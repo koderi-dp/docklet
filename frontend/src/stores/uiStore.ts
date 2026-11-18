@@ -102,6 +102,12 @@ interface UIState {
   setExternalTerminal: (v: ExternalTerminalSetting) => void;
   editor: EditorSetting;
   setEditor: (v: EditorSetting) => void;
+  /** Toolbox image of "Debug shell" for containers without a shell. */
+  debugShellImage: string;
+  setDebugShellImage: (v: string) => void;
+  /** Skip the confirm panel before opening a debug shell. */
+  debugShellSkipConfirm: boolean;
+  setDebugShellSkipConfirm: (v: boolean) => void;
 }
 
 export const useUI = create<UIState>()(
@@ -159,6 +165,10 @@ export const useUI = create<UIState>()(
       setExternalTerminal: (externalTerminal) => set({ externalTerminal }),
       editor: { mode: "auto", template: "" },
       setEditor: (editor) => set({ editor }),
+      debugShellImage: "busybox:latest",
+      setDebugShellImage: (debugShellImage) => set({ debugShellImage }),
+      debugShellSkipConfirm: false,
+      setDebugShellSkipConfirm: (debugShellSkipConfirm) => set({ debugShellSkipConfirm }),
     }),
     {
       name: "docklet-ui",
@@ -179,6 +189,8 @@ export const useUI = create<UIState>()(
         tableSort: s.tableSort,
         externalTerminal: s.externalTerminal,
         editor: s.editor,
+        debugShellImage: s.debugShellImage,
+        debugShellSkipConfirm: s.debugShellSkipConfirm,
       }),
     },
   ),

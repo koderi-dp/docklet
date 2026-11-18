@@ -11,19 +11,32 @@ import { cn } from "@/lib/utils";
 import { fromBase64, readMonoFont, readTerminalTheme, toBase64 } from "@/components/terminal/util";
 import { errorMessage } from "@/lib/errors";
 import { ExternalTerminalButton } from "./externalTerminal";
+import { useActiveConnection } from "@/hooks/useActiveConnection";
+import { debugBanner, debugShellDisabledReason, isNoShellError, pullToolboxImage } from "./debugShell/debugShell";
+import { DebugShellButton } from "./debugShell/DebugShellButton";
+import { DebugShellConfirm, ImageMissingOffer, NoShellOffer, PullingNotice } from "./debugShell/DebugShellPanels";
 
 export interface TerminalPanelProps {
   connectionId: string;
   containerId: string;
   running: boolean;
+  /** Open the debug-shell flow instead of a regular shell (from the container menu). */
+  autoDebug?: boolean;
+  onAutoDebugHandled?: () => void;
 }
 
 type Phase =
   | { kind: "idle" }
   | { kind: "connecting" }
-  | { kind: "active"; shell: string }
+  | { kind: "active"; shell: string; debug: boolean }
   | { kind: "exited"; code: number }
-  | { kind: "disconnected"; error: string };
+  | { kind: "ended"; notice: string }
+  | { kind: "closed" }
+  | { kind: "disconnected"; error: string }
+  | { kind: "noShell" }
+  | { kind: "debugConfirm"; back: Phase }
+  | { kind: "imageMissing"; image: string }
+  | { kind: "pulling"; image: string };
 
 const SHELLS = ["auto", "bash", "sh", "ash", "zsh"] as const;
 
@@ -35,15 +48,29 @@ interface ExecExit {
   sessionId: string;
   exitCode?: number | null;
   error?: string;
+  notice?: string;
 }
 
 
-export default function TerminalPanel({ connectionId, containerId, running }: TerminalPanelProps) {
+export default function TerminalPanel({ connectionId, containerId, running, autoDebug, onAutoDebugHandled }: TerminalPanelProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const startRef = useRef<(() => void) | null>(null);
+  const debugRef = useRef<{ request: () => void; launch: (image: string, ptrace: boolean) => void; pull: (image: string, ptrace: boolean) => void } | null>(null);
   const shellRef = useRef<string>("auto");
+  const autoDebugRef = useRef({ autoDebug, onAutoDebugHandled });
   const [shell, setShell] = useState<string>("auto");
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
+  const { status } = useActiveConnection();
+  const engineOS = status?.os;
+  const debugImage = useUI((s) => s.debugShellImage);
+  const skipConfirm = useUI((s) => s.debugShellSkipConfirm);
+  const [sysPtrace, setSysPtrace] = useState(false);
+  const ptraceRef = useRef(false);
+
+  useEffect(() => {
+    autoDebugRef.current = { autoDebug, onAutoDebugHandled };
+    ptraceRef.current = sysPtrace;
+  }, [autoDebug, onAutoDebugHandled, sysPtrace]);
 
   useEffect(() => {
     shellRef.current = shell;
@@ -135,7 +162,14 @@ export default function TerminalPanel({ connectionId, containerId, running }: Te
       const d = ev.data;
       if (!d || d.sessionId !== sessionId) return;
       sessionId = null;
-      if (d.exitCode == null || d.error) {
+      if (d.notice) {
+        term.write(`
+
+[2m[${d.notice}][0m
+
+`);
+        setPhase({ kind: "ended", notice: d.notice });
+      } else if (d.exitCode == null || d.error) {
         const error = d.error || "The terminal session ended unexpectedly.";
         term.write(`\r\n\x1b[2m[${error}]\x1b[0m\r\n`);
         setPhase({ kind: "disconnected", error });
@@ -172,17 +206,72 @@ export default function TerminalPanel({ connectionId, containerId, running }: Te
           }
           sessionId = s.id;
           for (const d of early.splice(0)) if (d.sessionId === s.id) term.write(fromBase64(d.dataBase64));
-          setPhase({ kind: "active", shell: s.shell });
+          setPhase({ kind: "active", shell: s.shell, debug: false });
           term.focus();
           // the size may have changed while connecting
           if (term.cols && term.rows) void ExecService.Resize(s.id, term.cols, term.rows).catch(() => undefined);
         })
         .catch((e) => {
           if (disposed || gen !== generation) return;
+          const msg = errorMessage(e);
+          setPhase(isNoShellError(msg) ? { kind: "noShell" } : { kind: "disconnected", error: msg });
+        });
+    };
+
+    // Debug shell: a temporary toolbox container that shares this container's namespaces.
+    let debugMode = false;
+    const launchDebug = (image: string, ptrace: boolean) => {
+      closeCurrent();
+      const gen = ++generation;
+      debugMode = true;
+      early.length = 0;
+      term.reset();
+      doFit();
+      setPhase({ kind: "connecting" });
+      ExecService.DebugShellStart(connectionId, containerId, { image, sysPtrace: ptrace, cols: term.cols, rows: term.rows })
+        .then((r) => {
+          if (disposed || gen !== generation) {
+            if (r.sessionId) void ExecService.Close(r.sessionId).catch(() => undefined);
+            return;
+          }
+          if (r.imageMissing) {
+            setPhase({ kind: "imageMissing", image: r.image });
+            return;
+          }
+          sessionId = r.sessionId;
+          term.write(debugBanner(r));
+          for (const d of early.splice(0)) if (d.sessionId === r.sessionId) term.write(fromBase64(d.dataBase64));
+          setPhase({ kind: "active", shell: r.shell, debug: true });
+          term.focus();
+          if (term.cols && term.rows) void ExecService.Resize(r.sessionId, term.cols, term.rows).catch(() => undefined);
+        })
+        .catch((e) => {
+          if (disposed || gen !== generation) return;
           setPhase({ kind: "disconnected", error: errorMessage(e) });
         });
     };
-    startRef.current = start;
+    const requestDebug = () => {
+      setPhase((back) => ({ kind: "debugConfirm", back: back.kind === "debugConfirm" ? back.back : back }));
+    };
+    const pullThenLaunch = (image: string, ptrace: boolean) => {
+      const gen = ++generation;
+      setPhase({ kind: "pulling", image });
+      pullToolboxImage(connectionId, image)
+        .then(() => {
+          if (disposed || gen !== generation) return;
+          launchDebug(image, ptrace);
+        })
+        .catch((e) => {
+          if (disposed || gen !== generation) return;
+          setPhase({ kind: "disconnected", error: `Could not pull ${image}: ${errorMessage(e)}` });
+        });
+    };
+    debugRef.current = { request: requestDebug, launch: launchDebug, pull: pullThenLaunch };
+    startRef.current = () => {
+      if (!debugMode) return start();
+      const ui = useUI.getState();
+      launchDebug(ui.debugShellImage, ptraceRef.current);
+    };
 
     let raf = 0;
     const ro = new ResizeObserver(() => {
@@ -196,12 +285,22 @@ export default function TerminalPanel({ connectionId, containerId, running }: Te
     });
     themeObs.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
 
-    start();
+    void ExecService.SweepDebugContainers(connectionId).catch(() => undefined);
+    const auto = autoDebugRef.current;
+    if (auto.autoDebug) {
+      auto.onAutoDebugHandled?.();
+      const ui = useUI.getState();
+      if (ui.debugShellSkipConfirm) launchDebug(ui.debugShellImage, false);
+      else setPhase({ kind: "debugConfirm", back: { kind: "closed" } });
+    } else {
+      start();
+    }
 
     return () => {
       disposed = true;
       generation++;
       startRef.current = null;
+      debugRef.current = null;
       cancelAnimationFrame(raf);
       ro.disconnect();
       themeObs.disconnect();
@@ -218,6 +317,11 @@ export default function TerminalPanel({ connectionId, containerId, running }: Te
   }, [connectionId, containerId, running]);
 
   const restart = useCallback(() => startRef.current?.(), []);
+  const openDebug = useCallback(() => {
+    const ui = useUI.getState();
+    if (ui.debugShellSkipConfirm) debugRef.current?.launch(ui.debugShellImage, ptraceRef.current);
+    else debugRef.current?.request();
+  }, []);
 
   if (!running) {
     return (
@@ -228,7 +332,8 @@ export default function TerminalPanel({ connectionId, containerId, running }: Te
     );
   }
 
-  const ended = phase.kind === "exited" || phase.kind === "disconnected";
+  const ended = phase.kind === "exited" || phase.kind === "disconnected" || phase.kind === "ended" || phase.kind === "closed";
+  const overlay = phase.kind === "noShell" || phase.kind === "debugConfirm" || phase.kind === "imageMissing" || phase.kind === "pulling";
   return (
     <div className="flex h-full min-h-[240px] flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2 text-[13px]">
@@ -241,16 +346,23 @@ export default function TerminalPanel({ connectionId, containerId, running }: Te
                 "size-2 rounded-full",
                 phase.kind === "active" && "bg-success",
                 phase.kind === "disconnected" && "bg-destructive",
-                (phase.kind === "exited" || phase.kind === "idle") && "bg-muted-foreground",
+                (phase.kind === "exited" || phase.kind === "idle" || phase.kind === "ended" || phase.kind === "closed" || overlay) &&
+                  "bg-muted-foreground",
               )}
             />
           )}
           {phase.kind === "connecting" && "Connecting…"}
           {phase.kind === "active" && (
             <>
-              Connected <span className="font-mono text-xs text-muted-foreground">{phase.shell}</span>
+              {phase.debug ? "Debug shell" : "Connected"} <span className="font-mono text-xs text-muted-foreground">{phase.shell}</span>
             </>
           )}
+          {phase.kind === "ended" && phase.notice}
+          {phase.kind === "closed" && "No session"}
+          {phase.kind === "noShell" && "No shell in this container"}
+          {phase.kind === "debugConfirm" && "Debug shell"}
+          {phase.kind === "imageMissing" && "Toolbox image missing"}
+          {phase.kind === "pulling" && "Pulling toolbox image…"}
           {phase.kind === "exited" && `Process exited with code ${phase.code}`}
           {phase.kind === "disconnected" && <span className="text-destructive">Disconnected: {phase.error}</span>}
         </span>
@@ -272,14 +384,36 @@ export default function TerminalPanel({ connectionId, containerId, running }: Te
             </select>
           </label>
           <ExternalTerminalButton containerId={containerId} state="running" shell={shell} />
+          <DebugShellButton state="running" engineOS={engineOS} showOptions={skipConfirm} onOpen={openDebug} onOptions={() => debugRef.current?.request()} />
           <Button size="sm" variant="outline" onClick={restart} disabled={phase.kind === "connecting"}>
             {ended ? <RotateCw className="size-4" /> : <Plus className="size-4" />}
             {ended ? "Reconnect" : "New session"}
           </Button>
         </div>
       </div>
-      <div className="min-h-0 flex-1 overflow-hidden rounded-[10px] border border-border bg-card p-2">
+      <div className="relative min-h-0 flex-1 overflow-hidden rounded-[10px] border border-border bg-card p-2">
         <div ref={hostRef} className="h-full w-full" />
+        {phase.kind === "noShell" && <NoShellOffer onOpen={openDebug} disabledReason={debugShellDisabledReason("running", engineOS)} />}
+        {phase.kind === "debugConfirm" && (
+          <DebugShellConfirm
+            image={debugImage}
+            onImage={useUI.getState().setDebugShellImage}
+            sysPtrace={sysPtrace}
+            onSysPtrace={setSysPtrace}
+            skip={skipConfirm}
+            onSkip={useUI.getState().setDebugShellSkipConfirm}
+            onOpen={() => debugRef.current?.launch(debugImage, sysPtrace)}
+            onCancel={() => setPhase(phase.back)}
+          />
+        )}
+        {phase.kind === "imageMissing" && (
+          <ImageMissingOffer
+            image={phase.image}
+            onPull={() => debugRef.current?.pull(phase.image, sysPtrace)}
+            onCancel={() => setPhase({ kind: "closed" })}
+          />
+        )}
+        {phase.kind === "pulling" && <PullingNotice image={phase.image} />}
       </div>
     </div>
   );

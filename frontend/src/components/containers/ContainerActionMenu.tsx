@@ -1,4 +1,4 @@
-import { Copy, ExternalLink, Eye, FolderOpen, MoreHorizontal, Pause, Pencil, Play, RotateCw, Skull, Square, SquareTerminal, Trash2 } from "lucide-react";
+import { Copy, ExternalLink, Eye, FolderOpen, MoreHorizontal, Pause, Pencil, Play, RotateCw, Skull, Square, SquareTerminal, Trash2, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,6 +11,8 @@ import { type ContainerAction, ineligibleReason } from "@/lib/actionEligibility"
 import { externalTerminalReason, useOpenExternalTerminal } from "@/components/containers/externalTerminal";
 import { useActiveConnection } from "@/hooks/useActiveConnection";
 import { useHostActions, useLocalPath } from "@/hooks/useHost";
+import { useNavigate } from "react-router-dom";
+import { debugShellDisabledReason } from "@/components/containers/debugShell/debugShell";
 import { openRecreate } from "@/components/containers/recreate/recreateStore";
 
 export interface ContainerActionMenuProps {
@@ -29,7 +31,9 @@ export interface ContainerActionMenuProps {
 /** Eligibility-aware per-container overflow menu. Disabled items explain why via title. */
 export function ContainerActionMenu({ id, name, state, busy, onAction, onInspect, onOpenDetails, onCopyId, projectDir }: ContainerActionMenuProps) {
   const openExternal = useOpenExternalTerminal();
-  const { connectionId } = useActiveConnection();
+  const { connectionId, status } = useActiveConnection();
+  const navigate = useNavigate();
+  const debugReason = debugShellDisabledReason(state, status?.os);
   const { exists: projectDirHere } = useLocalPath(connectionId, projectDir);
   const { showFolder } = useHostActions(connectionId);
   const externalReason = externalTerminalReason(state);
@@ -83,6 +87,10 @@ export function ContainerActionMenu({ id, name, state, busy, onAction, onInspect
         <DropdownMenuItem disabled={!!externalReason} title={externalReason} onSelect={() => void openExternal(id)}>
           <SquareTerminal />
           Open in external terminal
+        </DropdownMenuItem>
+        <DropdownMenuItem disabled={!!debugReason} title={debugReason} onSelect={() => navigate(`/containers/${id}?tab=terminal&debug=1`)}>
+          <Wrench />
+          Debug shell…
         </DropdownMenuItem>
         {projectDir && projectDirHere && (
           <DropdownMenuItem onSelect={() => void showFolder(projectDir)}>

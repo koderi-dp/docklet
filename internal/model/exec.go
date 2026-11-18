@@ -28,6 +28,8 @@ type ExecExitEvent struct {
 	SessionID string `json:"sessionId"`
 	ExitCode  *int   `json:"exitCode,omitempty"`
 	Error     string `json:"error,omitempty"`
+	// Notice explains an expected end (for example the target of a debug shell stopped).
+	Notice string `json:"notice,omitempty"`
 }
 
 // CreateEnvVar is one environment variable of a new container.

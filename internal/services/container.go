@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
 
 	"docklet/internal/engine"
@@ -86,10 +87,15 @@ func (s *ContainerService) List(ctx context.Context, connectionID string) ([]mod
 		return nil, friendlyError(err)
 	}
 	out := make([]model.Container, 0, len(res.Items))
+	items := make([]container.Summary, 0, len(res.Items))
 	for _, it := range res.Items {
+		if it.Labels[debugLabel] == "true" {
+			continue // temporary debug-shell toolboxes are not part of the user's containers
+		}
+		items = append(items, it)
 		out = append(out, mapSummary(connectionID, it))
 	}
-	classifyExited(ctx, cli, connectionID, out, func(i int) bool { return isOneOffLabels(res.Items[i].Labels) })
+	classifyExited(ctx, cli, connectionID, out, func(i int) bool { return isOneOffLabels(items[i].Labels) })
 	sort.SliceStable(out, func(i, j int) bool {
 		a, b := out[i], out[j]
 		if a.ComposeProject != b.ComposeProject {

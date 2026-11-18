@@ -153,7 +153,13 @@ function Detail({ connectionId, param }: { connectionId: string; param: string }
         <TabsContent value="terminal" className="min-h-0 flex-1 overflow-auto">
           {running ? (
             <Suspense fallback={<Skeleton className="h-64 w-full" />}>
-              <TerminalPanel connectionId={connectionId} containerId={c.id} running={running} />
+              <TerminalPanel
+                connectionId={connectionId}
+                containerId={c.id}
+                running={running}
+                autoDebug={search.get("debug") === "1"}
+                onAutoDebugHandled={() => setSearch({ tab: "terminal" }, { replace: true })}
+              />
             </Suspense>
           ) : (
             <EmptyState title="Start container to open a terminal">

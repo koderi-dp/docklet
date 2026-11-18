@@ -26,9 +26,13 @@ type ExecService struct {
 
 	// newAPI is a test seam; nil uses the Docker SDK client of the connection.
 	newAPI func(ctx context.Context, connectionID string) (execAPI, error)
+	// newDebugAPI is the same seam for debug-shell sidecars.
+	newDebugAPI func(ctx context.Context, connectionID string) (debugAPI, error)
 
 	mu       sync.Mutex
 	sessions map[string]*execSession
+
+	debug debugState // debug-shell sidecars (exec_debug*.go)
 }
 
 // execStream is the bidirectional TTY stream of an attached exec.
@@ -69,6 +73,8 @@ type execSession struct {
 	once   sync.Once
 	closed chan struct{} // closed by explicit Close
 	done   chan struct{} // closed when the pump has finished
+
+	sidecar *debugSidecar // non-nil for debug shells: removed when the session ends
 }
 
 var shellPaths = map[string]string{
@@ -112,6 +118,11 @@ func (s *ExecService) api(ctx context.Context, connectionID string) (execAPI, er
 // Start opens an interactive TTY session. Output is emitted as "exec:data" and the
 // end as "exec:exit".
 func (s *ExecService) Start(ctx context.Context, connectionID, containerID string, opts model.ExecOptions) (model.ExecSession, error) {
+	return s.startSession(ctx, connectionID, containerID, opts, nil)
+}
+
+// startSession is Start for any container; sc is set when containerID is a debug sidecar.
+func (s *ExecService) startSession(ctx context.Context, connectionID, containerID string, opts model.ExecOptions, sc *debugSidecar) (model.ExecSession, error) {
 	if strings.TrimSpace(containerID) == "" {
 		return model.ExecSession{}, errors.New("container is required")
 	}
@@ -138,7 +149,7 @@ func (s *ExecService) Start(ctx context.Context, connectionID, containerID strin
 	}
 
 	var lastErr error
-	for i, shell := range cands {
+	for _, shell := range cands {
 		execID, err := api.ExecCreate(ctx, containerID, []string{shell}, opts)
 		if err != nil {
 			return model.ExecSession{}, friendlyError(err)
@@ -148,14 +159,14 @@ func (s *ExecService) Start(ctx context.Context, connectionID, containerID strin
 			lastErr = err
 			continue // shell probably missing in the image: try the next candidate
 		}
-		if i < len(cands)-1 && shellMissing(ctx, api, execID) {
+		if len(cands) > 1 && shellMissing(ctx, api, execID) {
 			// Some engines accept the attach and only then report the missing
 			// binary (exit 126/127): fall back to the next candidate.
 			_ = stream.Close()
 			lastErr = fmt.Errorf("%s is not available in this container", shell)
 			continue
 		}
-		return s.register(connectionID, containerID, execID, shell, api, stream), nil
+		return s.register(connectionID, containerID, execID, shell, api, stream, sc), nil
 	}
 	if len(cands) > 1 {
 		return model.ExecSession{}, fmt.Errorf("No usable shell found in the container (tried %s): %w", strings.Join(cands, ", "), friendlyError(lastErr))
@@ -223,6 +234,7 @@ func (s *ExecService) shutdown(sess *execSession) {
 	})
 	s.remove(sess)
 	<-sess.done
+	s.releaseSidecar(sess)
 }
 
 // ServiceShutdown closes every open session when the app quits.
