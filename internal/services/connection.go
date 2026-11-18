@@ -6,6 +6,8 @@ import (
 
 	"docklet/internal/engine"
 	"docklet/internal/model"
+	"docklet/internal/ops"
+	"docklet/internal/wsldocker"
 )
 
 // ErrNotImplemented marks contract methods whose implementation is owned by a
@@ -16,6 +18,10 @@ var ErrNotImplemented = errors.New("not implemented yet")
 // takes an explicit connectionID; there is no implicit "current" connection in Go.
 type ConnectionService struct {
 	Manager *engine.Manager
+	// Ops runs the Docker Engine install in the background (nil disables it).
+	Ops *ops.Manager
+	// WSLExec runs commands inside WSL distributions; nil uses wsl.exe.
+	WSLExec wsldocker.Exec
 }
 
 func (s *ConnectionService) mgr() (*engine.Manager, error) {

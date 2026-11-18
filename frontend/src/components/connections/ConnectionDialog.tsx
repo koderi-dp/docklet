@@ -159,7 +159,9 @@ function ConnectionForm({ editId, onClose }: { editId?: string; onClose: () => v
             maxLength={100}
           />
         </Field>
-        {f.type === ConnectionType.ConnWSL && <WslPicker value={f.distro} onChange={(distro) => set({ distro })} />}
+        {f.type === ConnectionType.ConnWSL && (
+          <WslPicker value={f.distro} onChange={(distro) => set({ distro })} successAction={{ label: "Test & Save", run: () => void run("testsave") }} />
+        )}
         {f.type === ConnectionType.ConnNamedPipe && (
           <Field label="Pipe path" htmlFor="pipe" hint="Windows named pipe of the Docker Engine, for example npipe:////./pipe/docker_engine.">
             <Input id="pipe" value={f.pipe} onChange={(e) => set({ pipe: e.target.value })} className="font-mono text-xs" />

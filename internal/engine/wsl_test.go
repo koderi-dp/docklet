@@ -93,6 +93,7 @@ func TestClassifyWSLDocker_SeparatesMissingCLIFromUnreachableDaemon(t *testing.T
 		{"27.1.1|27.1.1\n", nil, true, true},
 		{"27.1.1|\nCannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?", errors.New("exit 1"), true, false},
 		{"wsl: execvpe(docker) failed: No such file or directory", errors.New("exit 1"), false, false},
+		{"failed to connect to the docker API at unix:///var/run/docker.sock; check if the path is correct and if the daemon is running: dial unix /var/run/docker.sock: connect: no such file or directory", errors.New("exit 1"), true, false},
 		{"permission denied while trying to connect to the Docker daemon socket", errors.New("exit 1"), true, false},
 	}
 	for i, c := range cases {

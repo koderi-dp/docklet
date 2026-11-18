@@ -95,7 +95,7 @@ func (r *appRuntime) buildServices(osNotifications *notifications.NotificationSe
 		r.appSvc.Version = v // testing aid: pretend to run another version
 	}
 	return []application.Service{
-		application.NewService(&services.ConnectionService{Manager: m}),
+		application.NewService(&services.ConnectionService{Manager: m, Ops: o}),
 		application.NewService(containers),
 		application.NewService(&services.OperationService{Ops: o, History: r.db.ListOperationHistory}),
 		application.NewService(&services.DialogService{Picker: r.picker}),

@@ -1,3 +1,6 @@
+# Keep LF in the working tree on every platform (gofmt and shell scripts need it).
+* text=auto eol=lf
+
 # Shell scripts and Linux packaging files must keep LF line endings on every platform.
 *.sh text eol=lf
 build/linux/** text eol=lf

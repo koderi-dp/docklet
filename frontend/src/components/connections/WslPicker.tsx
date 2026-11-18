@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { errorMessage } from "@/lib/errors";
+import { wslInfoKey } from "./wslinstall/useWslInstall";
+import { WslDockerSetup } from "./wslinstall/WslDockerSetup";
+import type { SuccessAction } from "./wslinstall/InstallDockerDialog";
 
 const distrosKey = ["wsl-distros"] as const;
-const infoKey = (d: string) => ["wsl-docker", d] as const;
 
 function isInternal(name: string) {
   return name.toLowerCase().startsWith("docker-desktop");
@@ -28,13 +30,13 @@ function DockerLine({ d, info, loading }: { d: WSLDistro; info?: WSLDockerInfo; 
 }
 
 /** WSL distribution picker with per-distro Docker detection and an explicit "Start WSL" action. */
-export function WslPicker({ value, onChange }: { value: string; onChange: (distro: string) => void }) {
+export function WslPicker({ value, onChange, successAction }: { value: string; onChange: (distro: string) => void; successAction?: SuccessAction }) {
   const qc = useQueryClient();
   const distros = useQuery({ queryKey: distrosKey, queryFn: () => ConnectionService.WSLDistros(), retry: false, staleTime: 0 });
   const list = distros.data ?? [];
   const infos = useQueries({
     queries: list.map((d) => ({
-      queryKey: infoKey(d.name),
+      queryKey: wslInfoKey(d.name),
       queryFn: () => ConnectionService.WSLDockerInfo(d.name),
       retry: false,
       staleTime: 0,
@@ -45,7 +47,7 @@ export function WslPicker({ value, onChange }: { value: string; onChange: (distr
     onSuccess: (_r, name) => {
       toast.success(`${name} started`);
       void qc.invalidateQueries({ queryKey: distrosKey });
-      void qc.invalidateQueries({ queryKey: infoKey(name) });
+      void qc.invalidateQueries({ queryKey: wslInfoKey(name) });
     },
     onError: (e, name) =>
       toast.error(`Could not start ${name}`, {
@@ -54,6 +56,7 @@ export function WslPicker({ value, onChange }: { value: string; onChange: (distr
         closeButton: true,
       }),
   });
+  const selectedInfo = list.some((d) => d.name === value) ? infos[list.findIndex((d) => d.name === value)]?.data : undefined;
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: distrosKey });
     void qc.invalidateQueries({ queryKey: ["wsl-docker"] });
@@ -139,6 +142,9 @@ export function WslPicker({ value, onChange }: { value: string; onChange: (distr
           <p className="text-xs text-warning">The saved distribution "{value}" is not installed.</p>
         )}
       </div>
+      {value && selectedInfo?.running && !isInternal(value) && (
+        <WslDockerSetup distro={value} daemonReachable={selectedInfo.daemonReachable} successAction={successAction} />
+      )}
       <p className="text-xs text-muted-foreground">
         Connects through <code className="font-mono">wsl.exe</code> to the Docker Engine inside the distribution. No TCP port is exposed.
         A stopped distribution is not an error; start it explicitly.

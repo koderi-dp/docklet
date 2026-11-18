@@ -154,7 +154,8 @@ func classifyWSLDocker(distro, out string, runErr error) model.WSLDockerInfo {
 		} else {
 			info.Detail = "Docker CLI found but the daemon did not answer."
 		}
-	case strings.Contains(low, "cannot connect to the docker daemon"), strings.Contains(low, "is the docker daemon running"):
+	case strings.Contains(low, "cannot connect to the docker daemon"), strings.Contains(low, "is the docker daemon running"),
+		strings.Contains(low, "failed to connect to the docker api"):
 		info.CLIFound = true
 		info.Detail = "Docker CLI found, but the daemon is not running. Start it in the distribution (for example: sudo service docker start)."
 	case strings.Contains(low, "permission denied"):

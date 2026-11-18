@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { CheckCircle2, Copy, FlaskConical, Loader2, MoreHorizontal, Pencil, Plug, PlugZap, Plus, Trash2, Unplug } from "lucide-react";
 import { ConnectionService } from "@bindings/services";
-import { ConnectionState, type ConnectionProfile, type ConnectionStatus } from "@bindings/model";
+import { ConnectionState, ConnectionType, type ConnectionProfile, type ConnectionStatus } from "@bindings/model";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +18,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { ConnectionStatusBadge } from "@/components/connections/ConnectionStatusBadge";
 import { ErrorWithDiagnostics } from "@/components/connections/DiagnosticsBlock";
 import { TypeIcon, endpointSummary, engineSummary, typeLabel } from "@/components/connections/connectionMeta";
+import { WslDockerSetup } from "@/components/connections/wslinstall/WslDockerSetup";
 import { useConnectionActions } from "@/components/connections/useConnectionActions";
 import { useConnections, useConnectionStatus } from "@/hooks/useActiveConnection";
 import { useUI } from "@/stores/uiStore";
@@ -37,6 +38,8 @@ function ConnectionCard({ c }: { c: ConnectionProfile }) {
   const connected = state === ConnectionState.StateConnected;
   const connecting = state === ConnectionState.StateConnecting;
   const summary = engineSummary(status);
+  const dockerMissing =
+    c.type === ConnectionType.ConnWSL && !!c.wslDistro && state === ConnectionState.StateError && /was not found in the WSL distribution/.test(status?.error ?? "");
 
   const runTest = async () => {
     setTesting(true);
@@ -148,6 +151,9 @@ function ConnectionCard({ c }: { c: ConnectionProfile }) {
       {test?.kind === "error" && <ErrorWithDiagnostics className="mt-2" message={test.message} diagnostics={test.diagnostics} />}
       {state === ConnectionState.StateError && !test && status?.diagnostics && (
         <ErrorWithDiagnostics className="mt-2" message={status.error} diagnostics={status.diagnostics} />
+      )}
+      {dockerMissing && (
+        <WslDockerSetup className="mt-2" distro={c.wslDistro as string} successAction={{ label: "Connect", run: () => void connect(c.id) }} />
       )}
     </li>
   );
