@@ -124,7 +124,7 @@ jobs:
           for arch in amd64 arm64; do
             GOARCH="$arch" wails3 package "VERSION=$VERSION"
             if [[ "$arch" == "amd64" ]]; then
-              reported="$(./bin/docklet.exe --version | tr -d '')"
+              reported="$(./bin/docklet.exe --version)"
               echo "$reported"
               echo "$reported" | grep -qx "Docklet $VERSION"
             fi
@@ -201,7 +201,7 @@ jobs:
           set -euo pipefail
           wails3 task linux:create:appimage "VERSION=$VERSION"
           wails3 task linux:create:deb "VERSION=$VERSION"
-          reported="$(./bin/docklet --version | tr -d '')"
+          reported="$(./bin/docklet --version)"
           echo "$reported"
           echo "$reported" | grep -qx "Docklet $VERSION"
           ls -l bin

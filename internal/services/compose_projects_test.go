@@ -117,7 +117,7 @@ func TestAddProject_RejectsInvalidInputAndSavesNothing(t *testing.T) {
 		{"missing env file", "tcp", []string{good}, []string{filepath.Join(dir, "nope.env")}, "", "not found"},
 		{"bad project name", "tcp", []string{good}, []string{envf}, "My App", "invalid Compose project name"},
 		{"option-like path", "tcp", []string{"-f"}, nil, "", "must not start"},
-		{"wsl windows path", "wsl", []string{`C:\projectspp\compose.yml`}, nil, "", "Windows path"},
+		{"wsl windows path", "wsl", []string{`C:\projects\shop\compose.yml`}, nil, "", "Windows path"},
 		{"unknown connection", "zzz", []string{good}, nil, "", "unknown connection"},
 	}
 	for _, c := range cases {

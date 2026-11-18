@@ -70,7 +70,7 @@ jobs:
         run: |
           set -euo pipefail
           wails3 build
-          reported="$(./bin/docklet.exe --version | tr -d '')"
+          reported="$(./bin/docklet.exe --version)"
           echo "$reported"
           echo "$reported" | grep -q "^Docklet "
           mkdir -p dist
@@ -160,7 +160,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          reported="$(./bin/docklet --version | tr -d '')"
+          reported="$(./bin/docklet --version)"
           echo "$reported"
           echo "$reported" | grep -q "^Docklet "
 
