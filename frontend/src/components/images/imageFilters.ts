@@ -1,4 +1,13 @@
 import type { ImageRow } from "@bindings/model";
+import { type Accessors } from "@/lib/sorting";
+
+/** Sortable columns of the images table. Untagged images have no name, so they sort last by name. */
+export const IMAGE_SORT: Accessors<ImageRow> = {
+  name: (r) => (r.dangling ? undefined : r.ref),
+  created: (r) => r.created || undefined,
+  size: (r) => r.size,
+  inuse: (r) => r.containerCount,
+};
 
 export type ImageFilter = "all" | "inuse" | "unused" | "dangling";
 

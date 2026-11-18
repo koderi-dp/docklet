@@ -40,3 +40,26 @@ func TestDiscover_GroupsByComposeLabelOnly(t *testing.T) {
 		t.Errorf("empty label should give no files: %+v", ps[1])
 	}
 }
+
+func TestDiscover_OneShotContainersAreCompletedNotStopped(t *testing.T) {
+	zero, two := 0, 2
+	l := func(extra ...string) map[string]string {
+		m := map[string]string{LabelProject: "catalo"}
+		for i := 0; i+1 < len(extra); i += 2 {
+			m[extra[i]] = extra[i+1]
+		}
+		return m
+	}
+	cs := []Container{
+		{ID: "1", State: "running", Labels: l()},
+		{ID: "2", State: "exited", ExitCode: &zero, RestartPolicy: "no", Labels: l()},     // migrate: completed
+		{ID: "3", State: "exited", ExitCode: &zero, RestartPolicy: "always", Labels: l()}, // service that stopped: stopped
+		{ID: "4", State: "exited", ExitCode: &two, RestartPolicy: "no", Labels: l()},      // failed
+		{ID: "5", State: "exited", ExitCode: &zero, Labels: l(LabelOneOff, "True")},       // compose run: completed
+		{ID: "6", State: "exited", ExitCode: nil, RestartPolicy: "no", Labels: l()},       // unknown code: stopped
+	}
+	p := Discover("c", cs)[0]
+	if p.Running != 1 || p.Completed != 2 || p.Failed != 1 || p.Stopped != 3 {
+		t.Fatalf("running=%d completed=%d failed=%d stopped=%d", p.Running, p.Completed, p.Failed, p.Stopped)
+	}
+}

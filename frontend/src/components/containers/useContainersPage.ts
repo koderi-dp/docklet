@@ -26,7 +26,9 @@ import {
   type ComposeGroup,
   type ContainerFilters,
 } from "@/lib/composeGrouping";
+import { sortFlatRows, sortGroups } from "@/lib/containerSort";
 import { errorMessage } from "@/lib/errors";
+import { useTableSort } from "@/lib/useTableSort";
 
 /** All state and handlers of the Containers page: filters, selection, inspector, bulk actions, confirmations. */
 export function useContainersPage(connectionId: string) {
@@ -63,18 +65,22 @@ export function useContainersPage(connectionId: string) {
 
   const isCollapsed = useCallback((g: ComposeGroup) => !!collapsedGroups[g.collapseKey], [collapsedGroups]);
 
-  const groups = useMemo(() => buildGroups(connectionId, containers, filters, inFlight), [connectionId, containers, filters, inFlight]);
+  const visibleContainers = useMemo(() => containers.filter((c) => matchesFilters(c, filters)), [containers, filters]);
+  const runningVisibleIds = useMemo(() => visibleContainers.filter(isRunning).map((c) => c.id), [visibleContainers]);
+  const { stats } = useContainerStats(connectionId, runningVisibleIds, true);
+
+  const { sort } = useTableSort("containers");
+  const groups = useMemo(
+    () => sortGroups(buildGroups(connectionId, containers, filters, inFlight), sort, stats),
+    [connectionId, containers, filters, inFlight, sort, stats],
+  );
   const rows = useMemo(
-    () => (view === "grouped" ? flattenGrouped(groups, isCollapsed) : flattenFlat(connectionId, containers, filters)),
-    [view, groups, isCollapsed, connectionId, containers, filters],
+    () => (view === "grouped" ? flattenGrouped(groups, isCollapsed) : sortFlatRows(flattenFlat(connectionId, containers, filters), sort, stats)),
+    [view, groups, isCollapsed, connectionId, containers, filters, sort, stats],
   );
 
   const summary = useMemo(() => summarize(containers), [containers]);
   const tabCounts = summary && { all: summary.total, running: summary.running, stopped: summary.stopped };
-
-  const visibleContainers = useMemo(() => containers.filter((c) => matchesFilters(c, filters)), [containers, filters]);
-  const runningVisibleIds = useMemo(() => visibleContainers.filter(isRunning).map((c) => c.id), [visibleContainers]);
-  const { stats } = useContainerStats(connectionId, runningVisibleIds, true);
 
   const inspected = containers.find((c) => c.id === inspectedId) ?? null;
   const selectedContainers = resolveSelection(containers, selected);

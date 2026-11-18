@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { ExternalTerminalRow } from "@/components/settings/ExternalTerminalRow";
+import { NotificationSettingsSection } from "@/components/notifications/NotificationSettingsSection";
 import { cn } from "@/lib/utils";
 import { useUI, type ContainerViewMode, type ThemePalette, type ThemePreference } from "@/stores/uiStore";
 
@@ -159,6 +161,7 @@ export default function SettingsPage() {
             </SelectContent>
           </Select>
         </Row>
+        <ExternalTerminalRow />
       </Section>
 
       <Section title="Connections">
@@ -171,6 +174,8 @@ export default function SettingsPage() {
           </Button>
         </Row>
       </Section>
+
+      <NotificationSettingsSection />
 
       <Section title="About">
         <Row label="Docklet" hint="Desktop client for existing Docker Engines.">

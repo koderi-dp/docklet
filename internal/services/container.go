@@ -12,6 +12,8 @@ import (
 
 	"docklet/internal/engine"
 	"docklet/internal/model"
+	"docklet/internal/ops"
+	"docklet/internal/registryauth"
 )
 
 // ContainerService is bound to the frontend. All methods are scoped by connectionID.
@@ -20,6 +22,10 @@ import (
 type ContainerService struct {
 	Engines engine.Provider
 	Events  engine.Emitter
+	// Ops runs Recreate in the background (nil disables it).
+	Ops *ops.Manager
+	// Registry resolves registry credentials for "pull first" (nil = Docker CLI config).
+	Registry *registryauth.Resolver
 
 	streams logStreams   // live log streams (zero value ready)
 	watches statsWatches // live stats watches (zero value ready)
@@ -83,6 +89,7 @@ func (s *ContainerService) List(ctx context.Context, connectionID string) ([]mod
 	for _, it := range res.Items {
 		out = append(out, mapSummary(connectionID, it))
 	}
+	classifyExited(ctx, cli, connectionID, out, func(i int) bool { return isOneOffLabels(res.Items[i].Labels) })
 	sort.SliceStable(out, func(i, j int) bool {
 		a, b := out[i], out[j]
 		if a.ComposeProject != b.ComposeProject {

@@ -1,6 +1,6 @@
 import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { aggregateHealth, aggregateState, type GroupState } from "@/lib/composeGrouping";
+import { aggregateHealth, aggregateState, countOneShots, oneShotNotes, type GroupState } from "@/lib/composeGrouping";
 import { cn } from "@/lib/utils";
 import type { Container } from "@bindings/model";
 
@@ -31,11 +31,19 @@ export function ProjectStateBadge({
       </Badge>
     );
   }
+  const notes = oneShotNotes(countOneShots(containers));
   return (
-    <Badge variant="outline" className={cn("gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium", TONE[state], className)}>
-      {state === "transitioning" && <Loader2 className="size-3 animate-spin" aria-hidden />}
-      {LABEL[state]}
-    </Badge>
+    <span className="inline-flex items-center gap-1.5">
+      <Badge variant="outline" className={cn("gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium", TONE[state], className)}>
+        {state === "transitioning" && <Loader2 className="size-3 animate-spin" aria-hidden />}
+        {LABEL[state]}
+      </Badge>
+      {notes.map((n) => (
+        <span key={n.text} className={cn("text-xs", n.tone === "warning" ? "text-warning" : "text-muted-foreground")}>
+          {n.text}
+        </span>
+      ))}
+    </span>
   );
 }
 

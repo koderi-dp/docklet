@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import type { Container, ContainerDetail } from "@bindings/model";
 import { Button } from "@/components/ui/button";
 import { formatCreated, uniquePortsLong } from "./format";
+import { PortList } from "./PortLink";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -69,7 +70,7 @@ export function OverviewPanel({ c, d }: { c: Container; d: ContainerDetail }) {
 
       <div className="space-y-3">
         <Section title="Ports">
-          {ports.length ? <div className="flex flex-col gap-0.5 font-mono text-xs">{ports.map((p) => <span key={p}>{p}</span>)}</div> : none}
+          {ports.length ? <PortList ports={d.ports?.length ? d.ports : (c.ports ?? [])} /> : none}
         </Section>
         <Section title="Networks">
           {d.networks?.length ? (

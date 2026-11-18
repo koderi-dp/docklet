@@ -41,11 +41,15 @@ type ComposeServiceInfo struct {
 
 // ComposeProject is a project discovered from container labels of one Engine.
 type ComposeProject struct {
-	ConnectionID string               `json:"connectionId"`
-	Name         string               `json:"name"`
-	Source       string               `json:"source"`
-	Running      int                  `json:"running"`
-	Stopped      int                  `json:"stopped"` // exited | created | dead
+	ConnectionID string `json:"connectionId"`
+	Name         string `json:"name"`
+	Source       string `json:"source"`
+	Running      int    `json:"running"`
+	Stopped      int    `json:"stopped"` // exited | created | dead, excluding Completed
+	// Completed counts one-shot containers that exited with code 0 (restart policy "no" or
+	// Compose one-off); Failed counts exited ones with a non-zero code (also in Stopped).
+	Completed    int                  `json:"completed"`
+	Failed       int                  `json:"failed"`
 	Total        int                  `json:"total"`
 	Services     []ComposeServiceInfo `json:"services"`
 	ContainerIDs []string             `json:"containerIds"`

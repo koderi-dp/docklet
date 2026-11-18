@@ -4,9 +4,11 @@ import type { ImageRow } from "@bindings/model";
 import { useImagesQuery, usePruneDangling, useRemoveImages } from "@/hooks/useImages";
 import { useOperations } from "@/hooks/useOperations";
 import { useUI } from "@/stores/uiStore";
-import { matchesImage, summarizeImages, type ImageFilter } from "./imageFilters";
+import { IMAGE_SORT, matchesImage, summarizeImages, type ImageFilter } from "./imageFilters";
 import { useImageTransfers } from "./useImageTransfers";
 import { errorMessage } from "@/lib/errors";
+import { sortItems } from "@/lib/sorting";
+import { useTableSort } from "@/lib/useTableSort";
 
 /** All state and handlers of the Images page (selection, inspector, dialogs, bulk actions). */
 export function useImagesPage(connectionId: string) {
@@ -34,7 +36,8 @@ export function useImagesPage(connectionId: string) {
   const transfers = useImageTransfers(connectionId);
 
   const summary = useMemo(() => summarizeImages(rows), [rows]);
-  const visible = useMemo(() => rows.filter((r) => matchesImage(r, filter, query)), [rows, filter, query]);
+  const { sort } = useTableSort("images");
+  const visible = useMemo(() => sortItems(rows.filter((r) => matchesImage(r, filter, query)), sort, IMAGE_SORT), [rows, filter, query, sort]);
   const counts = useMemo(
     () => ({
       all: rows.length,

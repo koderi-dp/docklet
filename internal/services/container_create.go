@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"net/netip"
 	"regexp"
 	"strings"
@@ -43,7 +44,8 @@ func (s *ContainerService) Create(ctx context.Context, connectionID string, spec
 		return model.ActionResult{}, friendlyError(err)
 	}
 	name := strings.TrimSpace(spec.Name)
-	res, err := cli.ContainerCreate(ctx, client.ContainerCreateOptions{Config: cfg, HostConfig: host, Name: name})
+	netCfg, extra := networkingFor(spec)
+	res, err := cli.ContainerCreate(ctx, client.ContainerCreateOptions{Config: cfg, HostConfig: host, NetworkingConfig: netCfg, Name: name})
 	if err != nil {
 		return model.ActionResult{}, friendlyError(err)
 	}
@@ -51,7 +53,9 @@ func (s *ContainerService) Create(ctx context.Context, connectionID string, spec
 	if out.Name == "" {
 		out.Name = shortID(res.ID)
 	}
-	if spec.AutoStart {
+	if err := connectExtra(ctx, cli, res.ID, extra); err != nil {
+		out.Error = "Container was created but could not be attached to its networks: " + err.Error()
+	} else if spec.AutoStart {
 		if _, err := cli.ContainerStart(ctx, res.ID, client.ContainerStartOptions{}); err != nil {
 			out.Error = "Container was created but could not be started: " + friendlyError(err).Error()
 		}
@@ -194,7 +198,10 @@ func buildCreateConfig(spec model.ContainerCreateSpec) (*container.Config, *cont
 		return nil, nil, errors.New("CPU limit must be a positive number (or empty for unlimited)")
 	}
 	if spec.CPUs > 0 {
-		host.NanoCPUs = int64(spec.CPUs * 1e9)
+		host.NanoCPUs = int64(math.Round(spec.CPUs * 1e9))
+	}
+	if err := applyExtraSpec(spec, cfg, host); err != nil {
+		return nil, nil, err
 	}
 	return cfg, host, nil
 }

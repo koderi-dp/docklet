@@ -1,4 +1,4 @@
-import { Copy, ExternalLink, Eye, MoreHorizontal, Pause, Play, RotateCw, Skull, Square, Trash2 } from "lucide-react";
+import { Copy, ExternalLink, Eye, MoreHorizontal, Pause, Pencil, Play, RotateCw, Skull, Square, SquareTerminal, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -8,6 +8,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { type ContainerAction, ineligibleReason } from "@/lib/actionEligibility";
+import { externalTerminalReason, useOpenExternalTerminal } from "@/components/containers/externalTerminal";
+import { openRecreate } from "@/components/containers/recreate/recreateStore";
 
 export interface ContainerActionMenuProps {
   name: string;
@@ -21,7 +23,9 @@ export interface ContainerActionMenuProps {
 }
 
 /** Eligibility-aware per-container overflow menu. Disabled items explain why via title. */
-export function ContainerActionMenu({ name, state, busy, onAction, onInspect, onOpenDetails, onCopyId }: ContainerActionMenuProps) {
+export function ContainerActionMenu({ id, name, state, busy, onAction, onInspect, onOpenDetails, onCopyId }: ContainerActionMenuProps) {
+  const openExternal = useOpenExternalTerminal();
+  const externalReason = externalTerminalReason(state);
   const item = (action: ContainerAction, label: string, icon: React.ReactNode, destructive = false) => {
     const reason = busy ? "Another action is in progress" : ineligibleReason(action, state);
     return (
@@ -69,9 +73,17 @@ export function ContainerActionMenu({ name, state, busy, onAction, onInspect, on
             Inspect
           </DropdownMenuItem>
         )}
+        <DropdownMenuItem disabled={!!externalReason} title={externalReason} onSelect={() => void openExternal(id)}>
+          <SquareTerminal />
+          Open in external terminal
+        </DropdownMenuItem>
         <DropdownMenuItem onSelect={onCopyId}>
           <Copy />
           Copy ID
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => openRecreate(id)} disabled={!!busy} title={busy ? "Another action is in progress" : "Change settings and replace the container"}>
+          <Pencil />
+          Edit & recreate…
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         {item("remove", "Delete…", <Trash2 />, true)}

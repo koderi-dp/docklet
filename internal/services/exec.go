@@ -21,6 +21,8 @@ type ExecService struct {
 	Engines engine.Provider
 	Events  engine.Emitter
 	Ops     *ops.Manager
+	// Profiles resolves connection profiles for OpenExternalTerminal.
+	Profiles engine.ProfileSource
 
 	// newAPI is a test seam; nil uses the Docker SDK client of the connection.
 	newAPI func(ctx context.Context, connectionID string) (execAPI, error)

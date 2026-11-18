@@ -6,6 +6,18 @@ export type ThemePreference = "dark" | "light" | "system";
 /** Colour palette: the Docklet navy/violet design palette or the stock shadcn/ui neutral base. */
 export type ThemePalette = "docklet" | "shadcn";
 
+/** Sort state of one table (see lib/sorting). Absent = the table's default order. */
+export interface TableSortState {
+  id: string;
+  desc: boolean;
+}
+
+/** Terminal used for "Open in external terminal": auto-detect, or a custom template containing {cmd}. */
+export interface ExternalTerminalSetting {
+  mode: "auto" | "custom";
+  template: string;
+}
+
 /** Add/Edit connection dialog request (not persisted). */
 export interface ConnectionDialogRequest {
   mode: "add" | "edit";
@@ -64,6 +76,12 @@ interface UIState {
   setAllGroups: (keys: string[], collapsed: boolean) => void;
   inspectorWidth: number;
   setInspectorWidth: (w: number) => void;
+
+  /** Per-table sort, keyed by table id (e.g. "containers", "images"). */
+  tableSort: Record<string, TableSortState>;
+  setTableSort: (table: string, sort: TableSortState) => void;
+  externalTerminal: ExternalTerminalSetting;
+  setExternalTerminal: (v: ExternalTerminalSetting) => void;
 }
 
 export const useUI = create<UIState>()(
@@ -111,6 +129,10 @@ export const useUI = create<UIState>()(
         })),
       inspectorWidth: 380,
       setInspectorWidth: (inspectorWidth) => set({ inspectorWidth: Math.min(500, Math.max(320, inspectorWidth)) }),
+      tableSort: {},
+      setTableSort: (table, sort) => set((s) => ({ tableSort: { ...s.tableSort, [table]: sort } })),
+      externalTerminal: { mode: "auto", template: "" },
+      setExternalTerminal: (externalTerminal) => set({ externalTerminal }),
     }),
     {
       name: "docklet-ui",
@@ -127,6 +149,8 @@ export const useUI = create<UIState>()(
         containerView: s.containerView,
         collapsedGroups: s.collapsedGroups,
         inspectorWidth: s.inspectorWidth,
+        tableSort: s.tableSort,
+        externalTerminal: s.externalTerminal,
       }),
     },
   ),

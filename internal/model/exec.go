@@ -34,6 +34,9 @@ type ExecExitEvent struct {
 type CreateEnvVar struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
+	// Keep (recreate only) means "unchanged": the server substitutes the value the
+	// existing container has, so secret values never travel to the UI. Value is ignored.
+	Keep bool `json:"keep"`
 }
 
 // PortMapping publishes a container port. HostPort 0 lets the Engine choose.
@@ -65,4 +68,22 @@ type ContainerCreateSpec struct {
 	MemoryMiB     int64          `json:"memoryMiB"`     // 0 = unlimited
 	CPUs          float64        `json:"cpus"`          // 0 = unlimited
 	AutoStart     bool           `json:"autoStart"`
+
+	// Optional settings. Empty means "image default".
+	Entrypoint  string            `json:"entrypoint"` // parsed like Command
+	WorkDir     string            `json:"workDir"`
+	User        string            `json:"user"`
+	Hostname    string            `json:"hostname"`
+	Labels      map[string]string `json:"labels"`
+	StopSignal  string            `json:"stopSignal"`
+	StopTimeout *int              `json:"stopTimeout"` // seconds; nil = Engine default
+	// NetworkMode is "" (default bridge), host, none, container:<name> or a user network name.
+	NetworkMode string          `json:"networkMode"`
+	Networks    []NetworkAttach `json:"networks"` // user networks to attach, with aliases
+}
+
+// NetworkAttach attaches a container to a user-defined network.
+type NetworkAttach struct {
+	Name    string   `json:"name"`
+	Aliases []string `json:"aliases"`
 }

@@ -13,6 +13,8 @@ import { formatBytes } from "@/components/containers/format";
 import { ImagesTable } from "@/components/images/ImagesTable";
 import { ImageInspector } from "@/components/images/ImageInspector";
 import { ImagesToolbar } from "@/components/images/ImagesToolbar";
+import { CheckUpdatesButton } from "@/components/images/update/CheckUpdatesButton";
+import { UpdateHost } from "@/components/images/update/UpdateHost";
 import { ImageConfirmDialogs } from "@/components/images/ImageConfirmDialogs";
 import { PullImageDialog } from "@/components/images/PullImageDialog";
 import { BuildImageDialog } from "@/components/images/BuildImageDialog";
@@ -120,6 +122,7 @@ function ImagesView({ connectionId }: { connectionId: string }) {
                 onPrune={() => pg.setConfirmPrune(true)}
                 refreshing={list.isFetching}
                 onRefresh={() => void list.refetch()}
+                extra={<CheckUpdatesButton connectionId={connectionId} rows={list.data ?? []} />}
               />
             </TableToolbar>
             {pg.rows.length === 0 ? (
@@ -161,6 +164,7 @@ function ImagesView({ connectionId }: { connectionId: string }) {
         />
       )}
 
+      <UpdateHost />
       <PullImageDialog connectionId={connectionId} engineName={engineName} open={pg.pullOpen} onOpenChange={pg.setPullOpen} />
       <BuildImageDialog connectionId={connectionId} engineName={engineName} open={pg.buildOpen} onOpenChange={pg.setBuildOpen} />
       <PushImageDialog connectionId={connectionId} engineName={engineName} image={pg.pushTarget} onClose={() => pg.setPushTarget(null)} />

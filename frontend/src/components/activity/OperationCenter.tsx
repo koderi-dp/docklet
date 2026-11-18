@@ -4,7 +4,10 @@ import { OperationStatus, type Operation } from "@bindings/model";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { AlertsPanel } from "@/components/notifications/AlertsPanel";
 import { useConnections } from "@/hooks/useActiveConnection";
+import { useAlertEvents, useAlerts } from "@/hooks/useNotifications";
 import { useOperationLogs, useOperations } from "@/hooks/useOperations";
 import { StatusIcon } from "./OperationStatusIcon";
 import { OperationHistory } from "./OperationHistory";
@@ -139,52 +142,64 @@ function OperationRow({ op, connectionName, onCancel }: { op: Operation; connect
   );
 }
 
-/** Top-bar background-operations center: bell with running count, popover list with logs and cancel. */
+/** Top-bar activity center: bell with running-operation and unread-alert counts; Operations and Alerts tabs. */
 export default function OperationCenter() {
   const { operations, runningCount, finishedCount, loaded, loadError, centerOpen, setCenterOpen, cancel, clearFinished } = useOperations();
   const { data: conns } = useConnections();
+  const { unreadCount } = useAlerts();
+  useAlertEvents();
   const nameOf = (id: string) => conns?.find((c) => c.id === id)?.name ?? id;
+  const label = [runningCount > 0 && `${runningCount} running`, unreadCount > 0 && `${unreadCount} unread alerts`].filter(Boolean).join(", ");
   return (
     <Popover open={centerOpen} onOpenChange={setCenterOpen}>
       <PopoverTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="relative"
-          title="Activity"
-          aria-label={runningCount > 0 ? `Activity: ${runningCount} running` : "Activity"}
-        >
+        <Button variant="ghost" size="icon" className="relative" title="Activity and alerts" aria-label={label ? `Activity: ${label}` : "Activity"}>
           <Bell className="size-4" />
           {runningCount > 0 && (
             <Badge className="absolute -right-0.5 -top-0.5 h-4 min-w-4 justify-center rounded-full px-1 text-[10px] leading-none">
               {runningCount}
             </Badge>
           )}
+          {unreadCount > 0 && (
+            <Badge className="absolute -bottom-0.5 -right-0.5 h-4 min-w-4 justify-center rounded-full bg-destructive px-1 text-[10px] leading-none text-white">
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </Badge>
+          )}
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-[420px] p-0">
-        <div className="flex items-center justify-between border-b border-border px-3 py-2">
-          <h2 className="text-sm font-semibold">Activity</h2>
-          <Button size="sm" variant="ghost" className="h-7 text-xs" disabled={finishedCount === 0} onClick={() => void clearFinished()}>
-            Clear finished
-          </Button>
-        </div>
-        <div className="max-h-[360px] overflow-auto">
-          {loadError ? (
-            <p className="p-4 text-sm text-destructive">Could not load operations: {loadError}</p>
-          ) : !loaded ? (
-            <p className="p-4 text-sm text-muted-foreground">Loading…</p>
-          ) : operations.length === 0 ? (
-            <p className="p-4 text-sm text-muted-foreground">No background operations. Pulls, prunes and other long tasks appear here.</p>
-          ) : (
-            <ul>
-              {operations.map((op) => (
-                <OperationRow key={op.id} op={op} connectionName={nameOf(op.connectionId)} onCancel={() => void cancel(op.id)} />
-              ))}
-            </ul>
-          )}
-        </div>
-        <OperationHistory open={centerOpen} liveIds={new Set(operations.map((o) => o.id))} nameOf={nameOf} />
+        <Tabs defaultValue="operations" className="gap-0">
+          <TabsList variant="line" className="w-full justify-start border-b border-border px-2">
+            <TabsTrigger value="operations">Operations</TabsTrigger>
+            <TabsTrigger value="alerts">Alerts{unreadCount > 0 ? ` (${unreadCount})` : ""}</TabsTrigger>
+          </TabsList>
+          <TabsContent value="operations">
+            <div className="flex items-center justify-end border-b border-border px-3 py-1.5">
+              <Button size="sm" variant="ghost" className="h-7 text-xs" disabled={finishedCount === 0} onClick={() => void clearFinished()}>
+                Clear finished
+              </Button>
+            </div>
+            <div className="max-h-[360px] overflow-auto">
+              {loadError ? (
+                <p className="p-4 text-sm text-destructive">Could not load operations: {loadError}</p>
+              ) : !loaded ? (
+                <p className="p-4 text-sm text-muted-foreground">Loading…</p>
+              ) : operations.length === 0 ? (
+                <p className="p-4 text-sm text-muted-foreground">No background operations. Pulls, prunes and other long tasks appear here.</p>
+              ) : (
+                <ul>
+                  {operations.map((op) => (
+                    <OperationRow key={op.id} op={op} connectionName={nameOf(op.connectionId)} onCancel={() => void cancel(op.id)} />
+                  ))}
+                </ul>
+              )}
+            </div>
+            <OperationHistory open={centerOpen} liveIds={new Set(operations.map((o) => o.id))} nameOf={nameOf} />
+          </TabsContent>
+          <TabsContent value="alerts">
+            <AlertsPanel />
+          </TabsContent>
+        </Tabs>
       </PopoverContent>
     </Popover>
   );

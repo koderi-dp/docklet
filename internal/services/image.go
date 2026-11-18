@@ -22,6 +22,8 @@ type ImageService struct {
 	Ops     *ops.Manager
 	// Registry resolves registry credentials (nil = Docker CLI config on this machine).
 	Registry *registryauth.Resolver
+	// updates caches registry update checks (zero value ready).
+	updates updateCache
 }
 
 func (s *ImageService) client(ctx context.Context, connectionID string) (*client.Client, error) {

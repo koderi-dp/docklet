@@ -51,6 +51,10 @@ func mapInspect(connectionID string, in container.InspectResponse) model.Contain
 	}
 	if in.State != nil {
 		d.State = string(in.State.Status)
+		if d.State == "exited" {
+			code := in.State.ExitCode
+			d.ExitCode = &code
+		}
 		d.StartedAt = zeroTime(in.State.StartedAt)
 		d.FinishedAt = zeroTime(in.State.FinishedAt)
 		if in.State.Health != nil {
@@ -81,6 +85,9 @@ func mapInspect(connectionID string, in container.InspectResponse) model.Contain
 	}
 	if hc := in.HostConfig; hc != nil {
 		d.RestartPolicy = string(hc.RestartPolicy.Name)
+		if d.RestartPolicy == "" {
+			d.RestartPolicy = "no"
+		}
 		if hc.RestartPolicy.Name == "on-failure" && hc.RestartPolicy.MaximumRetryCount > 0 {
 			d.RestartPolicy += ":" + strconv.Itoa(hc.RestartPolicy.MaximumRetryCount)
 		}

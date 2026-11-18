@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/moby/moby/client"
@@ -31,9 +32,10 @@ type conn struct {
 
 // Manager implements Provider and owns every connection's client lifecycle.
 type Manager struct {
-	store   ProfileStore
-	secrets secrets.Store // OS credential store; nil disables stored SSH secrets
-	emit    Emitter
+	store    ProfileStore
+	secrets  secrets.Store // OS credential store; nil disables stored SSH secrets
+	emit     Emitter
+	observer atomic.Pointer[EventObserver] // optional; see SetEventObserver
 
 	newClient  clientFactory
 	debounce   time.Duration

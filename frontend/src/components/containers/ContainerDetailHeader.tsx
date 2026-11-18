@@ -1,12 +1,14 @@
 import { Link } from "react-router-dom";
-import { Box, MoreHorizontal, Pause, Play, RotateCw, Skull, Square, Trash2 } from "lucide-react";
+import { Box, MoreHorizontal, Pause, Pencil, Play, RotateCw, Skull, Square, Trash2 } from "lucide-react";
 import type { Container } from "@bindings/model";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { HealthBadge, StatusBadge } from "@/components/shared/StatusBadge";
+import { HealthBadge } from "@/components/shared/StatusBadge";
 import { ACTION_LABEL, ineligibleReason, type ContainerAction } from "@/lib/actionEligibility";
 import type { ReactNode } from "react";
+import { openRecreate } from "@/components/containers/recreate/recreateStore";
+import { ContainerStatusBadge } from "./ContainerStatusBadge";
 
 interface Props {
   container: Container;
@@ -56,7 +58,7 @@ export function ContainerDetailHeader({ container: c, health, busy, onRun, onCon
       <div className="mb-3 flex flex-nowrap items-center gap-3">
         <Box className="size-6 shrink-0 text-primary" />
         <h1 className="min-w-0 truncate text-2xl font-semibold" title={c.name}>{c.name}</h1>
-        <StatusBadge state={c.state} />
+        <ContainerStatusBadge container={c} />
         <HealthBadge health={health ?? c.health} />
         <div className="ml-auto flex shrink-0 items-center gap-2">
           {primary("start")}
@@ -71,6 +73,9 @@ export function ContainerDetailHeader({ container: c, health, busy, onRun, onCon
             <DropdownMenuContent align="end">
               <DropdownMenuItem disabled={!!reasonFor(pauseAction)} title={reasonFor(pauseAction)} onSelect={() => onRun(pauseAction)}>
                 {ICON[pauseAction]} {ACTION_LABEL[pauseAction]}
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled={busy} title={busy ? "Another action is in progress" : "Change settings and replace the container"} onSelect={() => openRecreate(c.id)}>
+                <Pencil /> Edit & recreate…
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem variant="destructive" disabled={!!reasonFor("kill")} title={reasonFor("kill")} onSelect={() => onConfirm("kill")}>

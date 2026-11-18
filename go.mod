@@ -10,6 +10,8 @@ require (
 	github.com/wailsapp/wails/v3 v3.1.0
 )
 
+require git.sr.ht/~jackmordaunt/go-toast/v2 v2.0.3 // indirect
+
 require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/coder/websocket v1.8.14 // indirect

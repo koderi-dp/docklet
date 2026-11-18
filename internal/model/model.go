@@ -114,6 +114,11 @@ type Container struct {
 	// Unix seconds.
 	Created int64         `json:"created"`
 	Ports   []PortBinding `json:"ports"`
+	// ExitCode is parsed from the "Exited (N) ..." status text; nil unless the container exited.
+	ExitCode *int `json:"exitCode,omitempty"`
+	// RestartPolicy is "no", "always", ... Only resolved for containers that exited with
+	// code 0 (needed to tell a finished one-shot from a stopped service); empty = unknown.
+	RestartPolicy string `json:"restartPolicy,omitempty"`
 
 	ComposeProject     string `json:"composeProject,omitempty"`     // com.docker.compose.project
 	ComposeService     string `json:"composeService,omitempty"`     // com.docker.compose.service

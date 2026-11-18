@@ -4,6 +4,7 @@ import { ContainerService } from "@bindings/services";
 import type { ContainerStatDetail } from "@bindings/model";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { formatBytes } from "./format";
+import { cpuCores, formatMemoryUsage, formatPercent } from "@/lib/statsFormat";
 import { usePageVisible } from "@/hooks/queryUtils";
 
 const POLL_MS = 2000;
@@ -44,6 +45,11 @@ export function Sparkline({ values, max, label }: { values: Array<number | null>
       )}
     </svg>
   );
+}
+
+function memoryText(used: number, limit?: number | null): string {
+  const m = formatMemoryUsage(used, limit);
+  return m.percent != null ? `${m.text} · ${formatPercent(m.percent)}` : m.text;
 }
 
 const NA = <span title="Not available on this Engine">Not available</span>;
@@ -95,7 +101,7 @@ export function StatsPanel({ connectionId, containerId, running }: { connectionI
     <div className="space-y-3">
       {q.error && <p className="text-sm text-destructive">Could not read stats: {String(q.error)}</p>}
       <div className="grid gap-3 md:grid-cols-2">
-        <Tile label="CPU" value={d?.cpuPercent != null ? `${d.cpuPercent.toFixed(1)}%` : q.isLoading ? "…" : NA}>
+        <Tile label="CPU" value={d?.cpuPercent != null ? `${d.cpuPercent.toFixed(1)}% · ${cpuCores(d.cpuPercent)}` : q.isLoading ? "…" : NA}>
           <Sparkline values={cpuVals} max={cpuMax} label="CPU usage history" />
           <div className="text-[11px] text-muted-foreground">Scale 0–{cpuMax.toFixed(0)}% · this session only</div>
         </Tile>
@@ -103,7 +109,7 @@ export function StatsPanel({ connectionId, containerId, running }: { connectionI
           label="Memory"
           value={
             d?.memoryBytes != null
-              ? `${formatBytes(d.memoryBytes)}${d.memoryLimit ? ` / ${formatBytes(d.memoryLimit)}` : ""}`
+              ? memoryText(d.memoryBytes, d.memoryLimit)
               : q.isLoading
                 ? "…"
                 : NA

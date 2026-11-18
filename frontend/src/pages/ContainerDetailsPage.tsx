@@ -26,6 +26,8 @@ import { InspectPanel } from "@/components/containers/InspectPanel";
 import { ProcessesPanel } from "@/components/containers/ProcessesPanel";
 import { OverviewPanel } from "@/components/containers/OverviewPanel";
 import { ContainerDetailHeader } from "@/components/containers/ContainerDetailHeader";
+import { RecreateHost } from "@/components/containers/recreate/RecreateHost";
+import { useFollowRecreatedContainer } from "@/components/containers/recreate/useRecreate";
 import { ContainerFilesTab } from "@/components/files/ContainerFilesTab";
 import { useContainerAction, useContainerDetail, useContainersQuery } from "@/hooks/useContainers";
 import { ACTION_LABEL, ineligibleReason, isEligible, type ContainerAction } from "@/lib/actionEligibility";
@@ -55,6 +57,7 @@ function Detail({ connectionId, param }: { connectionId: string; param: string }
     [list.data, param],
   );
   const detail = useContainerDetail(connectionId, c?.id ?? null);
+  useFollowRecreatedContainer(connectionId, c?.name);
   const mutation = useContainerAction(connectionId);
   const [confirm, setConfirm] = useState<"kill" | "remove" | null>(null);
   const [busy, setBusy] = useState(false);
@@ -183,6 +186,7 @@ function Detail({ connectionId, param }: { connectionId: string; param: string }
         </TabsContent>
       </Tabs>
 
+      <RecreateHost />
       <AlertDialog open={confirm !== null} onOpenChange={(o) => !o && setConfirm(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

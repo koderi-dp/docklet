@@ -1,27 +1,16 @@
 import { useUI } from "@/stores/uiStore";
-import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { ArrowDownToLine, Copy, Download, Eraser, Pause, Play, RefreshCw, Search } from "lucide-react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { ArrowDownToLine, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { MAX_LOG_LINES, useLogStream, type ViewLine } from "./useLogStream";
+import { LogList } from "./LogList";
+import { LogToolbar } from "./LogToolbar";
+import { MAX_LOG_LINES, useLogStream } from "./useLogStream";
+import { useLogView, type ShownLine } from "./useLogView";
 
-const TAIL_OPTIONS: Array<{ label: string; value: number }> = [
-  { label: "100 lines", value: 100 },
-  { label: "500 lines", value: 500 },
-  { label: "1000 lines", value: 1000 },
-  { label: "5000 lines", value: 5000 },
-  { label: "All", value: -1 },
-];
-
-// eslint-disable-next-line no-control-regex
-const ANSI_RE = /\u001b\[[0-9;?]*[ -/]*[@-~]/g;
-const stripAnsi = (s: string) => s.replace(ANSI_RE, "");
-
-function formatLine(l: ViewLine, timestamps: boolean): string {
-  const text = stripAnsi(l.text);
-  return timestamps && l.timestamp ? `${l.timestamp} ${text}` : text;
+function formatLine(l: ShownLine, timestamps: boolean): string {
+  return timestamps && l.line.timestamp ? `${l.line.timestamp} ${l.text}` : l.text;
 }
 
 interface Props {
@@ -40,28 +29,41 @@ interface Props {
 export function LogViewer({ connectionId, containerId, containerName, compact, className }: Props) {
   const [tail, setTail] = useState(() => (compact ? 100 : useUI.getState().logTail));
   const [timestamps, setTimestamps] = useState(true);
-  const [search, setSearch] = useState("");
   const [follow, setFollow] = useState(true);
+  // The stream always carries timestamps (the time-range filter needs them); the toggle only hides them.
   const { lines, status, error, paused, setPaused, queued, clear, reconnect } = useLogStream({
     connectionId,
     containerId,
     tail,
-    timestamps,
+    timestamps: true,
   });
+  const view = useLogView(lines);
+  const { shown, totalMatches, active } = view;
   const scroller = useRef<HTMLDivElement>(null);
-
-  const deferredSearch = useDeferredValue(search);
-  const needle = deferredSearch.trim().toLowerCase();
-  const shown = useMemo(
-    () => (needle ? lines.filter((l) => stripAnsi(l.text).toLowerCase().includes(needle)) : lines),
-    [lines, needle],
-  );
+  const navigated = useRef(false);
 
   // Stick to the bottom while following.
   useLayoutEffect(() => {
     const el = scroller.current;
     if (follow && el) el.scrollTop = el.scrollHeight;
   }, [shown, follow]);
+
+  // After next / previous match: bring that match into view and stop following.
+  useEffect(() => {
+    if (!navigated.current) return;
+    navigated.current = false;
+    scroller.current?.querySelector(`[data-match="${active}"]`)?.scrollIntoView({ block: "center" });
+  }, [active, shown]);
+
+  const step = useCallback(
+    (dir: 1 | -1) => {
+      navigated.current = true;
+      setTimeout(() => (navigated.current = false), 300); // a single match does not change `active`
+      setFollow(false);
+      view.step(dir);
+    },
+    [view],
+  );
 
   const onScroll = useCallback(() => {
     const el = scroller.current;
@@ -89,10 +91,10 @@ export function LogViewer({ connectionId, containerId, containerName, compact, c
 
   const exportText = () => shown.map((l) => formatLine(l, timestamps)).join("\n");
 
-  const copyAll = () => {
+  const copyVisible = () => {
     navigator.clipboard
       .writeText(exportText())
-      .then(() => toast.success(`Copied ${shown.length} line${shown.length === 1 ? "" : "s"}`))
+      .then(() => toast.success(`Copied ${shown.length} visible line${shown.length === 1 ? "" : "s"}`))
       .catch((e: unknown) => toast.error("Could not copy logs", { description: String(e) }));
   };
 
@@ -119,82 +121,32 @@ export function LogViewer({ connectionId, containerId, containerName, compact, c
           ? "Stream ended"
           : "Stream error";
 
+  const filtered = shown.length !== lines.length;
+  const emptyText =
+    status === "connecting" ? "Connecting to log stream…" : lines.length > 0 ? "No lines match the filters." : "No log output yet.";
+
   return (
     <div className={cn("flex min-h-0 flex-col gap-2", className)}>
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-[140px] flex-1">
-          <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Filter lines"
-            aria-label="Filter log lines"
-            className="h-8 pl-7 text-[13px]"
-          />
-        </div>
-        <select
-          aria-label="Tail lines"
-          value={tail}
-          onChange={(e) => setTail(Number(e.target.value))}
-          className="h-8 rounded-md border border-border bg-card px-2 text-[13px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
-        >
-          {TAIL_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-        <label className="flex cursor-pointer items-center gap-1.5 text-[13px]">
-          <input type="checkbox" checked={timestamps} onChange={(e) => setTimestamps(e.target.checked)} className="accent-primary" />
-          Timestamps
-        </label>
-        <Button size="sm" variant="outline" onClick={() => setPaused(!paused)} disabled={status !== "live"}>
-          {paused ? <Play className="size-3.5" /> : <Pause className="size-3.5" />}
-          {paused ? "Resume" : "Pause"}
-        </Button>
-        {!compact && (
-          <>
-            <Button size="sm" variant="outline" onClick={copyAll} disabled={shown.length === 0}>
-              <Copy className="size-3.5" /> Copy
-            </Button>
-            <Button size="sm" variant="outline" onClick={download} disabled={shown.length === 0}>
-              <Download className="size-3.5" /> Download
-            </Button>
-          </>
-        )}
-        <Button size="sm" variant="outline" onClick={clear} disabled={lines.length === 0} title="Clears this view only; the container's logs are not touched">
-          <Eraser className="size-3.5" /> Clear view
-        </Button>
-      </div>
+      <LogToolbar
+        view={view}
+        tail={tail}
+        onTail={setTail}
+        timestamps={timestamps}
+        onTimestamps={setTimestamps}
+        paused={paused}
+        canPause={status === "live"}
+        onPause={() => setPaused(!paused)}
+        compact={compact}
+        visibleCount={shown.length}
+        hasLines={lines.length > 0}
+        onCopy={copyVisible}
+        onDownload={download}
+        onClear={clear}
+        onStep={step}
+      />
 
       <div className="relative min-h-0 flex-1">
-        <div
-          ref={scroller}
-          onScroll={onScroll}
-          role="log"
-          aria-label={`Logs of ${containerName}`}
-          className="h-full min-h-[160px] overflow-auto rounded-md border border-border bg-muted/30 p-2 font-mono text-[11.5px] leading-[1.45]"
-        >
-          {shown.length === 0 ? (
-            <p className="p-2 text-muted-foreground">
-              {status === "connecting"
-                ? "Connecting to log stream…"
-                : needle
-                  ? "No lines match the filter."
-                  : "No log output yet."}
-            </p>
-          ) : (
-            shown.map((l) => (
-              <div
-                key={l.seq}
-                className={cn("whitespace-pre-wrap break-all", l.stream === "stderr" ? "text-warning" : "text-foreground")}
-              >
-                {timestamps && l.timestamp && <span className="mr-2 text-muted-foreground">{l.timestamp}</span>}
-                {stripAnsi(l.text)}
-              </div>
-            ))
-          )}
-        </div>
+        <LogList shown={shown} timestamps={timestamps} active={active} emptyText={emptyText} containerName={containerName} scroller={scroller} onScroll={onScroll} />
         {!follow && shown.length > 0 && (
           <Button size="sm" className="absolute bottom-3 right-4 shadow-sm" onClick={resume}>
             <ArrowDownToLine className="size-3.5" /> Resume follow
@@ -205,7 +157,8 @@ export function LogViewer({ connectionId, containerId, containerName, compact, c
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <span>
           {statusText}
-          {needle ? ` · ${shown.length} of ${lines.length} lines match` : ` · ${lines.length} lines`}
+          {filtered ? ` · ${shown.length} of ${lines.length} lines` : ` · ${lines.length} lines`}
+          {view.hasQuery && ` · ${totalMatches === 0 ? "no matches" : `${totalMatches} match${totalMatches === 1 ? "" : "es"} (${active + 1} of ${totalMatches})`}`}
           {lines.length >= MAX_LOG_LINES && ` (view keeps the latest ${MAX_LOG_LINES})`}
           {follow ? " · following" : ""}
         </span>

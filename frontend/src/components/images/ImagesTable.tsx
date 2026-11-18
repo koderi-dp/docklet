@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { columnVisibilityFeature, createColumnHelper, tableFeatures, useTable } from "@tanstack/react-table";
-import { Copy, Download, Eye, MoreHorizontal, Play, Tag, Trash2, Upload } from "lucide-react";
+import { Copy, Download, Eye, MoreHorizontal, Play, RefreshCw, Tag, Trash2, Upload } from "lucide-react";
 import type { ImageRow } from "@bindings/model";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,8 +14,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatBytes, formatCreated } from "@/components/containers/format";
+import { SortTh } from "@/components/tables/SortTh";
 import { cn } from "@/lib/utils";
 import { copyToClipboard } from "@/lib/clipboard";
+import { UpdateChip } from "./update/UpdateChip";
+import { checkImageUpdate, openUpdateDialog } from "./update/updateStore";
+
+const SORTABLE = new Set(["name", "created", "size", "inuse"]);
 
 const features = tableFeatures({ columnVisibilityFeature });
 const helper = createColumnHelper<typeof features, ImageRow>();
@@ -76,6 +81,12 @@ export function RowActions({
           onSelect={() => onPush(row)}
         >
           <Upload /> Push…
+        </DropdownMenuItem>
+        <DropdownMenuItem disabled={row.dangling} title={row.dangling ? "Untagged image: nothing to compare with a registry" : undefined} onSelect={() => void checkImageUpdate(row)}>
+          <RefreshCw /> Check for update
+        </DropdownMenuItem>
+        <DropdownMenuItem disabled={row.dangling} title={row.dangling ? "Untagged image: nothing to pull" : "Pull the newest image and recreate containers that use it"} onSelect={() => openUpdateDialog(row)}>
+          <Download /> Update…
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem variant="destructive" onSelect={() => onRemove(row)}>
@@ -185,7 +196,12 @@ export function ImagesTable(p: ImagesTableProps) {
         helper.display({
           id: "inuse",
           header: "Usage",
-          cell: (ctx) => <InUseBadge row={ctx.row.original} />,
+          cell: (ctx) => (
+            <span className="inline-flex items-center gap-2">
+              <InUseBadge row={ctx.row.original} />
+              <UpdateChip row={ctx.row.original} />
+            </span>
+          ),
         }),
         helper.display({
           id: "actions",
@@ -217,11 +233,17 @@ export function ImagesTable(p: ImagesTableProps) {
         <thead>
           {table.getHeaderGroups().map((hg) => (
             <tr key={hg.id} className="border-b border-border text-left text-xs font-medium text-muted-foreground">
-              {hg.headers.map((h) => (
-                <th key={h.id} scope="col" className={cn("h-10 whitespace-nowrap px-3 font-medium", h.column.id === "select" && "w-10")}>
-                  {h.isPlaceholder ? null : <table.FlexRender header={h} />}
-                </th>
-              ))}
+              {hg.headers.map((h) =>
+                SORTABLE.has(h.column.id) && typeof h.column.columnDef.header === "string" ? (
+                  <SortTh key={h.id} table="images" id={h.column.id}>
+                    {h.column.columnDef.header}
+                  </SortTh>
+                ) : (
+                  <th key={h.id} scope="col" className={cn("h-10 whitespace-nowrap px-3 font-medium", h.column.id === "select" && "w-10")}>
+                    {h.isPlaceholder ? null : <table.FlexRender header={h} />}
+                  </th>
+                ),
+              )}
             </tr>
           ))}
         </thead>

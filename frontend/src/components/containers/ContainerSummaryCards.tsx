@@ -10,7 +10,9 @@ export function ContainerSummaryCards({ summary }: { summary: SummaryCounts }) {
     <div className="mb-4 grid grid-cols-4 gap-3">
       <MetricCard icon={<Box />} label="Total Containers" value={summary.total} />
       <MetricCard icon={<Play />} tone="success" label="Running" value={summary.running} hint={pct(summary.running, summary.total)} />
-      <MetricCard icon={<Square />} tone="muted" label="Stopped" value={summary.stopped} hint={pct(summary.stopped, summary.total)} />
+      <MetricCard icon={<Square />} tone="muted" label="Stopped" value={summary.stopped}
+        hint={`${summary.completed} completed · ${summary.failed} failed`}
+      />
       <MetricCard
         icon={<Activity />}
         tone="success"

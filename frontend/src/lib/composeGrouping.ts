@@ -23,6 +23,30 @@ export function isStopped(c: Pick<Container, "state">): boolean {
 export function isTransitioningState(state: string): boolean {
   return TRANSITIONING_STATES.has(state);
 }
+/**
+ * A finished one-shot (e.g. a `migrate` service): exited with code 0 and restart policy "no"
+ * (the Engine list marks Compose one-offs as "no"). Unknown code or policy never counts.
+ */
+export function isCompleted(c: Pick<Container, "state" | "exitCode" | "restartPolicy">): boolean {
+  return c.state === "exited" && c.exitCode === 0 && c.restartPolicy === "no";
+}
+/** Exited with a non-zero code. */
+export function isFailed(c: Pick<Container, "state" | "exitCode">): boolean {
+  return c.state === "exited" && c.exitCode != null && c.exitCode !== 0;
+}
+export interface OneShotCounts {
+  completed: number;
+  failed: number;
+}
+export function countOneShots(containers: readonly Container[]): OneShotCounts {
+  let completed = 0;
+  let failed = 0;
+  for (const c of containers) {
+    if (isCompleted(c)) completed++;
+    else if (isFailed(c)) failed++;
+  }
+  return { completed, failed };
+}
 export function hasHealthcheck(c: Pick<Container, "health">): boolean {
   return c.health === "healthy" || c.health === "unhealthy" || c.health === "starting";
 }
@@ -57,6 +81,9 @@ export interface SummaryCounts {
   total: number;
   running: number;
   stopped: number;
+  /** Stopped containers that are finished one-shots / that exited non-zero (both are part of `stopped`). */
+  completed: number;
+  failed: number;
   /** Containers with health === healthy (never inferred). */
   healthy: number;
   /** Containers that actually have a healthcheck (healthy|unhealthy|starting). */
@@ -66,20 +93,26 @@ export interface SummaryCounts {
 export function summarize(containers: readonly Container[]): SummaryCounts {
   let running = 0;
   let stopped = 0;
+  let completed = 0;
+  let failed = 0;
   let healthy = 0;
   let withHealthcheck = 0;
   for (const c of containers) {
     if (isRunning(c)) running++;
-    else if (isStopped(c)) stopped++;
+    else if (isStopped(c)) {
+      stopped++;
+      if (isCompleted(c)) completed++;
+      else if (isFailed(c)) failed++;
+    }
     if (c.health === "healthy") healthy++;
     if (hasHealthcheck(c)) withHealthcheck++;
   }
-  return { total: containers.length, running, stopped, healthy, withHealthcheck };
+  return { total: containers.length, running, stopped, completed, failed, healthy, withHealthcheck };
 }
 
 /**
- * Aggregate state of a set of containers.
- * `inFlightIds` are containers with a UI-issued action not yet reflected by the Engine.
+ * Aggregate state of a set of containers. Finished one-shots (see isCompleted) are ignored:
+ * a project whose remaining containers all run is "running". `inFlightIds` are containers with a UI-issued action not yet reflected by the Engine.
  */
 export function aggregateState(
   children: readonly Container[],
@@ -87,8 +120,10 @@ export function aggregateState(
 ): GroupState {
   if (children.length === 0) return "stopped";
   if (children.some((c) => isTransitioningState(c.state) || inFlightIds?.has(c.id))) return "transitioning";
-  const running = children.filter(isRunning).length;
-  if (running === children.length) return "running";
+  const relevant = children.filter((c) => !isCompleted(c));
+  if (relevant.length === 0) return "stopped"; // everything finished: nothing is running
+  const running = relevant.filter(isRunning).length;
+  if (running === relevant.length) return "running";
   if (running === 0) return "stopped";
   return "partial";
 }
@@ -135,6 +170,9 @@ export interface ComposeGroup {
   /** Containers matching the current filters (sorted by name). */
   visible: Container[];
   state: GroupState;
+  /** Finished one-shots / non-zero exits among ALL children (unfiltered). */
+  completed: number;
+  failed: number;
   health: HealthSummary;
   /** True when filters hide at least one child. */
   filtered: boolean;
@@ -204,6 +242,7 @@ export function buildGroups(
       all: [...all].sort(byName),
       visible,
       state: aggregateState(all, inFlightIds),
+      ...countOneShots(all),
       health: aggregateHealth(all),
       filtered: visible.length !== all.length,
     });
@@ -294,4 +333,12 @@ export function applyRange(
     else next.delete(id);
   }
   return next;
+}
+
+/** "1 completed" / "1 failed" notes shown next to a project state; empty when there are none. */
+export function oneShotNotes(n: OneShotCounts): { text: string; tone: "muted" | "warning" }[] {
+  const out: { text: string; tone: "muted" | "warning" }[] = [];
+  if (n.completed > 0) out.push({ text: `${n.completed} completed`, tone: "muted" });
+  if (n.failed > 0) out.push({ text: `${n.failed} failed`, tone: "warning" });
+  return out;
 }

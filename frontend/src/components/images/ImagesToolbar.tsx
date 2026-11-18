@@ -24,6 +24,8 @@ interface Props {
   onPrune: () => void;
   refreshing: boolean;
   onRefresh: () => void;
+  /** Extra toolbar actions rendered before Refresh. */
+  extra?: React.ReactNode;
 }
 
 /** One-line toolbar content: filter tabs, flexible search, Remove dangling, refresh. */
@@ -53,6 +55,7 @@ export function ImagesToolbar(p: Props) {
             <span className="hidden @[900px]:inline">Remove dangling</span> ({p.danglingCount})
           </Button>
         )}
+        {p.extra}
         <IconButton label="Refresh" onClick={p.onRefresh}>
           <RefreshCw className={cn("size-4", p.refreshing && "animate-spin")} />
         </IconButton>

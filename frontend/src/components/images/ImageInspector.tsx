@@ -8,6 +8,7 @@ import { formatBytes, formatCreated } from "@/components/containers/format";
 import { useImageDetail, useImageHistory } from "@/hooks/useImages";
 import { InUseBadge, shortImageId } from "./ImagesTable";
 import { copyToClipboard } from "@/lib/clipboard";
+import { UpdateInspectorRow } from "./update/UpdateInspectorRow";
 
 interface Props {
   connectionId: string;
@@ -104,6 +105,7 @@ export function ImageInspector({ connectionId, row, width, onResize, onClose }: 
           </Row>
           <Row label="Size">{formatBytes(row.size)}</Row>
           <Row label="Created">{formatCreated(row.created)}</Row>
+          <UpdateInspectorRow row={row} />
           {d && (
             <>
               <Row label="Tags">

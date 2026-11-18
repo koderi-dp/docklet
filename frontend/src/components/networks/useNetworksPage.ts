@@ -5,8 +5,16 @@ import { useOnOperationDone } from "@/hooks/useOperations";
 import { useNetworksQuery, usePruneNetworks, useRemoveNetworks } from "@/hooks/useNetworks";
 import type { UsageFilter } from "@/components/volumes/parts";
 import { errorMessage } from "@/lib/errors";
+import { sortItems, type Accessors } from "@/lib/sorting";
+import { useTableSort } from "@/lib/useTableSort";
 
 export const networkAttached = (n: Network) => (n.attached ?? []).length;
+
+const NETWORK_SORT: Accessors<Network> = {
+  name: (n) => n.name,
+  driver: (n) => n.driver,
+  attached: networkAttached,
+};
 
 /** All state and handlers of the Networks page (filters, selection, inspector, remove/prune flows). */
 export function useNetworksPage(connectionId: string) {
@@ -28,9 +36,10 @@ export function useNetworksPage(connectionId: string) {
     () => ({ all: networks.length, inuse: networks.filter((n) => attachedCount(n) > 0).length, unused: networks.filter((n) => attachedCount(n) === 0).length }),
     [networks],
   );
+  const { sort } = useTableSort("networks");
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return networks.filter((n) => {
+    return sortItems(networks.filter((n) => {
       if (filter === "inuse" && attachedCount(n) === 0) return false;
       if (filter === "unused" && attachedCount(n) > 0) return false;
       if (!q) return true;
@@ -40,8 +49,8 @@ export function useNetworksPage(connectionId: string) {
         (n.subnets ?? []).some((s) => s.includes(q)) ||
         Object.entries(n.labels ?? {}).some(([k, v]) => `${k}=${v}`.toLowerCase().includes(q))
       );
-    });
-  }, [networks, search, filter]);
+    }), sort, NETWORK_SORT);
+  }, [networks, search, filter, sort]);
 
   useEffect(() => {
     if (!list.data) return;

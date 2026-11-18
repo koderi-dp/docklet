@@ -22,6 +22,7 @@ import { ContainerInspector } from "@/components/containers/ContainerInspector";
 import { ContainerSummaryCards } from "@/components/containers/ContainerSummaryCards";
 import { ContainerConfirmDialogs } from "@/components/containers/ContainerConfirmDialogs";
 import CreateContainerDialog from "@/components/containers/CreateContainerDialog";
+import { RecreateHost } from "@/components/containers/recreate/RecreateHost";
 import { useContainersPage } from "@/components/containers/useContainersPage";
 import { useActiveConnection, useSelectConnection } from "@/hooks/useActiveConnection";
 import { type ContainerAction } from "@/lib/actionEligibility";
@@ -242,6 +243,7 @@ function ContainersView({ connectionId, canRunCompose, composeReason }: ViewProp
       )}
 
       <CreateContainerDialog connectionId={connectionId} open={pg.createOpen} onOpenChange={pg.setCreateOpen} />
+      <RecreateHost />
       <ContainerConfirmDialogs
         confirmKill={pg.confirmKill}
         onCancelKill={() => pg.setConfirmKill(null)}

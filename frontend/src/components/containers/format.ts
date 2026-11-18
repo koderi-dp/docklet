@@ -19,24 +19,47 @@ export function formatPortLong(p: PortBinding): string {
   return `${p.hostIp ? `${p.hostIp}:` : ""}${p.hostPort} → ${target}`;
 }
 
-/** Compact published mapping for the table, e.g. "8080:80". Duplicate v4/v6 bindings collapse. */
-export function publishedPorts(ports: readonly PortBinding[]): string[] {
+function portLabel(p: PortBinding): string {
+  return `${p.hostPort}:${p.containerPort}${p.protocol && p.protocol !== "tcp" ? `/${p.protocol}` : ""}`;
+}
+
+/** Published bindings with their compact label (e.g. "8080:80"). Duplicate v4/v6 bindings collapse. */
+export function publishedBindings(ports: readonly PortBinding[]): { label: string; binding: PortBinding }[] {
   const seen = new Set<string>();
-  const out: string[] = [];
+  const out: { label: string; binding: PortBinding }[] = [];
   for (const p of ports) {
     if (!p.hostPort) continue;
-    const label = `${p.hostPort}:${p.containerPort}${p.protocol && p.protocol !== "tcp" ? `/${p.protocol}` : ""}`;
+    const label = portLabel(p);
     if (!seen.has(label)) {
       seen.add(label);
-      out.push(label);
+      out.push({ label, binding: p });
     }
   }
   return out;
 }
 
+/** Compact published mapping labels for the table. */
+export function publishedPorts(ports: readonly PortBinding[]): string[] {
+  return publishedBindings(ports).map((x) => x.label);
+}
+
 /** Dedupe long-form ports (IPv4 + IPv6 mappings of the same host port). */
 export function uniquePortsLong(ports: readonly PortBinding[]): string[] {
-  return [...new Set(ports.map(formatPortLong))];
+  return uniquePortBindings(ports).map((x) => x.label);
+}
+
+/** Same as uniquePortsLong but keeps the binding so a row can be made clickable. */
+export function uniquePortBindings(ports: readonly PortBinding[]): { label: string; binding: PortBinding }[] {
+  const seen = new Set<string>();
+  const out: { label: string; binding: PortBinding }[] = [];
+  for (const p of ports) {
+    const label = formatPortLong(p);
+    if (!seen.has(label)) {
+      seen.add(label);
+      out.push({ label, binding: p });
+    }
+  }
+  return out;
 }
 
 /** Uptime text from the Engine status ("Up 2 hours (healthy)" -> "2 hours"); undefined when not running. */

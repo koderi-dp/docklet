@@ -26,6 +26,9 @@ type Container struct {
 	State   string
 	Created int64
 	Labels  map[string]string
+	// ExitCode and RestartPolicy classify exited containers (see IsCompleted).
+	ExitCode      *int
+	RestartPolicy string
 }
 
 // SplitList splits a comma separated label value, dropping empties.
@@ -105,7 +108,15 @@ func buildProject(connectionID, name string, list []Container) model.ComposeProj
 			s.Running++
 			p.Running++
 		case "exited", "created", "dead":
-			p.Stopped++
+			switch {
+			case IsCompleted(c.State, c.ExitCode, c.RestartPolicy, isOneOff(c.Labels)):
+				p.Completed++
+			case IsFailed(c.State, c.ExitCode):
+				p.Failed++
+				p.Stopped++
+			default:
+				p.Stopped++
+			}
 		}
 	}
 	for _, s := range svcs {

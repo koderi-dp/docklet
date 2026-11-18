@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { SortTh } from "@/components/tables/SortTh";
 import { cn } from "@/lib/utils";
 import { InUseBadge } from "@/components/volumes/parts";
 import { networkAttached } from "./useNetworksPage";
@@ -51,12 +52,12 @@ export function NetworksTable(p: Props) {
           <th className="h-10 px-3">
             <Checkbox aria-label="Select all visible networks" checked={p.allVisibleSelected} onCheckedChange={(c) => p.onToggleAll(c === true)} />
           </th>
-          <th className="px-3 font-medium">Name</th>
-          <th className="px-3 font-medium">Driver</th>
+          <SortTh table="networks" id="name">Name</SortTh>
+          <SortTh table="networks" id="driver">Driver</SortTh>
           <th className="hidden px-3 font-medium @[900px]:table-cell">Scope</th>
           <th className="px-3 font-medium">Subnet</th>
           <th className="hidden px-3 font-medium @[1000px]:table-cell">Gateway</th>
-          <th className="px-3 font-medium">Attached</th>
+          <SortTh table="networks" id="attached">Attached</SortTh>
           <th className="px-3"><span className="sr-only">Actions</span></th>
         </tr>
       </thead>

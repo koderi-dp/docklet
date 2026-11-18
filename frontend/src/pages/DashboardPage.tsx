@@ -5,6 +5,7 @@ import { ConnectionGate } from "@/components/shared/ConnectionGate";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EngineCard, RecentContainersCard, RecentEventsCard, ResourceUsageCard } from "@/components/dashboard/DashboardCards";
+import { TopConsumersCard } from "@/components/dashboard/TopConsumersCard";
 import { useContainersQuery } from "@/hooks/useContainers";
 import { useNetworksQuery } from "@/hooks/useNetworks";
 import { useDiskUsage, useEngineInfo, useRecentEvents } from "@/hooks/useSystem";
@@ -61,6 +62,7 @@ function DashboardView({ connectionId }: { connectionId: string }) {
         <EngineCard info={info} />
         <ResourceUsageCard info={info} disk={disk} />
         <RecentContainersCard containers={containers} onViewAll={() => navigate("/containers")} />
+        <TopConsumersCard connectionId={connectionId} containers={containers.data} />
         <RecentEventsCard events={events} />
       </div>
     </div>

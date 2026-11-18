@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Box, ExternalLink, Play, RotateCw, Square, SquareTerminal, X } from "lucide-react";
+import { AppWindow, Box, ExternalLink, Play, RotateCw, Square, SquareTerminal, X } from "lucide-react";
 import type { Container, ContainerStat } from "@bindings/model";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -8,11 +8,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { IconButton } from "@/components/shared/IconButton";
 import { InspectorActions } from "@/components/shared/InspectorActions";
 import { CopyValue, PathText } from "@/components/shared/CopyValue";
-import { HealthBadge, StatusBadge } from "@/components/shared/StatusBadge";
+import { HealthBadge } from "@/components/shared/StatusBadge";
 import { isEligible, type ContainerAction } from "@/lib/actionEligibility";
 import { useContainerDetail } from "@/hooks/useContainers";
 import { LogViewer } from "./LogViewer";
-import { formatBytes, formatCreated, shortId, uniquePortsLong } from "./format";
+import { formatCreated, shortId, uniquePortsLong } from "./format";
+import { cpuCores, formatMemoryUsage, formatPercent } from "@/lib/statsFormat";
+import { PortList } from "./PortLink";
+import { externalTerminalReason, useOpenExternalTerminal } from "./externalTerminal";
+import { ContainerStatusBadge } from "./ContainerStatusBadge";
 
 interface Props {
   connectionId: string;
@@ -55,7 +59,7 @@ function Overview({ connectionId, c }: { connectionId: string; c: Container }) {
       <Row label="Created">{formatCreated(c.created)}</Row>
       <Row label="Ports">
         {ports.length ? (
-          <div className="flex flex-col gap-0.5 font-mono text-xs">{ports.map((p) => <span key={p}>{p}</span>)}</div>
+          <PortList ports={c.ports ?? []} />
         ) : (
           <span className="text-muted-foreground">None</span>
         )}
@@ -126,6 +130,7 @@ function Logs({ connectionId, c }: { connectionId: string; c: Container }) {
 
 function Stats({ c, stat }: { c: Container; stat?: ContainerStat }) {
   if (c.state !== "running") return <p className="text-xs text-muted-foreground">Stats are available only while the container is running.</p>;
+  const mem = stat?.memoryBytes != null ? formatMemoryUsage(stat.memoryBytes, stat.memoryLimit) : undefined;
   const cell = (label: string, v?: string) => (
     <div className="rounded-md border border-border bg-muted/30 p-3">
       <div className="text-xs text-muted-foreground">{label}</div>
@@ -134,9 +139,8 @@ function Stats({ c, stat }: { c: Container; stat?: ContainerStat }) {
   );
   return (
     <div className="grid grid-cols-2 gap-2">
-      {cell("CPU", stat?.cpuPercent != null ? `${stat.cpuPercent.toFixed(1)}%` : undefined)}
-      {cell("Memory", stat?.memoryBytes != null ? formatBytes(stat.memoryBytes) : undefined)}
-      {cell("Memory limit", stat?.memoryLimit ? formatBytes(stat.memoryLimit) : undefined)}
+      {cell("CPU", stat?.cpuPercent != null ? `${stat.cpuPercent.toFixed(1)}% · ${cpuCores(stat.cpuPercent)}` : undefined)}
+      {cell("Memory", mem ? `${mem.text}${mem.percent != null ? ` · ${formatPercent(mem.percent)}` : ""}` : undefined)}
       <p className="col-span-2 text-xs text-muted-foreground">
         Current sample. Network, block I/O and history graphs are on the full details page.
       </p>
@@ -146,6 +150,7 @@ function Stats({ c, stat }: { c: Container; stat?: ContainerStat }) {
 
 export function ContainerInspector(p: Props) {
   const c = p.container;
+  const openExternal = useOpenExternalTerminal();
   const startDrag = (e: React.PointerEvent) => {
     e.preventDefault();
     const startX = e.clientX;
@@ -176,7 +181,7 @@ export function ContainerInspector(p: Props) {
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-lg font-semibold" title={c.name}>{c.name}</h2>
           <div className="mt-1 flex items-center gap-2">
-            <StatusBadge state={c.state} />
+            <ContainerStatusBadge container={c} />
             <HealthBadge health={c.health} />
           </div>
         </div>
@@ -204,6 +209,15 @@ export function ContainerInspector(p: Props) {
             <SquareTerminal className="size-4" />
           </IconButton>
         )}
+        <IconButton
+          label="Open in external terminal"
+          tooltip={externalTerminalReason(c.state)}
+          variant="outline"
+          disabled={!!externalTerminalReason(c.state)}
+          onClick={() => void openExternal(c.id)}
+        >
+          <AppWindow className="size-4" />
+        </IconButton>
         <IconButton label="Open details" variant="outline" asChild>
           <Link to={`/containers/${c.id}`}><ExternalLink className="size-4" /></Link>
         </IconButton>

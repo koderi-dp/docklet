@@ -5,8 +5,17 @@ import { useOnOperationDone } from "@/hooks/useOperations";
 import { usePruneVolumes, useRemoveVolumes, useVolumesQuery } from "@/hooks/useVolumes";
 import type { UsageFilter } from "./parts";
 import { errorMessage } from "@/lib/errors";
+import { sortItems, type Accessors } from "@/lib/sorting";
+import { useTableSort } from "@/lib/useTableSort";
 
 export const volumeUsers = (v: Volume) => (v.inUseBy ?? []).length;
+
+const VOLUME_SORT: Accessors<Volume> = {
+  name: (v) => v.name,
+  driver: (v) => v.driver,
+  inuse: volumeUsers,
+  created: (v) => (v.created ? Date.parse(v.created) : undefined),
+};
 
 /** All state and handlers of the Volumes page (filters, selection, inspector, remove/prune flows). */
 export function useVolumesPage(connectionId: string) {
@@ -29,15 +38,16 @@ export function useVolumesPage(connectionId: string) {
     () => ({ all: volumes.length, inuse: volumes.filter((v) => usedCount(v) > 0).length, unused: volumes.filter((v) => usedCount(v) === 0).length }),
     [volumes],
   );
+  const { sort } = useTableSort("volumes");
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return volumes.filter((v) => {
+    return sortItems(volumes.filter((v) => {
       if (filter === "inuse" && usedCount(v) === 0) return false;
       if (filter === "unused" && usedCount(v) > 0) return false;
       if (!q) return true;
       return v.name.toLowerCase().includes(q) || v.driver.toLowerCase().includes(q) || Object.entries(v.labels ?? {}).some(([k, val]) => `${k}=${val}`.toLowerCase().includes(q));
-    });
-  }, [volumes, search, filter]);
+    }), sort, VOLUME_SORT);
+  }, [volumes, search, filter, sort]);
 
   // Selection / inspector can only reference volumes that still exist.
   useEffect(() => {

@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { type ContainerAction, partitionByEligibility } from "@/lib/actionEligibility";
-import { type CheckState, type ComposeGroup, type GroupState } from "@/lib/composeGrouping";
+import { type CheckState, type ComposeGroup, type GroupState, oneShotNotes } from "@/lib/composeGrouping";
 import { cn } from "@/lib/utils";
 import { TriCheckbox } from "./TriCheckbox";
 
@@ -148,6 +148,11 @@ export function ComposeGroupRow(p: ComposeGroupRowProps) {
           <>
             <span aria-hidden>•</span>
             <span className={cn("font-medium", STATE_CLASS[g.state])}>{STATE_LABEL[g.state]}</span>
+            {oneShotNotes(g).map((n) => (
+              <span key={n.text} className={cn("font-normal", n.tone === "warning" ? "text-warning" : "text-muted-foreground")}>
+                ({n.text})
+              </span>
+            ))}
           </>
         )}
         {g.health.withHealthcheck > 0 && (

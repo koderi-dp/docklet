@@ -1,6 +1,10 @@
+import type { ContainerCreateSpec } from "@bindings/model";
+
 export interface EnvRow {
   key: string;
   value: string;
+  /** Edit mode: the value is a secret that stays on the server and is kept as is. */
+  keep?: boolean;
 }
 export interface PortRow {
   hostIp: string;
@@ -74,3 +78,95 @@ export function validateForm(f: {
 }
 
 export const emptyPort = (): PortRow => ({ hostIp: "", hostPort: "", containerPort: "", protocol: "tcp" });
+
+/** All editable fields of the container form, as the strings the inputs hold. */
+export interface FormState {
+  image: string;
+  name: string;
+  command: string;
+  env: EnvRow[];
+  ports: PortRow[];
+  mounts: MountRow[];
+  restart: string;
+  maxRetries: string;
+  memory: string;
+  cpus: string;
+  autoStart: boolean;
+}
+
+export const emptyForm = (image = ""): FormState => ({
+  image,
+  name: "",
+  command: "",
+  env: [],
+  ports: [],
+  mounts: [],
+  restart: "no",
+  maxRetries: "",
+  memory: "",
+  cpus: "",
+  autoStart: true,
+});
+
+/** Form fields for an existing spec (edit mode). */
+export function formFromSpec(s: ContainerCreateSpec): FormState {
+  return {
+    image: s.image,
+    name: s.name,
+    command: s.command,
+    env: (s.env ?? []).map((e) => ({ key: e.key, value: e.keep ? "" : e.value, keep: e.keep })),
+    ports: (s.ports ?? []).map((p) => ({
+      hostIp: p.hostIp,
+      hostPort: p.hostPort ? String(p.hostPort) : "",
+      containerPort: String(p.containerPort),
+      protocol: p.protocol || "tcp",
+    })),
+    mounts: (s.mounts ?? []).map((m) => ({ type: m.type === "bind" ? "bind" : "volume", source: m.source, target: m.target, readOnly: m.readOnly })),
+    restart: s.restartPolicy || "no",
+    maxRetries: s.maxRetries ? String(s.maxRetries) : "",
+    memory: s.memoryMiB ? String(s.memoryMiB) : "",
+    cpus: s.cpus ? String(s.cpus) : "",
+    autoStart: s.autoStart,
+  };
+}
+
+/**
+ * The spec for the backend. `base` carries the settings the form does not edit
+ * (entrypoint, labels, networks, user...) through unchanged.
+ */
+export function specFromForm(f: FormState, base?: ContainerCreateSpec): ContainerCreateSpec {
+  return {
+    entrypoint: "",
+    workDir: "",
+    user: "",
+    hostname: "",
+    labels: null,
+    stopSignal: "",
+    stopTimeout: null,
+    networkMode: "",
+    networks: null,
+    ...base,
+    name: f.name.trim(),
+    image: f.image.trim(),
+    command: f.command.trim(),
+    env: f.env
+      .filter((e) => e.key.trim())
+      .map((e) => ({ key: e.key.trim(), value: e.keep ? "" : e.value, keep: !!e.keep })),
+    ports: f.ports
+      .filter((p) => p.containerPort.trim())
+      .map((p) => ({
+        hostIp: p.hostIp.trim(),
+        hostPort: p.hostPort.trim() ? Number(p.hostPort) : 0,
+        containerPort: Number(p.containerPort),
+        protocol: p.protocol,
+      })),
+    mounts: f.mounts
+      .filter((m) => m.target.trim())
+      .map((m) => ({ type: m.type, source: m.source.trim(), target: m.target.trim(), readOnly: m.readOnly })),
+    restartPolicy: f.restart,
+    maxRetries: f.restart === "on-failure" && f.maxRetries.trim() ? Number(f.maxRetries) : 0,
+    memoryMiB: f.memory.trim() ? Math.round(Number(f.memory)) : 0,
+    cpus: f.cpus.trim() ? Number(f.cpus) : 0,
+    autoStart: f.autoStart,
+  };
+}

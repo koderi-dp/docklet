@@ -10,16 +10,17 @@ import {
 } from "@tanstack/react-table";
 import type { Container, ContainerStat } from "@bindings/model";
 import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Loader2 } from "lucide-react";
-import { HealthBadge, StateDot, StatusBadge } from "@/components/shared/StatusBadge";
+import { HealthBadge, StateDot } from "@/components/shared/StatusBadge";
 import type { ContainerAction } from "@/lib/actionEligibility";
 import { checkState, type ComposeGroup, type FlatRow } from "@/lib/composeGrouping";
 import { cn } from "@/lib/utils";
+import { SortTh } from "@/components/tables/SortTh";
 import { ComposeGroupRow } from "./ComposeGroupRow";
 import { ContainerActionMenu } from "./ContainerActionMenu";
-import { formatBytes, publishedPorts, uptimeLabel } from "./format";
+import { CpuCell, MemoryCell, PortsCell, UptimeCell } from "./ContainerCells";
 import { TriCheckbox } from "./TriCheckbox";
+import { ContainerStatusBadge } from "./ContainerStatusBadge";
 
 // Secondary columns drop out as the table's own width shrinks (inspector open / narrow window).
 const RESPONSIVE_COL: Record<string, string> = {
@@ -28,6 +29,9 @@ const RESPONSIVE_COL: Record<string, string> = {
   memory: "hidden text-right @[820px]:table-cell",
   uptime: "hidden pl-6 @[1000px]:table-cell",
 };
+
+/** Columns the user can sort by (see lib/containerSort). */
+const SORTABLE = new Set(["name", "image", "project", "status", "health", "cpu", "memory", "uptime"]);
 
 const features = tableFeatures({ columnVisibilityFeature });
 const helper = createColumnHelper<typeof features, FlatRow>();
@@ -65,19 +69,6 @@ export interface ContainerTableProps {
   onContainerAction: (action: ContainerAction, c: Container) => void;
   onGroupAction: (action: ContainerAction, g: ComposeGroup) => void;
   onCopyId: (c: Container) => void;
-}
-
-function Dash({ why }: { why?: string }) {
-  const el = <span className="text-muted-foreground">—</span>;
-  if (!why) return el;
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span className="cursor-default text-muted-foreground">—</span>
-      </TooltipTrigger>
-      <TooltipContent>{why}</TooltipContent>
-    </Tooltip>
-  );
 }
 
 export function ContainerTable(p: ContainerTableProps) {
@@ -169,7 +160,7 @@ export function ContainerTable(p: ContainerTableProps) {
           header: "Status",
           cell: (ctx) => {
             const r = ctx.row.original;
-            return r.kind === "container" ? <StatusBadge state={r.container.state} /> : null;
+            return r.kind === "container" ? <ContainerStatusBadge container={r.container} /> : null;
           },
         }),
         helper.display({
@@ -185,15 +176,7 @@ export function ContainerTable(p: ContainerTableProps) {
           header: "Ports",
           cell: (ctx) => {
             const r = ctx.row.original;
-            if (r.kind !== "container") return null;
-            const ports = publishedPorts(r.container.ports ?? []);
-            if (ports.length === 0) return <Dash />;
-            const text = ports.slice(0, 2).join(", ") + (ports.length > 2 ? ` +${ports.length - 2}` : "");
-            return (
-              <span className="font-mono text-xs" title={ports.join(", ")}>
-                {text}
-              </span>
-            );
+            return r.kind === "container" ? <PortsCell container={r.container} /> : null;
           },
         }),
         helper.display({
@@ -201,10 +184,7 @@ export function ContainerTable(p: ContainerTableProps) {
           header: "CPU",
           cell: (ctx) => {
             const r = ctx.row.original;
-            if (r.kind !== "container") return null;
-            const s = p.stats.get(r.container.id);
-            if (r.container.state !== "running" || s?.cpuPercent == null) return <Dash />;
-            return <span className="tabular-nums">{s.cpuPercent.toFixed(1)}%</span>;
+            return r.kind === "container" ? <CpuCell container={r.container} stat={p.stats.get(r.container.id)} /> : null;
           },
         }),
         helper.display({
@@ -212,17 +192,7 @@ export function ContainerTable(p: ContainerTableProps) {
           header: "Memory",
           cell: (ctx) => {
             const r = ctx.row.original;
-            if (r.kind !== "container") return null;
-            const s = p.stats.get(r.container.id);
-            if (r.container.state !== "running" || s?.memoryBytes == null) return <Dash />;
-            const txt = <span className="tabular-nums">{formatBytes(s.memoryBytes)}</span>;
-            if (s.memoryLimit == null || s.memoryLimit <= 0) return txt;
-            return (
-              <Tooltip>
-                <TooltipTrigger asChild>{txt}</TooltipTrigger>
-                <TooltipContent>Limit {formatBytes(s.memoryLimit)}</TooltipContent>
-              </Tooltip>
-            );
+            return r.kind === "container" ? <MemoryCell container={r.container} stat={p.stats.get(r.container.id)} /> : null;
           },
         }),
         helper.display({
@@ -230,15 +200,7 @@ export function ContainerTable(p: ContainerTableProps) {
           header: "Uptime",
           cell: (ctx) => {
             const r = ctx.row.original;
-            if (r.kind !== "container") return null;
-            const up = uptimeLabel(r.container);
-            return up ? (
-              <span className="whitespace-nowrap tabular-nums" title={r.container.status}>
-                {up}
-              </span>
-            ) : (
-              <Dash why={r.container.status || undefined} />
-            );
+            return r.kind === "container" ? <UptimeCell container={r.container} /> : null;
           },
         }),
         helper.display({
@@ -286,15 +248,21 @@ export function ContainerTable(p: ContainerTableProps) {
         <thead>
           {table.getHeaderGroups().map((hg) => (
             <tr key={hg.id} className="border-b border-border text-left text-xs font-medium text-muted-foreground">
-              {hg.headers.map((h) => (
-                <th
-                  key={h.id}
-                  scope="col"
-                  className={cn("h-10 whitespace-nowrap px-3 font-medium", h.column.id === "select" && "w-10", RESPONSIVE_COL[h.column.id])}
-                >
-                  {h.isPlaceholder ? null : <table.FlexRender header={h} />}
-                </th>
-              ))}
+              {hg.headers.map((h) =>
+                SORTABLE.has(h.column.id) && typeof h.column.columnDef.header === "string" ? (
+                  <SortTh key={h.id} table="containers" id={h.column.id} className={RESPONSIVE_COL[h.column.id]}>
+                    {h.column.columnDef.header}
+                  </SortTh>
+                ) : (
+                  <th
+                    key={h.id}
+                    scope="col"
+                    className={cn("h-10 whitespace-nowrap px-3 font-medium", h.column.id === "select" && "w-10", RESPONSIVE_COL[h.column.id])}
+                  >
+                    {h.isPlaceholder ? null : <table.FlexRender header={h} />}
+                  </th>
+                ),
+              )}
             </tr>
           ))}
         </thead>

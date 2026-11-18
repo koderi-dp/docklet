@@ -11,6 +11,21 @@ import (
 	"docklet/internal/model"
 )
 
+// EventObserver receives every raw Engine event of every connected engine.
+// Implementations must return quickly: they run on the event loop.
+type EventObserver interface {
+	ObserveEvent(connectionID string, ev events.Message)
+}
+
+// SetEventObserver installs (or, with nil, removes) the optional event observer.
+func (m *Manager) SetEventObserver(o EventObserver) {
+	if o == nil {
+		m.observer.Store(nil)
+		return
+	}
+	m.observer.Store(&o)
+}
+
 // maxBurstWait bounds how long continuous events may postpone a notification.
 var maxBurstWait = 2 * time.Second
 
@@ -98,7 +113,7 @@ func (m *Manager) runEvents(ctx context.Context, id string, c *conn, cli *client
 				d.Trigger()
 			}
 		}
-		err := m.consume(ctx, res, debs, func() { backoff = m.backoffMin })
+		err := m.consume(ctx, id, res, debs, func() { backoff = m.backoffMin })
 		if ctx.Err() != nil {
 			return
 		}
@@ -116,7 +131,7 @@ func (m *Manager) runEvents(ctx context.Context, id string, c *conn, cli *client
 }
 
 // consume reads until the stream errors or ctx ends. onFirst runs on the first message.
-func (m *Manager) consume(ctx context.Context, res client.EventsResult, debs map[events.Type]*debouncer, onFirst func()) error {
+func (m *Manager) consume(ctx context.Context, id string, res client.EventsResult, debs map[events.Type]*debouncer, onFirst func()) error {
 	first := true
 	for {
 		select {
@@ -132,6 +147,9 @@ func (m *Manager) consume(ctx context.Context, res client.EventsResult, debs map
 			}
 			if d := debs[ev.Type]; d != nil {
 				d.Trigger()
+			}
+			if o := m.observer.Load(); o != nil {
+				(*o).ObserveEvent(id, ev)
 			}
 		case err := <-res.Err:
 			if err == nil {

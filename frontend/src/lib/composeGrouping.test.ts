@@ -9,6 +9,7 @@ import {
   EMPTY_FILTERS,
   flattenGrouped,
   groupId,
+  oneShotNotes,
   STANDALONE_PROJECT,
   summarize,
   toggleIds,
@@ -139,5 +140,44 @@ describe("applyRange (shift+click)", () => {
   it("falls back to the target alone without a usable anchor", () => {
     expect([...applyRange(new Set(), order, null, "c", true)]).toEqual(["c"]);
     expect([...applyRange(new Set(), order, "zz", "c", true)]).toEqual(["c"]);
+  });
+});
+
+describe("one-shot containers (completed / failed)", () => {
+  const web = c({ id: "w", name: "web", state: "running" });
+  const pg = c({ id: "p", name: "pg", state: "running" });
+  const done = c({ id: "m", name: "migrate", state: "exited", exitCode: 0, restartPolicy: "no" });
+  const failed = c({ id: "f", name: "seed", state: "exited", exitCode: 2, restartPolicy: "no" });
+  const stoppedSvc = c({ id: "s", name: "cache", state: "exited", exitCode: 0, restartPolicy: "always" });
+  const unknownPolicy = c({ id: "u", name: "u", state: "exited", exitCode: 0 });
+
+  it("running services plus a completed migrate is Running, not Partial", () => {
+    expect(aggregateState([web, pg, done])).toBe("running");
+  });
+  it("a failed or a stopped long-running service keeps the project Partial", () => {
+    expect(aggregateState([web, pg, failed])).toBe("partial");
+    expect(aggregateState([web, pg, stoppedSvc])).toBe("partial");
+  });
+  it("unknown restart policy is never treated as completed", () => {
+    expect(aggregateState([web, unknownPolicy])).toBe("partial");
+  });
+  it("only completed containers: nothing runs, so Stopped", () => {
+    expect(aggregateState([done])).toBe("stopped");
+  });
+  it("completed ones do not hide a fully stopped project", () => {
+    expect(aggregateState([done, failed])).toBe("stopped");
+  });
+  it("counts completed and failed in summaries and groups", () => {
+    const all = [web, pg, done, failed, stoppedSvc].map((x) => ({ ...x, composeProject: "catalo" }));
+    expect(summarize(all)).toMatchObject({ running: 2, stopped: 3, completed: 1, failed: 1 });
+    expect(buildGroups("A", all)[0]).toMatchObject({ completed: 1, failed: 1, state: "partial" });
+    expect(buildGroups("A", [web, pg, done].map((x) => ({ ...x, composeProject: "catalo" })))[0]).toMatchObject({ state: "running", completed: 1, failed: 0 });
+  });
+  it("builds the header notes", () => {
+    expect(oneShotNotes({ completed: 1, failed: 2 })).toEqual([
+      { text: "1 completed", tone: "muted" },
+      { text: "2 failed", tone: "warning" },
+    ]);
+    expect(oneShotNotes({ completed: 0, failed: 0 })).toEqual([]);
   });
 });

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { fromBase64, readMonoFont, readTerminalTheme, toBase64 } from "@/components/terminal/util";
 import { errorMessage } from "@/lib/errors";
+import { ExternalTerminalButton } from "./externalTerminal";
 
 export interface TerminalPanelProps {
   connectionId: string;
@@ -219,7 +220,12 @@ export default function TerminalPanel({ connectionId, containerId, running }: Te
   const restart = useCallback(() => startRef.current?.(), []);
 
   if (!running) {
-    return <p className="p-4 text-sm text-muted-foreground">The container is not running. Start it to open a terminal.</p>;
+    return (
+      <div className="flex flex-col items-start gap-3 p-4 text-sm text-muted-foreground">
+        <p>The container is not running. Start it to open a terminal.</p>
+        <ExternalTerminalButton containerId={containerId} state="not running" />
+      </div>
+    );
   }
 
   const ended = phase.kind === "exited" || phase.kind === "disconnected";
@@ -265,6 +271,7 @@ export default function TerminalPanel({ connectionId, containerId, running }: Te
               ))}
             </select>
           </label>
+          <ExternalTerminalButton containerId={containerId} state="running" shell={shell} />
           <Button size="sm" variant="outline" onClick={restart} disabled={phase.kind === "connecting"}>
             {ended ? <RotateCw className="size-4" /> : <Plus className="size-4" />}
             {ended ? "Reconnect" : "New session"}

@@ -90,11 +90,16 @@ func (s *ComposeService) labelled(ctx context.Context, connectionID, name string
 	if err != nil {
 		return nil, friendlyError(err)
 	}
-	out := make([]compose.Container, 0, len(res.Items))
+	rows := make([]model.Container, 0, len(res.Items))
 	for _, it := range res.Items {
+		rows = append(rows, mapSummary(connectionID, it))
+	}
+	classifyExited(ctx, cli, connectionID, rows, func(i int) bool { return isOneOffLabels(res.Items[i].Labels) })
+	out := make([]compose.Container, 0, len(res.Items))
+	for i, it := range res.Items {
 		out = append(out, compose.Container{
 			ID: it.ID, Name: firstName(it.Names), Image: it.Image, State: string(it.State),
-			Created: it.Created, Labels: it.Labels,
+			Created: it.Created, Labels: it.Labels, ExitCode: rows[i].ExitCode, RestartPolicy: rows[i].RestartPolicy,
 		})
 	}
 	return out, nil

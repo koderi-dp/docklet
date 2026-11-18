@@ -1,12 +1,14 @@
-import { useState } from "react";
-import { FolderOpen, Info, Plus, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { CheckCircle2, FolderOpen, Info, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { DialogService } from "@bindings/services";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAddComposeProject, useComposeLocation } from "@/hooks/useCompose";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useAddComposeProject, useComposeLocation, useComposeVerb } from "@/hooks/useCompose";
 import { errorMessage } from "@/lib/errors";
 
 interface Props {
@@ -14,6 +16,8 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onAdded?: (name: string) => void;
+  /** Compose file paths to prefill (e.g. dropped onto the Compose page). */
+  initialFiles?: string[];
 }
 
 
@@ -59,13 +63,21 @@ function FileRow({
 }
 
 /** Registers a managed Compose project: validates the files where the CLI runs, then saves the record. */
-export function OpenComposeDialog({ connectionId, open, onOpenChange, onAdded }: Props) {
+export function OpenComposeDialog({ connectionId, open, onOpenChange, onAdded, initialFiles }: Props) {
   const loc = useComposeLocation(connectionId, open);
   const add = useAddComposeProject(connectionId);
   const [files, setFiles] = useState<string[]>([""]);
   const [envFile, setEnvFile] = useState("");
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [startAfter, setStartAfter] = useState(true);
+  const [validated, setValidated] = useState<string | null>(null);
+  const verb = useComposeVerb(connectionId);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (open && initialFiles?.length) setFiles(initialFiles);
+  }, [open, initialFiles]);
 
   const l = loc.data;
   const usable = files.filter((f) => f.trim() !== "");
@@ -76,13 +88,20 @@ export function OpenComposeDialog({ connectionId, open, onOpenChange, onAdded }:
     setEnvFile("");
     setName("");
     setError(null);
+    setValidated(null);
   };
 
   const submit = async () => {
     setError(null);
     try {
       const p = await add.mutateAsync({ configFiles: usable.map((f) => f.trim()), envFiles: envFile.trim() ? [envFile.trim()] : [], name: name.trim() });
-      toast.success(`Project ${p.name} saved`, { description: "Nothing was started. Use Up to create its containers." });
+      setValidated(p.name); // the validation result stays visible while the project starts
+      if (startAfter) {
+        await verb.run("up", p.name);
+        navigate(`/compose/${encodeURIComponent(p.name)}`);
+      } else {
+        toast.success(`Project ${p.name} saved`, { description: "Nothing was started. Use Up to create its containers." });
+      }
       reset();
       onOpenChange(false);
       onAdded?.(p.name);
@@ -152,6 +171,18 @@ export function OpenComposeDialog({ connectionId, open, onOpenChange, onAdded }:
             <Input id="compose-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Defaults to the name in the file or the directory name" spellCheck={false} className="h-8" />
           </div>
 
+          {validated && (
+            <div role="status" className="flex items-center gap-1.5 rounded-md border border-success/30 bg-success/10 p-3 text-xs text-success">
+              <CheckCircle2 className="size-3.5 shrink-0" aria-hidden />
+              The Compose files are valid. Project {validated} saved{startAfter ? "; starting it…" : "."}
+            </div>
+          )}
+
+          <label className="flex items-center gap-2 text-xs">
+            <Checkbox checked={startAfter} onCheckedChange={(c) => setStartAfter(c === true)} />
+            Start the project after adding (<span className="font-mono">docker compose up -d</span>)
+          </label>
+
           {error && (
             <div role="alert" className="max-h-40 overflow-auto whitespace-pre-wrap rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive">
               {error}
@@ -165,8 +196,8 @@ export function OpenComposeDialog({ connectionId, open, onOpenChange, onAdded }:
             <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button size="sm" disabled={!!blocked || add.isPending} onClick={() => void submit()}>
-              {add.isPending ? "Validating…" : "Validate and save"}
+            <Button size="sm" disabled={!!blocked || add.isPending || !!validated} onClick={() => void submit()}>
+              {add.isPending ? "Validating…" : startAfter ? "Validate, save and start" : "Validate and save"}
             </Button>
           </div>
         </DialogFooter>
