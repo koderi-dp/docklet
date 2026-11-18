@@ -6,19 +6,18 @@
 name: "docklet"
 arch: ${GOARCH}
 platform: "linux"
-version: "0.1.0"
+version: ${VERSION} # exported by the release workflow (the version without a leading v)
 section: "default"
 priority: "extra"
-maintainer: ${GIT_COMMITTER_NAME} <${GIT_COMMITTER_EMAIL}>
+maintainer: "Danijel"
 description: "Desktop client for existing Docker Engines"
 vendor: "Docklet"
-homepage: "https://wails.io"
-license: "MIT"
+homepage: "https://github.com/koderi-dp/docklet"
 release: "1"
 
 contents:
   - src: "./bin/docklet"
-    dst: "/usr/local/bin/docklet"
+    dst: "/usr/bin/docklet"
   - src: "./build/appicon.png"
     dst: "/usr/share/icons/hicolor/128x128/apps/docklet.png"
   - src: "./build/linux/docklet.desktop"

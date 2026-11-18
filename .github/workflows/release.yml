@@ -1,0 +1,310 @@
+name: Release
+
+# Push a tag like v0.2.0 (or v0.2.0-rc.1 for a pre-release), or run this workflow by hand with a version.
+# A manual run creates the tag on the commit it was started from.
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, e.g. 0.2.0 or 0.2.0-rc.1 (without the leading v)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  WAILS_VERSION: v3.1.0
+  NODE_VERSION: "22"
+
+jobs:
+  prepare:
+    name: Resolve version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      tag: ${{ steps.v.outputs.tag }}
+      prerelease: ${{ steps.v.outputs.prerelease }}
+    steps:
+      - id: v
+        name: Derive version from the tag or input
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT" == "workflow_dispatch" ]]; then raw="$INPUT_VERSION"; else raw="$REF_NAME"; fi
+          version="${raw#v}"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::'$raw' is not a valid version (expected 1.2.3 or 1.2.3-rc.1)"
+            exit 1
+          fi
+          prerelease=false
+          if [[ "$version" == *-* ]]; then prerelease=true; fi
+          {
+            echo "version=$version"
+            echo "tag=v$version"
+            echo "prerelease=$prerelease"
+          } >> "$GITHUB_OUTPUT"
+
+  # Required. Runs the same checks as CI, then builds installers for amd64 and arm64 one after the other.
+  windows:
+    name: Windows (amd64 + arm64)
+    needs: prepare
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Generate bindings
+        run: wails3 generate bindings -clean=true -ts -i
+
+      - name: Frontend typecheck
+        working-directory: frontend
+        run: npx tsc --noEmit
+
+      - name: Frontend tests
+        working-directory: frontend
+        run: npm test
+
+      - name: Frontend build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Go vet
+        run: go vet . ./internal/...
+
+      - name: Go tests
+        run: go test ./internal/...
+
+      - name: Install NSIS
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v makensis > /dev/null 2>&1; then
+            choco install nsis -y --no-progress
+          fi
+          echo 'C:\Program Files (x86)\NSIS' >> "$GITHUB_PATH"
+
+      # `wails3 package VERSION=...` embeds the version (-X docklet/internal/version.Version) in the binary.
+      # The architecture is chosen with GOARCH; both builds write bin/docklet.exe and
+      # bin/docklet-<arch>-installer.exe, so each output is renamed straight away.
+      # Signing: no certificate is available. Sign the .exe before packaging and the installer after
+      # (`wails3 task windows:sign` / `windows:sign:installer`, see build/windows/Taskfile.yml).
+      - name: Package (amd64 and arm64)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          for arch in amd64 arm64; do
+            GOARCH="$arch" wails3 package "VERSION=$VERSION"
+            if [[ "$arch" == "amd64" ]]; then
+              ./bin/docklet.exe --version | tee /dev/stderr | grep -qx "Docklet $VERSION"
+            fi
+            mv bin/docklet.exe "dist/docklet-$VERSION-windows-$arch.exe"
+            mv "bin/docklet-$arch-installer.exe" "dist/docklet-$VERSION-windows-$arch-installer.exe"
+          done
+          ls -l dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
+
+  # Required. Linux packages: AppImage and .deb. arm64 runs on GitHub's ubuntu-24.04-arm runner and is optional.
+  linux:
+    name: Linux (${{ matrix.arch }})
+    needs: prepare
+    runs-on: ${{ matrix.runner }}
+    continue-on-error: ${{ matrix.optional }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: amd64, runner: ubuntu-24.04, appimage_arch: x86_64, optional: false }
+          - { arch: arm64, runner: ubuntu-24.04-arm, appimage_arch: aarch64, optional: true }
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install system packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev file
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Generate bindings
+        run: wails3 generate bindings -clean=true -ts -i
+
+      - name: Frontend build
+        working-directory: frontend
+        run: npm run build
+
+      # Only the AppImage and the .deb are published (the scaffold can also make .rpm and Arch packages).
+      # Names produced by the tools are matched with globs and renamed to the release asset names.
+      - name: Package (AppImage and deb)
+        shell: bash
+        env:
+          GIT_COMMITTER_NAME: Danijel
+        run: |
+          set -euo pipefail
+          wails3 task linux:create:appimage "VERSION=$VERSION"
+          wails3 task linux:create:deb "VERSION=$VERSION"
+          ./bin/docklet --version | tee /dev/stderr | grep -qx "Docklet $VERSION"
+          ls -l bin
+          mkdir -p dist
+          appimage=$(ls bin/*.AppImage | head -n 1)
+          deb=$(ls bin/*.deb | head -n 1)
+          mv "$appimage" "dist/docklet-$VERSION-linux-${{ matrix.arch }}.AppImage"
+          mv "$deb" "dist/docklet-$VERSION-linux-${{ matrix.arch }}.deb"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-linux-${{ matrix.arch }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
+
+  # Optional: the macOS build has never run anywhere yet. If it fails, the release goes out without it.
+  macos:
+    name: macOS (arm64)
+    needs: prepare
+    runs-on: macos-latest
+    continue-on-error: true
+    timeout-minutes: 45
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Generate bindings
+        run: wails3 generate bindings -clean=true -ts -i
+
+      - name: Frontend build
+        working-directory: frontend
+        run: npm run build
+
+      # Signing and notarisation would go here (no Apple certificate is available).
+      - name: Package .app
+        shell: bash
+        run: |
+          set -euo pipefail
+          wails3 package "VERSION=$VERSION"
+          mkdir -p dist
+          ditto -c -k --keepParent bin/docklet.app "dist/docklet-$VERSION-macos-arm64.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-macos-arm64
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
+
+  # Publishes the release from whatever the build jobs produced. Only Windows must succeed (Linux and macOS
+  # builds are new and unproven): other platforms are included when they produced an artifact, skipped otherwise.
+  release:
+    name: Create GitHub Release
+    needs: [prepare, windows, linux, macos]
+    if: ${{ always() && needs.windows.result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      VERSION: ${{ needs.prepare.outputs.version }}
+      TAG: ${{ needs.prepare.outputs.tag }}
+      PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
+    steps:
+      # Missing optional artifacts simply do not appear in dist/.
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+          ls -l
+          sha256sum -- * > checksums.txt
+          cat checksums.txt
+
+      - name: Create release
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=(--title "Docklet $VERSION" --generate-notes)
+          if [[ "$PRERELEASE" == "true" ]]; then args+=(--prerelease); fi
+          # For a tag push the tag exists; for a manual run it is created on this commit.
+          gh release create "$TAG" dist/* "${args[@]}" --target "$GITHUB_SHA"

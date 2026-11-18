@@ -8,6 +8,7 @@ import { useUI } from "@/stores/uiStore";
 import { ConnectionDialogHost } from "@/components/connections/ConnectionDialog";
 import { RemoveConnectionDialogHost } from "@/components/connections/RemoveConnectionDialog";
 import { CommandPalette } from "@/components/palette/CommandPalette";
+import { useTrayEvents } from "@/hooks/useApp";
 import { useGlobalShortcuts } from "@/components/palette/useGlobalShortcuts";
 
 /** Resolves themePreference "system" into the dark/light `theme` that App.tsx applies. */
@@ -35,6 +36,7 @@ export default function AppShell() {
   useConnectionStatusEvents();
   useSystemTheme();
   useGlobalShortcuts();
+  useTrayEvents();
   const { data: conns } = useConnections();
   const select = useSelectConnection();
   const setActive = useUI((s) => s.setActiveConnection);

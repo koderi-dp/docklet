@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"runtime"
 	"sync"
 
 	"github.com/zalando/go-keyring"
@@ -52,14 +53,28 @@ type OSStore struct{}
 // NewOSStore returns the OS credential store.
 func NewOSStore() Store { return OSStore{} }
 
-func (OSStore) Set(key, secret string) error { return keyring.Set(keyringService, key, secret) }
+func (OSStore) Set(key, secret string) error {
+	return friendlyKeyringError(keyring.Set(keyringService, key, secret))
+}
+
+// friendlyKeyringError explains the usual Linux failure: no Secret Service (GNOME Keyring, KWallet,
+// KeePassXC) is running on the session bus. Connections that need no stored secret are unaffected.
+func friendlyKeyringError(err error) error {
+	if err == nil || errors.Is(err, keyring.ErrNotFound) {
+		return err
+	}
+	if runtime.GOOS == "linux" {
+		return fmt.Errorf("the system credential store is not available (a Secret Service such as GNOME Keyring or KWallet must be running); use an SSH key or agent instead: %w", err)
+	}
+	return err
+}
 
 func (OSStore) Get(key string) (string, error) {
 	v, err := keyring.Get(keyringService, key)
 	if errors.Is(err, keyring.ErrNotFound) {
 		return "", ErrNotFound
 	}
-	return v, err
+	return v, friendlyKeyringError(err)
 }
 
 func (OSStore) Delete(key string) error {
@@ -67,7 +82,7 @@ func (OSStore) Delete(key string) error {
 	if errors.Is(err, keyring.ErrNotFound) {
 		return nil
 	}
-	return err
+	return friendlyKeyringError(err)
 }
 
 // MemoryStore is an in-memory fake for tests.

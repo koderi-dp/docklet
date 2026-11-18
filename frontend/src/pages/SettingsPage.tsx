@@ -1,13 +1,14 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Monitor, Moon, Sun } from "lucide-react";
-import pkg from "../../package.json";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SettingRow as Row } from "@/components/settings/SettingRow";
 import { ExternalTerminalRow } from "@/components/settings/ExternalTerminalRow";
+import { TraySettingsSection } from "@/components/settings/TraySettingsSection";
+import { AboutSection } from "@/components/settings/AboutSection";
 import { NotificationSettingsSection } from "@/components/notifications/NotificationSettingsSection";
 import { cn } from "@/lib/utils";
 import { useUI, type ContainerViewMode, type ThemePalette, type ThemePreference } from "@/stores/uiStore";
@@ -163,11 +164,9 @@ export default function SettingsPage() {
 
       <NotificationSettingsSection />
 
-      <Section title="About">
-        <Row label="Docklet" hint="Desktop client for existing Docker Engines.">
-          <span className="text-sm text-muted-foreground tabular-nums">Version {pkg.version}</span>
-        </Row>
-      </Section>
+      <TraySettingsSection />
+
+      <AboutSection />
     </div>
   );
 }

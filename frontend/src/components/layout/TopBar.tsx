@@ -1,4 +1,5 @@
 import { Check, ChevronDown, Moon, Plus, Search, Settings2, Sun } from "lucide-react";
+import { shortcutLabel } from "@/lib/platform";
 import { useNavigate } from "react-router-dom";
 import { useUI } from "@/stores/uiStore";
 import { useActiveConnection, useConnections, useConnectionStatus, useSelectConnection } from "@/hooks/useActiveConnection";
@@ -75,7 +76,7 @@ export default function TopBar() {
       >
         <Search className="size-4 shrink-0" />
         <span className="min-w-0 flex-1 truncate text-sm">Search resources…</span>
-        <kbd className="hidden text-xs lg:inline">Ctrl+K</kbd>
+        <kbd className="hidden text-xs lg:inline">{shortcutLabel("K")}</kbd>
       </button>
       <OperationCenter />
       <Button variant="ghost" size="icon" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label="Toggle theme">

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { useUI } from "@/stores/uiStore";
 import { AlertsPanel } from "@/components/notifications/AlertsPanel";
 import { useConnections } from "@/hooks/useActiveConnection";
 import { useAlertEvents, useAlerts } from "@/hooks/useNotifications";
@@ -147,6 +148,8 @@ export default function OperationCenter() {
   const { operations, runningCount, finishedCount, loaded, loadError, centerOpen, setCenterOpen, cancel, clearFinished } = useOperations();
   const { data: conns } = useConnections();
   const { unreadCount } = useAlerts();
+  const activityTab = useUI((s) => s.activityTab);
+  const setActivityTab = useUI((s) => s.setActivityTab);
   useAlertEvents();
   const nameOf = (id: string) => conns?.find((c) => c.id === id)?.name ?? id;
   const label = [runningCount > 0 && `${runningCount} running`, unreadCount > 0 && `${unreadCount} unread alerts`].filter(Boolean).join(", ");
@@ -168,7 +171,7 @@ export default function OperationCenter() {
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-[420px] p-0">
-        <Tabs defaultValue="operations" className="gap-0">
+        <Tabs value={activityTab} onValueChange={(v) => setActivityTab(v as "operations" | "alerts")} className="gap-0">
           <TabsList variant="line" className="w-full justify-start border-b border-border px-2">
             <TabsTrigger value="operations">Operations</TabsTrigger>
             <TabsTrigger value="alerts">Alerts{unreadCount > 0 ? ` (${unreadCount})` : ""}</TabsTrigger>

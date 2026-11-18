@@ -87,15 +87,23 @@ func (m *Manager) List(ctx context.Context) ([]model.ConnectionProfile, error) {
 	if err != nil {
 		return nil, err
 	}
-	def := DefaultLocalProfile()
 	out := make([]model.ConnectionProfile, 0, len(saved)+1)
 	out = append(out, saved...)
-	for _, p := range saved {
-		if strings.EqualFold(p.Endpoint, def.Endpoint) {
-			return out, nil
+	for _, d := range DiscoveredProfiles() {
+		if !endpointSaved(saved, d.Endpoint) {
+			out = append(out, d)
 		}
 	}
-	return append(out, def), nil
+	return out, nil
+}
+
+func endpointSaved(saved []model.ConnectionProfile, endpoint string) bool {
+	for _, p := range saved {
+		if strings.EqualFold(p.Endpoint, endpoint) {
+			return true
+		}
+	}
+	return false
 }
 
 func (m *Manager) resolve(id string) (model.ConnectionProfile, error) {
@@ -108,8 +116,10 @@ func (m *Manager) resolve(id string) (model.ConnectionProfile, error) {
 			return p, nil
 		}
 	}
-	if id == DiscoveredLocalID {
-		return DefaultLocalProfile(), nil
+	for _, d := range DiscoveredProfiles() {
+		if d.ID == id {
+			return d, nil
+		}
 	}
 	return model.ConnectionProfile{}, fmt.Errorf("unknown connection %q", id)
 }

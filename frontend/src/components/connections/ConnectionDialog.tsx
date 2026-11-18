@@ -18,6 +18,7 @@ import { Field, SshForm, TcpForm } from "./TransportForms";
 import { WslPicker } from "./WslPicker";
 import { SECRET_PASSPHRASE, SECRET_PASSWORD, type TypedSecrets } from "./SshAuthFields";
 import { errorMessage } from "@/lib/errors";
+import { isWindows } from "@/lib/platform";
 
 const CARD_ORDER = [
   ConnectionType.ConnWSL,
@@ -37,7 +38,7 @@ function ConnectionForm({ editId, onClose }: { editId?: string; onClose: () => v
   const activeId = useUI((s) => s.activeConnectionId);
   const select = useSelectConnection();
   const [f, setF] = useState<FormState>(() =>
-    existing ? formFromProfile(existing) : defaultForm(navigator.userAgent.includes("Windows") ? ConnectionType.ConnWSL : ConnectionType.ConnUnix),
+    existing ? formFromProfile(existing) : defaultForm(isWindows ? ConnectionType.ConnWSL : ConnectionType.ConnUnix),
   );
   const [busy, setBusy] = useState<null | "test" | "testsave" | "save">(null);
   const [result, setResult] = useState<Result | null>(null);
@@ -124,7 +125,7 @@ function ConnectionForm({ editId, onClose }: { editId?: string; onClose: () => v
 
       {!editing && (
         <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Connection type">
-          {CARD_ORDER.map((t) => {
+          {CARD_ORDER.filter((t) => isWindows || (t !== ConnectionType.ConnWSL && t !== ConnectionType.ConnNamedPipe)).map((t) => {
             const m = TYPE_META[t];
             const on = f.type === t;
             return (

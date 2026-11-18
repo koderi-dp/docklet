@@ -18,7 +18,11 @@ A desktop client for **existing** Docker Engines, built with Wails v3, Go, React
 wails3 dev -config ./build/config.yml -port 9245   # development, hot reload
 wails3 build                                       # production binary in bin/
 wails3 package                                     # Windows installer (needs NSIS)
+wails3 build VERSION=0.2.0                         # embeds the version (default: build/config.yml)
+GOARCH=arm64 wails3 package                        # Windows on ARM64 (the architecture comes from GOARCH)
 ```
+
+`docklet --version` prints the embedded version without starting the app.
 
 ```
 cd frontend && npx tsc --noEmit && npm test && npm run build && cd ..
@@ -59,6 +63,30 @@ TypeScript bindings are generated from the Go services in interface mode (`wails
 
 **App**
 - Background operations in an activity center with history, opt-in alerts (crash, out of memory, unhealthy, restart loop), command palette (Ctrl/Cmd+K), settings, dark and light themes in two palettes (Docklet and stock shadcn/ui).
+- Optional system tray icon (Settings > Tray and background, off by default): click toggles the window; the menu switches engines, lists running containers with Stop, Restart and Open, and shows unread alerts. Optionally closing the window keeps Docklet running in the tray, and it can start hidden. Changes apply immediately, except "start hidden", which applies at the next start. Quit is in the tray menu.
+- Optional update check (Settings > About and updates, "Never" by default): looks at the latest GitHub release on startup or weekly and only shows a small notice in the status bar with a link to the release notes. It never downloads or installs anything, sends no personal data, and "Check now" always works. A repository without published releases reports "No published releases found".
+
+## Releases
+
+Push a tag to publish a release: `git tag v0.2.0 && git push origin v0.2.0` (a tag with a hyphen, such as `v0.2.0-rc.1`, becomes a pre-release). `.github/workflows/release.yml` can also be started by hand with a version. It builds and attaches:
+
+- `docklet-<version>-windows-amd64-installer.exe`, `docklet-<version>-windows-arm64-installer.exe` and the plain `.exe` files
+- `docklet-<version>-linux-amd64.AppImage` and `.deb` (and arm64 when the ARM runner succeeds)
+- `docklet-<version>-macos-arm64.zip` (optional: the release goes out without it if that job fails)
+- `checksums.txt` (SHA-256 of every file)
+
+Windows and Linux amd64 are required; nothing is published if they fail. Nothing is code signed yet (no certificate): Windows SmartScreen and macOS Gatekeeper will warn. The workflow marks where signing would go.
+
+## Platforms
+
+| | Built in CI | Tested in CI | Used interactively |
+|---|---|---|---|
+| Windows amd64 | yes | vet, unit tests | yes (Docker in WSL2) |
+| Windows arm64 | yes (cross-compiled) | no, never run | no |
+| Linux amd64 | yes (GTK 4 and WebKitGTK 6.0, Ubuntu 24.04) | vet, unit tests, and a smoke test: the app is started under Xvfb and must still be running after 15 s | no |
+| macOS arm64 | yes, may fail without blocking | vet, unit tests | no |
+
+On Linux, `libgtk-4-dev` and `libwebkitgtk-6.0-dev` are needed to build; a Secret Service (GNOME Keyring or KWallet) is needed to store SSH passwords. On Linux and macOS, well-known local Docker sockets (`/var/run/docker.sock`, rootless Docker, Docker Desktop, Colima, OrbStack) are offered when they exist.
 
 ## Known limitations
 
@@ -67,14 +95,17 @@ TypeScript bindings are generated from the Go services in interface mode (`wails
 - Compose is not supported for Docker context connections that are not SSH, and password-prompting SSH hosts do not work for Compose (key or agent auth is needed there).
 - Recreate does not carry anonymous volumes over (the dialog warns), and Compose-managed containers are updated through Compose rather than recreated in place.
 - Alerts only fire while Docklet is running and connected.
-- Not built: Kubernetes, Swarm, a built-in Compose YAML editor, automatic container updates, vulnerability scanning, a tray icon, an app update check.
-- Developed and tested on Windows with Docker running in WSL2. Linux and macOS builds are untested.
+- Not built: Kubernetes, Swarm, a built-in Compose YAML editor, automatic container updates, vulnerability scanning, automatic app updates (the update check only notifies).
+- Developed and used on Windows with Docker running in WSL2. Linux and macOS are built in CI (Linux is smoke-tested) but nobody has used them interactively; the tray icon and its menu have not been checked on Linux or macOS.
 - Automated tests are unit tests against fakes; they do not need a Docker daemon.
 
 ## Layout
 
 ```
-main.go                 app wiring: services, events, window
+main.go                 entry point; app_services.go and app_adapters.go hold the wiring
+internal/tray           system tray menu model (pure) and its Wails adapter
+internal/update         release check and version comparison
+internal/version        build-time version
 internal/model          DTOs shared with the frontend (source of the generated TS types)
 internal/engine         connections and transports, one Docker SDK client per connection
 internal/services       bound services: containers, images, volumes, networks, compose, files, exec, system

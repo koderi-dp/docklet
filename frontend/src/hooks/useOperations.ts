@@ -25,7 +25,7 @@ interface OpsState {
   remove: (ids: string[]) => void;
 }
 
-const useOpsStore = create<OpsState>((set) => ({
+export const useOpsStore = create<OpsState>((set) => ({
   ops: {},
   loaded: false,
   loadError: null,

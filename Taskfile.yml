@@ -4,6 +4,11 @@ vars:
   APP_NAME: "docklet"
   BIN_DIR: "bin"
   PACKAGE_MANAGER: '{{.PACKAGE_MANAGER | default "npm"}}'
+  # Embedded in the binary as docklet/internal/version.Version. Override with `wails3 build VERSION=0.2.0`;
+  # the default is the version in build/config.yml.
+  VERSION:
+    sh: |
+      grep -m1 '^  version:' build/config.yml | cut -d ' ' -f4 | tr -cd '0-9A-Za-z.+-'
   VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
   # Target OS for build/package/run. Defaults to the host OS, and is overridden
   # by `wails3 build GOOS=...` (or the GOOS env var) for cross-compilation. The
