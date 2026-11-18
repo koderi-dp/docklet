@@ -13,6 +13,7 @@ maintainer: "Danijel"
 description: "Desktop client for existing Docker Engines"
 vendor: "Docklet"
 homepage: "https://github.com/koderi-dp/docklet"
+license: "MIT"
 release: "1"
 
 contents:

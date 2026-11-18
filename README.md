@@ -115,3 +115,7 @@ internal/notify         alert rules and delivery
 internal/appdb          SQLite storage and migrations
 frontend/src            React app: pages, components, hooks, lib
 ```
+
+## License
+
+MIT. See [LICENSE](LICENSE).
