@@ -78,7 +78,6 @@ export function useNotificationSettings() {
   });
   const test = useMutation({
     mutationFn: (connectionId: string) => NotificationService.TestNotification(connectionId),
-    onSuccess: () => toast.success("Test notification sent"),
     onError: (e) => toastError("Test notification failed", e),
   });
   return { query, save, unmute, test };

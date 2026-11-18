@@ -202,7 +202,9 @@ jobs:
           wails3 task linux:create:appimage "VERSION=$VERSION"
           wails3 task linux:create:deb "VERSION=$VERSION"
           # The profile that lets WebKit's sandbox start on Ubuntu 24.04 must be in the package.
-          dpkg-deb -c bin/*.deb | grep -q ' ./etc/apparmor.d/docklet$'
+          # Capture the listing first: `grep -q` exits at the first match and would make dpkg-deb fail under pipefail.
+          deb_contents="$(dpkg-deb -c bin/*.deb)"
+          grep -q ' ./etc/apparmor.d/docklet$' <<< "$deb_contents"
           reported="$(./bin/docklet --version)"
           echo "$reported"
           echo "$reported" | grep -qx "Docklet $VERSION"

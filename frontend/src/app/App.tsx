@@ -75,7 +75,8 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider delayDuration={300}>
         <RouterProvider router={router} />
-        <Toaster />
+        {/* Bottom right, clear of the 32px status bar. Sonner stacks toasts as a pile and fans them out on hover. */}
+        <Toaster position="bottom-right" offset={{ bottom: 44, right: 16 }} visibleToasts={4} gap={8} closeButton />
       </TooltipProvider>
     </QueryClientProvider>
   );
