@@ -10,6 +10,7 @@ import { useContainersQuery } from "@/hooks/useContainers";
 import { useNetworksQuery } from "@/hooks/useNetworks";
 import { useDiskUsage, useEngineInfo, useRecentEvents } from "@/hooks/useSystem";
 import { useVolumesQuery } from "@/hooks/useVolumes";
+import { engineName } from "@/lib/engineKind";
 
 export default function DashboardPage() {
   return <ConnectionGate>{({ connectionId }) => <DashboardView connectionId={connectionId} />}</ConnectionGate>;
@@ -35,7 +36,7 @@ function DashboardView({ connectionId }: { connectionId: string }) {
     <div className="h-full overflow-auto p-5">
       <PageHeader
         title="Dashboard"
-        subtitle="Overview of your Docker Engine"
+        subtitle={`Overview of your ${engineName(info.data?.kind)} engine`}
         actions={
           <>
             <Button size="sm" onClick={() => navigate("/containers")}>

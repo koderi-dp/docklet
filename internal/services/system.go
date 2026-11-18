@@ -60,8 +60,13 @@ func (s *SystemService) Info(ctx context.Context, connectionID string) (model.En
 		out.Runtimes = append(out.Runtimes, name)
 	}
 	sort.Strings(out.Runtimes)
+	out.Kind = model.EngineDocker
 	if v, err := cli.ServerVersion(ctx, client.ServerVersionOptions{}); err == nil {
 		out.APIVersion, out.MinAPIVersion = v.APIVersion, v.MinAPIVersion
+		out.Kind = engine.KindFromVersion(v.Platform.Name, v.Components)
+		if pv := engine.PodmanVersion(v.Components); pv != "" && out.Kind == model.EnginePodman {
+			out.ServerVersion = pv
+		}
 	}
 	return out, nil
 }
@@ -85,11 +90,15 @@ func (s *SystemService) DiskUsage(ctx context.Context, connectionID string) (mod
 	if err != nil {
 		return model.DiskUsage{}, friendlyError(err)
 	}
+	bc := model.DiskCategory{Key: "buildCache", Label: "Build cache", TotalCount: res.BuildCache.TotalCount, ActiveCount: res.BuildCache.ActiveCount, Size: sizePtr(res.BuildCache.TotalSize), Reclaimable: sizePtr(res.BuildCache.Reclaimable)}
+	if engineKindOf(ctx, cli) == model.EnginePodman {
+		bc.Size, bc.Reclaimable = nil, nil // Podman has no build cache to account: unknown, not "0 B"
+	}
 	return model.DiskUsage{ConnectionID: connectionID, Categories: []model.DiskCategory{
 		{Key: "images", Label: "Images", TotalCount: res.Images.TotalCount, ActiveCount: res.Images.ActiveCount, Size: sizePtr(res.Images.TotalSize), Reclaimable: sizePtr(res.Images.Reclaimable)},
 		{Key: "containers", Label: "Containers (writable layers)", TotalCount: res.Containers.TotalCount, ActiveCount: res.Containers.ActiveCount, Size: sizePtr(res.Containers.TotalSize), Reclaimable: sizePtr(res.Containers.Reclaimable)},
 		{Key: "volumes", Label: "Local volumes", TotalCount: res.Volumes.TotalCount, ActiveCount: res.Volumes.ActiveCount, Size: sizePtr(res.Volumes.TotalSize), Reclaimable: sizePtr(res.Volumes.Reclaimable)},
-		{Key: "buildCache", Label: "Build cache", TotalCount: res.BuildCache.TotalCount, ActiveCount: res.BuildCache.ActiveCount, Size: sizePtr(res.BuildCache.TotalSize), Reclaimable: sizePtr(res.BuildCache.Reclaimable)},
+		bc,
 	}}, nil
 }
 
@@ -218,6 +227,9 @@ func (s *SystemService) PruneBuildCache(ctx context.Context, connectionID string
 		func(ctx context.Context, cli *client.Client) (pruneOutcome, error) {
 			res, err := cli.BuildCachePrune(ctx, client.BuildCachePruneOptions{All: all})
 			if err != nil {
+				if endpointMissing(err) {
+					return pruneOutcome{}, errors.New("This engine has no build cache endpoint (Podman keeps build layers as ordinary images). Nothing was removed.")
+				}
 				return pruneOutcome{}, err
 			}
 			return pruneOutcome{Noun: "build cache records", Items: res.Report.CachesDeleted, Reclaimed: res.Report.SpaceReclaimed, HasSpace: true}, nil

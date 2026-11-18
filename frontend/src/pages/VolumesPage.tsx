@@ -13,6 +13,7 @@ import { VolumeInspector } from "@/components/volumes/VolumeInspector";
 import { VolumesTable } from "@/components/volumes/VolumesTable";
 import { UsageToolbar } from "@/components/volumes/parts";
 import { useVolumesPage } from "@/components/volumes/useVolumesPage";
+import { useEngineName } from "@/lib/engineKind";
 
 export default function VolumesPage() {
   return <ConnectionGate>{({ connectionId }) => <VolumesView connectionId={connectionId} />}</ConnectionGate>;
@@ -21,13 +22,14 @@ export default function VolumesPage() {
 function VolumesView({ connectionId }: { connectionId: string }) {
   const pg = useVolumesPage(connectionId);
   const { list } = pg;
+  const engine = useEngineName(connectionId);
 
   return (
     <div className="relative flex h-full min-h-0">
       <div className="min-w-0 flex-1 overflow-auto p-5">
         <PageHeader
           title="Volumes"
-          subtitle="Persistent data stored on this Docker Engine"
+          subtitle={`Persistent data stored on this ${engine} engine`}
           actions={
             <>
               <Button size="sm" onClick={() => pg.setCreateOpen(true)}>

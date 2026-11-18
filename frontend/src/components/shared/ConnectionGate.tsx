@@ -24,7 +24,7 @@ export function ConnectionGate({
 
   if (!connectionId)
     return (
-      <EmptyState icon={<Plug />} title="Connect to a Docker Engine">
+      <EmptyState icon={<Plug />} title="Connect to an engine">
         <p>Select an engine from the sidebar to see its resources.</p>
         <Button className="mt-3" onClick={() => navigate("/connections")}>
           Manage connections

@@ -71,13 +71,15 @@ func imageError(err error) error {
 		prefix = "Operation canceled"
 	case errors.Is(err, context.DeadlineExceeded):
 		prefix = "Operation timed out"
+	case isShortNameError(low):
+		return fmt.Errorf("%w. Podman does not accept a short image name here: use the fully qualified name, for example docker.io/library/nginx", err)
 	case cerrdefs.IsNotFound(err), strings.Contains(low, "no such image"), strings.Contains(low, "manifest unknown"),
 		strings.Contains(low, "not found"):
 		prefix = "Image not found"
 	case strings.Contains(low, "unauthorized"), strings.Contains(low, "denied"), strings.Contains(low, "authentication required"):
 		prefix = "Registry denied access"
 	case strings.Contains(low, "permission denied"):
-		prefix = "Permission denied by the Docker Engine"
+		prefix = "Permission denied by the Engine"
 	}
 	if prefix == "" {
 		return err
@@ -284,4 +286,10 @@ func (s *ImageService) PruneDangling(ctx context.Context, connectionID string) (
 		return nil
 	})
 	return op, nil
+}
+
+// isShortNameError recognises Podman's short-name resolution failures (its registries.conf
+// enforces fully qualified names when it cannot ask the user which registry to use).
+func isShortNameError(low string) bool {
+	return strings.Contains(low, "short-name") || strings.Contains(low, "short name")
 }

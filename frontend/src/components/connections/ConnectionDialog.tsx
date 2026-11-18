@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { connectionsKey, useConnections, useSelectConnection } from "@/hooks/useActiveConnection";
 import { useUI } from "@/stores/uiStore";
 import { ContextPicker } from "./ContextPicker";
+import { DetectedPodman } from "./DetectedPodman";
 import { ErrorWithDiagnostics } from "./DiagnosticsBlock";
 import { TYPE_META, TypeIcon, typeLabel } from "./connectionMeta";
 import { buildProfile, defaultForm, defaultName, formFromProfile, type FormState } from "./profileForm";
@@ -19,6 +20,7 @@ import { WslPicker } from "./WslPicker";
 import { SECRET_PASSPHRASE, SECRET_PASSWORD, type TypedSecrets } from "./SshAuthFields";
 import { errorMessage } from "@/lib/errors";
 import { isWindows } from "@/lib/platform";
+import { engineVersionLabel } from "@/lib/engineKind";
 
 const CARD_ORDER = [
   ConnectionType.ConnWSL,
@@ -120,7 +122,7 @@ function ConnectionForm({ editId, onClose, onSaved }: { editId?: string; onClose
       <DialogHeader>
         <DialogTitle>{editing ? `Edit ${existing?.name ?? "connection"}` : "Add connection"}</DialogTitle>
         <DialogDescription>
-          {editing ? `${typeLabel(f.type)} connection. Changes apply the next time it connects.` : "Choose how Docklet reaches an existing Docker Engine."}
+          {editing ? `${typeLabel(f.type)} connection. Changes apply the next time it connects.` : "Choose how Docklet reaches an existing Docker or Podman engine."}
         </DialogDescription>
       </DialogHeader>
 
@@ -148,6 +150,15 @@ function ConnectionForm({ editId, onClose, onSaved }: { editId?: string; onClose
             );
           })}
         </div>
+      )}
+
+      {!editing && (
+        <DetectedPodman
+          onPick={(p) => {
+            setF(formFromProfile(p));
+            setResult(null);
+          }}
+        />
       )}
 
       <div className="space-y-3">
@@ -184,7 +195,7 @@ function ConnectionForm({ editId, onClose, onSaved }: { editId?: string; onClose
         <p className="flex items-center gap-2 rounded-md border border-success/30 bg-success/10 p-3 text-sm text-success" role="status">
           <CheckCircle2 className="size-4 shrink-0" />
           Connection works
-          {result.status.serverVersion ? `: Docker ${result.status.serverVersion}` : ""}
+          {result.status.serverVersion ? `: ${engineVersionLabel(result.status.kind, result.status.serverVersion)}` : ""}
           {result.status.apiVersion ? `, API ${result.status.apiVersion}` : ""}
           {result.status.os ? `, ${result.status.os}` : ""}.
         </p>

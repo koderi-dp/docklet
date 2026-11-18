@@ -21,6 +21,7 @@ const (
 type engineSource struct {
 	cli    *client.Client
 	filter client.Filters
+	label  string // "Podman Engine"; empty means Docker
 }
 
 func (e engineSource) Bindings(ctx context.Context) ([]ports.Binding, error) {
@@ -42,7 +43,7 @@ func (e engineSource) Bindings(ctx context.Context) ([]ports.Binding, error) {
 					ip = p.IP.String()
 				}
 				out = append(out, ports.Binding{ContainerID: it.ID, Name: name, Project: project, Running: true,
-					HostIP: ip, HostPort: int(p.PublicPort), Protocol: p.Type})
+					HostIP: ip, HostPort: int(p.PublicPort), Protocol: p.Type, Engine: e.label})
 			}
 			continue
 		}
@@ -85,7 +86,7 @@ func (e engineSource) Bindings(ctx context.Context) ([]ports.Binding, error) {
 						ip = b.HostIP.String()
 					}
 					out = append(out, ports.Binding{ContainerID: it.ID, Name: firstName(it.Names), Project: it.Labels[compose.LabelProject],
-						HostIP: ip, HostPort: n, Protocol: string(port.Proto())})
+						HostIP: ip, HostPort: n, Protocol: string(port.Proto()), Engine: e.label})
 				}
 			}
 		}()

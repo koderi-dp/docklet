@@ -85,12 +85,14 @@ func (h *Hub) ObserveEvent(connectionID string, m events.Message) {
 }
 
 func (h *Hub) run() {
-	for ev := range h.in {
-		for _, f := range h.rules.Evaluate(h.Settings(), ev) {
-			if f.Rule == model.RuleUnhealthy {
-				f.Detail = h.healthDetail(ev)
+	for raw := range h.in {
+		for _, ev := range h.enrich(raw) {
+			for _, f := range h.rules.Evaluate(h.Settings(), ev) {
+				if f.Rule == model.RuleUnhealthy {
+					f.Detail = h.healthDetail(ev)
+				}
+				h.record(ev, f)
 			}
-			h.record(ev, f)
 		}
 	}
 }

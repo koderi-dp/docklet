@@ -4,6 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { formatBytes } from "@/components/containers/format";
 import { useEngineInfo } from "@/hooks/useSystem";
+import { engineName } from "@/lib/engineKind";
 import { Card, InfoGrid } from "./parts";
 
 export function OverviewTab({ connectionId }: { connectionId: string }) {
@@ -19,7 +20,7 @@ export function OverviewTab({ connectionId }: { connectionId: string }) {
   const i = q.data;
   return (
     <div className="space-y-4">
-      <Card title="Engine" subtitle="As reported by the Docker daemon of this connection">
+      <Card title="Engine" subtitle={`As reported by the ${engineName(i.kind)} engine of this connection`}>
         <InfoGrid
           items={[
             { label: "Daemon name", value: i.name },
@@ -38,7 +39,7 @@ export function OverviewTab({ connectionId }: { connectionId: string }) {
         <InfoGrid
           items={[
             { label: "Storage driver", value: i.storageDriver },
-            { label: "Docker root dir", value: <span className="font-mono text-xs">{i.dockerRootDir}</span> },
+            { label: `${engineName(i.kind)} root dir`, value: <span className="font-mono text-xs">{i.dockerRootDir}</span> },
             { label: "Logging driver", value: i.loggingDriver },
             { label: "Cgroup", value: [i.cgroupDriver, i.cgroupVersion && `v${i.cgroupVersion}`].filter(Boolean).join(" · ") },
             { label: "Default runtime", value: i.defaultRuntime },

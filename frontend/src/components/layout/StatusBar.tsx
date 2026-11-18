@@ -3,6 +3,7 @@ import { ConnectionDot } from "@/components/connections/ConnectionStatus";
 import { ConnectionState } from "@bindings/model";
 import { UpdatePill } from "@/components/layout/UpdatePill";
 import { useAppVersion } from "@/hooks/useApp";
+import { engineVersionLabel } from "@/lib/engineKind";
 
 export default function StatusBar() {
   const { profile, status } = useActiveConnection();
@@ -18,7 +19,7 @@ export default function StatusBar() {
             : `${profile.name}: ${status?.state ?? "not connected"}`
           : "No engine selected"}
       </span>
-      {connected && status?.serverVersion && <span>Docker {status.serverVersion}</span>}
+      {connected && status?.serverVersion && <span>{engineVersionLabel(status.kind, status.serverVersion)}</span>}
       {connected && status?.apiVersion && <span>API {status.apiVersion}</span>}
       <UpdatePill />
     </footer>

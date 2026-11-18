@@ -58,7 +58,16 @@ func (s *ImageService) capability(ctx context.Context, connectionID string) (mod
 		return e.cap, env, nil
 	}
 	s.capMu.Unlock()
-	c := s.probeCapability(ctx, env)
+	var c model.BuildCapability
+	podman, known := s.isPodman(ctx, connectionID)
+	if podman {
+		c = podmanCapability(env.Location)
+	} else {
+		c = s.probeCapability(ctx, env)
+	}
+	if !known {
+		return c, env, nil // the engine could not be asked: do not remember an answer that may be wrong
+	}
 	s.capMu.Lock()
 	if s.caps == nil {
 		s.caps = map[string]capEntry{}
@@ -225,4 +234,23 @@ func (s *ImageService) BuildPlan(ctx context.Context, connectionID string, spec 
 		plan.ContextProblem = err.Error()
 	}
 	return plan, nil
+}
+
+// isPodman reports whether the connection's engine is Podman; known is false when it cannot be asked.
+func (s *ImageService) isPodman(ctx context.Context, connectionID string) (podman, known bool) {
+	if s.Engines == nil {
+		return false, true // no engine provider (tests): the docker CLI probe is all there is
+	}
+	cli, err := s.client(ctx, connectionID)
+	if err != nil {
+		return false, false
+	}
+	return engineKindOf(ctx, cli) == model.EnginePodman, true
+}
+
+// podmanCapability: Podman serves the classic build API only. `docker buildx` would build with the
+// builder of the user's current Docker context, not on Podman, so BuildKit is never offered here.
+func podmanCapability(location string) model.BuildCapability {
+	const reason = "Podman builds through its Docker-compatible build API; `docker buildx` cannot build on it"
+	return model.BuildCapability{Reason: reason, Summary: "Classic builder: Podman has no BuildKit endpoint", Location: location}
 }

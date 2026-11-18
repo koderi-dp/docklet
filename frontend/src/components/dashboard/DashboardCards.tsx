@@ -6,6 +6,7 @@ import { ContainerStatusBadge } from "@/components/containers/ContainerStatusBad
 import { formatBytes } from "@/components/containers/format";
 import { Bytes, Card, InfoGrid, NotAvailable, formatEventTime } from "@/components/system/parts";
 import { attrSummary } from "@/components/system/EventsTab";
+import { engineName } from "@/lib/engineKind";
 
 type Q<T> = { data?: T | null; isLoading: boolean; error: unknown };
 
@@ -15,7 +16,7 @@ function Failed({ what, error }: { what: string; error: unknown }) {
 
 export function EngineCard({ info }: { info: Q<EngineInfo> }) {
   return (
-    <Card title="Engine" subtitle="Docker daemon of this connection" actions={<span className="rounded-md border border-success/30 bg-success/10 px-2 py-0.5 text-xs font-medium text-success">Connected</span>}>
+    <Card title="Engine" subtitle={`${engineName(info.data?.kind)} engine of this connection`} actions={<span className="rounded-md border border-success/30 bg-success/10 px-2 py-0.5 text-xs font-medium text-success">Connected</span>}>
       {info.isLoading ? (
         <Skeleton className="h-40 w-full" />
       ) : info.error || !info.data ? (
@@ -23,7 +24,7 @@ export function EngineCard({ info }: { info: Q<EngineInfo> }) {
       ) : (
         <InfoGrid
           items={[
-            { label: "Docker version", value: info.data.serverVersion },
+            { label: `${engineName(info.data.kind)} version`, value: info.data.serverVersion },
             { label: "API version", value: info.data.apiVersion },
             { label: "Operating system", value: info.data.operatingSystem },
             { label: "Architecture", value: info.data.architecture },
@@ -38,7 +39,7 @@ export function EngineCard({ info }: { info: Q<EngineInfo> }) {
 
 export function ResourceUsageCard({ info, disk }: { info: Q<EngineInfo>; disk: Q<DiskUsage> }) {
   return (
-    <Card title="Resource usage" subtitle="Docker disk usage (docker system df) and host capacity. Not host disk or live CPU utilisation.">
+    <Card title="Resource usage" subtitle={`${engineName(info.data?.kind)} disk usage (system df) and host capacity. Not host disk or live CPU utilisation.`}>
       <div className="space-y-4">
         <div>
           <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Host capacity</h3>
@@ -54,11 +55,11 @@ export function ResourceUsageCard({ info, disk }: { info: Q<EngineInfo>; disk: Q
           </dl>
         </div>
         <div>
-          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Docker disk usage</h3>
+          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{engineName(info.data?.kind)} disk usage</h3>
           {disk.isLoading ? (
             <Skeleton className="h-24 w-full" />
           ) : disk.error || !disk.data ? (
-            <Failed what="Docker disk usage" error={disk.error} />
+            <Failed what={`${engineName(info.data?.kind)} disk usage`} error={disk.error} />
           ) : (
             <table className="w-full text-[13px]">
               <thead>

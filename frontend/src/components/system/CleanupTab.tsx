@@ -19,6 +19,7 @@ import { useDiskUsage, usePrune, type PruneKind } from "@/hooks/useSystem";
 import { ResourceCard } from "@/components/shared/ResourceCard";
 import { Bytes, NotAvailable } from "./parts";
 import { errorMessage } from "@/lib/errors";
+import { engineName, useIsPodman } from "@/lib/engineKind";
 
 interface CleanupDef {
   id: string;
@@ -32,11 +33,17 @@ interface CleanupDef {
   /** Destructive-to-data: the checkbox must be ticked to run at all. */
   requireAck?: string;
   danger?: boolean;
+  /** Why this cleanup cannot run on this engine; the button is disabled and shows the reason. */
+  unavailable?: string;
 }
+
+const PODMAN_NO_BUILD_CACHE = "Podman keeps no separate build cache that its Docker API can list or prune; build layers are ordinary images (clean them with Dangling images).";
 
 export function CleanupTab({ connectionId }: { connectionId: string }) {
   const du = useDiskUsage(connectionId);
   const prune = usePrune(connectionId);
+  const podman = useIsPodman(connectionId);
+  const engine = engineName(podman ? "podman" : "docker");
   const [active, setActive] = useState<CleanupDef | null>(null);
   const [checked, setChecked] = useState(false);
 
@@ -90,8 +97,9 @@ export function CleanupTab({ connectionId }: { connectionId: string }) {
       title: "Build cache",
       description: "Removes build cache records that are not in use.",
       warning: "The next image build may be slower because layers must be rebuilt.",
-      estimate: reclaim("buildCache", "Docker disk usage is not available"),
+      estimate: podman ? <NotAvailable reason={PODMAN_NO_BUILD_CACHE} /> : reclaim("buildCache", "Docker disk usage is not available"),
       kind: "buildcache",
+      unavailable: podman ? PODMAN_NO_BUILD_CACHE : undefined,
     },
     {
       id: "system",
@@ -130,7 +138,7 @@ export function CleanupTab({ connectionId }: { connectionId: string }) {
   return (
     <div>
       <p className="mb-3 text-[13px] text-muted-foreground">
-        Cleanup acts on the Docker Engine of this connection only. Estimates come from Docker disk usage (docker system df), not from the host disk.
+        Cleanup acts on the {engine} engine of this connection only. Estimates come from {engine} disk usage (system df), not from the host disk.
       </p>
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3 [&>*]:min-h-[148px]">
         {defs.map((d) => (
@@ -150,7 +158,8 @@ export function CleanupTab({ connectionId }: { connectionId: string }) {
                 <Button
                   size="sm"
                   variant="outline"
-                  disabled={prune.isPending}
+                  disabled={prune.isPending || !!d.unavailable}
+                  title={d.unavailable}
                   onClick={() => open(d)}
                   className={d.danger ? "shrink-0 border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive" : "shrink-0"}
                 >

@@ -1,5 +1,6 @@
 import type { ImageRow } from "@bindings/model";
 import { Button } from "@/components/ui/button";
+import { PODMAN_NO_UPDATE_CHECK, useIsPodman } from "@/lib/engineKind";
 import { formatDateTime } from "@/components/containers/format";
 import { checkImageUpdate, openUpdateDialog, useUpdateStatus } from "./updateStore";
 import { UpdateChip } from "./UpdateChip";
@@ -9,6 +10,7 @@ const shortDigest = (d: string) => d.replace(/^sha256:/, "").slice(0, 12);
 /** "Update" row of the image inspector: state, digests, check and update actions. */
 export function UpdateInspectorRow({ row }: { row: ImageRow }) {
   const { status, checking } = useUpdateStatus(row.connectionId, row.ref);
+  const podman = useIsPodman(row.connectionId);
   if (row.dangling) return null;
   return (
     <div className="grid grid-cols-[96px_1fr] gap-3 border-b border-border/50 py-1.5 text-[13px]">
@@ -27,7 +29,7 @@ export function UpdateInspectorRow({ row }: { row: ImageRow }) {
           </p>
         )}
         <div className="flex gap-1.5">
-          <Button size="sm" variant="outline" disabled={checking} onClick={() => void checkImageUpdate(row)}>
+          <Button size="sm" variant="outline" disabled={checking || podman} title={podman ? PODMAN_NO_UPDATE_CHECK : undefined} onClick={() => void checkImageUpdate(row)}>
             Check for update
           </Button>
           {status?.updateAvailable && (

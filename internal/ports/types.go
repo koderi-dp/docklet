@@ -79,6 +79,8 @@ type Binding struct {
 	HostIP      string
 	HostPort    int
 	Protocol    string
+	// Engine names the engine that publishes the port ("Docker Engine" when empty).
+	Engine string
 }
 
 // Listener is one listening socket on a machine.

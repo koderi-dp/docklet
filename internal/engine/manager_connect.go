@@ -97,6 +97,16 @@ func (m *Manager) probe(ctx context.Context, cli *client.Client, p model.Connect
 		Containers:    info.Info.Containers,
 		Images:        info.Info.Images,
 	}
+	// The Engine names itself in /version: a Podman answer is shown as Podman, never assumed Docker.
+	st.Kind = model.EngineDocker
+	if v, err := cli.ServerVersion(ctx, client.ServerVersionOptions{}); err == nil {
+		st.Kind = KindFromVersion(v.Platform.Name, v.Components)
+		if st.Kind == model.EnginePodman {
+			if pv := PodmanVersion(v.Components); pv != "" {
+				st.ServerVersion = pv
+			}
+		}
+	}
 	// Best-effort counts; failures leave 0 rather than failing the connection.
 	if v, err := cli.VolumeList(ctx, client.VolumeListOptions{}); err == nil {
 		st.Volumes = len(v.Items)

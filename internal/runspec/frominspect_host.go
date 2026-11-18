@@ -26,10 +26,10 @@ func mapHostConfig(s *Spec, hc *container.HostConfig, h Hints) {
 	if r.MemorySwap != 0 && r.MemorySwap != 2*r.Memory { // 2x memory is what the daemon fills in when unset
 		s.MemorySwap = r.MemorySwap
 	}
-	if r.PidsLimit != nil && *r.PidsLimit > 0 {
+	if r.PidsLimit != nil && *r.PidsLimit > 0 && !(h.Podman && *r.PidsLimit == podmanPidsLimit) {
 		s.PidsLimit = *r.PidsLimit
 	}
-	if hc.ShmSize != 0 && hc.ShmSize != 64*mib {
+	if hc.ShmSize != 0 && hc.ShmSize != 64*mib && !(h.Podman && hc.ShmSize == podmanShmSize) {
 		s.ShmSize = hc.ShmSize
 	}
 	for _, d := range r.Devices {
@@ -40,10 +40,11 @@ func mapHostConfig(s *Spec, hc *container.HostConfig, h Hints) {
 		s.Devices = append(s.Devices, dev)
 	}
 	for _, u := range r.Ulimits {
+		name := ulimitName(u.Name)
 		if u.Soft == u.Hard {
-			s.Ulimits = append(s.Ulimits, fmt.Sprintf("%s=%d", u.Name, u.Soft))
+			s.Ulimits = append(s.Ulimits, fmt.Sprintf("%s=%d", name, u.Soft))
 		} else {
-			s.Ulimits = append(s.Ulimits, fmt.Sprintf("%s=%d:%d", u.Name, u.Soft, u.Hard))
+			s.Ulimits = append(s.Ulimits, fmt.Sprintf("%s=%d:%d", name, u.Soft, u.Hard))
 		}
 	}
 	s.GPUs = gpus(r.DeviceRequests, s)
@@ -62,14 +63,14 @@ func mapHostConfig(s *Spec, hc *container.HostConfig, h Hints) {
 		s.LogDriver = t
 	}
 	s.LogOpts = mapKV(hc.LogConfig.Config)
-	if hc.Runtime != "" && hc.Runtime != "runc" {
+	if hc.Runtime != "" && hc.Runtime != "runc" && hc.Runtime != "oci" { // "oci" is Podman's name for its default
 		s.Runtime = hc.Runtime
 	}
-	s.PidMode = string(hc.PidMode)
+	s.PidMode = hostOnly(string(hc.PidMode))
 	if m := string(hc.IpcMode); m != "" && m != "private" && m != "shareable" {
 		s.IpcMode = m
 	}
-	s.UTSMode, s.UsernsMode, s.OomScoreAdj = string(hc.UTSMode), string(hc.UsernsMode), hc.OomScoreAdj
+	s.UTSMode, s.UsernsMode, s.OomScoreAdj = hostOnly(string(hc.UTSMode)), string(hc.UsernsMode), hc.OomScoreAdj
 	notIncluded(s, hc)
 }
 
@@ -141,4 +142,24 @@ func trimCapPrefix(caps []string) []string {
 		out[i] = strings.TrimPrefix(c, "CAP_")
 	}
 	return out
+}
+
+// Podman's own defaults, spelled out in its inspect output.
+const (
+	podmanPidsLimit = 2048
+	podmanShmSize   = 65536000 // "64000k"
+)
+
+// ulimitName turns Podman's "RLIMIT_NOFILE" into the name docker run accepts ("nofile").
+func ulimitName(n string) string {
+	return strings.ToLower(strings.TrimPrefix(n, "RLIMIT_"))
+}
+
+// hostOnly keeps the one non-default namespace mode docker run takes for --pid and --uts ("host");
+// Podman spells the default "private".
+func hostOnly(mode string) string {
+	if mode == "private" {
+		return ""
+	}
+	return mode
 }

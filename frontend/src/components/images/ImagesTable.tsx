@@ -17,6 +17,7 @@ import { formatBytes, formatCreated } from "@/components/containers/format";
 import { SortTh } from "@/components/tables/SortTh";
 import { cn } from "@/lib/utils";
 import { copyToClipboard } from "@/lib/clipboard";
+import { PODMAN_NO_UPDATE_CHECK, useIsPodman } from "@/lib/engineKind";
 import { UpdateChip } from "./update/UpdateChip";
 import { checkImageUpdate, openUpdateDialog } from "./update/updateStore";
 
@@ -52,6 +53,7 @@ export function RowActions({
   onPush,
   onSave,
 }: { row: ImageRow } & Pick<ImagesTableProps, "onInspect" | "onCreateContainer" | "onTag" | "onRemove" | "onPush" | "onSave">) {
+  const podman = useIsPodman(row.connectionId);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -82,7 +84,7 @@ export function RowActions({
         >
           <Upload /> Push…
         </DropdownMenuItem>
-        <DropdownMenuItem disabled={row.dangling} title={row.dangling ? "Untagged image: nothing to compare with a registry" : undefined} onSelect={() => void checkImageUpdate(row)}>
+        <DropdownMenuItem disabled={row.dangling || podman} title={row.dangling ? "Untagged image: nothing to compare with a registry" : podman ? PODMAN_NO_UPDATE_CHECK : undefined} onSelect={() => void checkImageUpdate(row)}>
           <RefreshCw /> Check for update
         </DropdownMenuItem>
         <DropdownMenuItem disabled={row.dangling} title={row.dangling ? "Untagged image: nothing to pull" : "Pull the newest image and recreate containers that use it"} onSelect={() => openUpdateDialog(row)}>

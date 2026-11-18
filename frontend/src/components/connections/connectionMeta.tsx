@@ -1,5 +1,6 @@
 import { Cable, Container, Network, Server, Terminal, TerminalSquare, type LucideIcon } from "lucide-react";
 import { ConnectionState, ConnectionType, type ConnectionProfile, type ConnectionStatus } from "@bindings/model";
+import { engineVersionLabel } from "@/lib/engineKind";
 
 export const TYPE_META: Record<string, { label: string; short: string; icon: LucideIcon; hint: string }> = {
   [ConnectionType.ConnWSL]: { label: "WSL2", short: "WSL2", icon: TerminalSquare, hint: "Docker Engine inside a WSL2 distribution" },
@@ -51,9 +52,9 @@ export function statusTone(s?: ConnectionState): "success" | "warning" | "destru
   }
 }
 
-/** "Docker 27.1 - linux/x86_64": only facts the Engine reported. */
+/** "Docker 27.1 - linux/x86_64" or "Podman 6.1 - linux/amd64": only facts the Engine reported. */
 export function engineSummary(st?: ConnectionStatus): string | null {
   if (!st || st.state !== ConnectionState.StateConnected) return null;
-  const parts = [st.serverVersion && `Docker ${st.serverVersion}`, st.os && `${st.os}${st.arch ? `/${st.arch}` : ""}`].filter(Boolean);
+  const parts = [st.serverVersion && engineVersionLabel(st.kind, st.serverVersion), st.os && `${st.os}${st.arch ? `/${st.arch}` : ""}`].filter(Boolean);
   return parts.length ? parts.join(" - ") : null;
 }

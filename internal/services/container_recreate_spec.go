@@ -15,6 +15,7 @@ import (
 	"github.com/moby/moby/client"
 
 	"docklet/internal/model"
+	"docklet/internal/runspec"
 )
 
 const (
@@ -49,7 +50,17 @@ func (s *ContainerService) RecreateSpec(ctx context.Context, connectionID, id st
 	if ir, ierr := cli.ImageInspect(ctx, res.Container.Image); ierr == nil {
 		img = &ir.InspectResponse
 	}
-	return buildRecreateInfo(res.Container, img), nil
+	info := buildRecreateInfo(res.Container, img)
+	if engineKindOf(ctx, cli) == model.EnginePodman {
+		kept := info.Spec.Env[:0]
+		for _, e := range info.Spec.Env {
+			if !runspec.PodmanInjectedEnv(e.Key+"="+e.Value, res.Container.ID) {
+				kept = append(kept, e)
+			}
+		}
+		info.Spec.Env = kept
+	}
+	return info, nil
 }
 
 // buildRecreateInfo is the pure mapping behind RecreateSpec. img may be nil when

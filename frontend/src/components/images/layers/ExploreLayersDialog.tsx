@@ -20,7 +20,7 @@ export function ExploreLayersDialog({ connectionId, imageRef, title, open, onOpe
       <DialogContent className="overflow-x-hidden sm:max-w-[920px] [&>*]:min-w-0">
         <DialogHeader>
           <DialogTitle className="truncate pr-6">Layers of {title}</DialogTitle>
-          <DialogDescription>Where the size of this image comes from, as reported by the Docker Engine.</DialogDescription>
+          <DialogDescription>Where the size of this image comes from, as reported by the Engine.</DialogDescription>
         </DialogHeader>
         {q.isLoading && <Skeleton className="h-64 w-full" />}
         {q.error && <p className="text-[13px] text-destructive">Could not load layers: {String(q.error)}</p>}

@@ -16,6 +16,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ConnectionStatusBadge } from "@/components/connections/ConnectionStatusBadge";
+import { EngineBadge } from "@/components/connections/EngineBadge";
+import { engineVersionLabel } from "@/lib/engineKind";
 import { ErrorWithDiagnostics } from "@/components/connections/DiagnosticsBlock";
 import { TypeIcon, endpointSummary, engineSummary, typeLabel } from "@/components/connections/connectionMeta";
 import { WslDockerSetup } from "@/components/connections/wslinstall/WslDockerSetup";
@@ -80,6 +82,7 @@ function ConnectionCard({ c }: { c: ConnectionProfile }) {
                 Auto-detected
               </Badge>
             )}
+            <EngineBadge kind={status?.kind} />
             <ConnectionStatusBadge state={state} />
           </div>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
@@ -143,7 +146,7 @@ function ConnectionCard({ c }: { c: ConnectionProfile }) {
         <p className="mt-2 flex items-center gap-2 rounded-md border border-success/30 bg-success/10 px-3 py-2 text-xs text-success" role="status">
           <CheckCircle2 className="size-4 shrink-0" />
           Test passed
-          {test.status.serverVersion ? `: Docker ${test.status.serverVersion}` : ""}
+          {test.status.serverVersion ? `: ${engineVersionLabel(test.status.kind, test.status.serverVersion)}` : ""}
           {test.status.apiVersion ? `, API ${test.status.apiVersion}` : ""}
           {test.status.os ? `, ${test.status.os}` : ""}.
         </p>
@@ -189,7 +192,7 @@ export default function ConnectionsPage() {
     <div className="max-w-5xl p-5">
       <PageHeader
         title="Connections"
-        subtitle="Docker Engines Docklet can manage. Each connection is isolated; resources are never mixed."
+        subtitle="Docker and Podman engines Docklet can manage. Each connection is isolated; resources are never mixed."
         actions={
           <Button onClick={() => openDialog({ mode: "add" })}>
             <Plus />
@@ -210,7 +213,7 @@ export default function ConnectionsPage() {
       )}
       {data && data.length === 0 && (
         <EmptyState icon={<PlugZap />} title="No connections yet">
-          <p>Add a Docker Engine to get started.</p>
+          <p>Add a Docker or Podman engine to get started.</p>
           <Button className="mt-3" onClick={() => openDialog({ mode: "add" })}>
             <Plus />
             Add connection

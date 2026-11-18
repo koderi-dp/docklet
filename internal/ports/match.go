@@ -42,6 +42,8 @@ var proxyNames = map[string]bool{
 	"vpnkit": true, "vpnkit-bridge": true, "wslrelay": true, "wslhost": true,
 	"docker-proxy": true, "dockerd": true, "rootlesskit": true, "slirp4netns": true,
 	"rootlesskit-docker-proxy": true,
+	// Podman: gvproxy (Windows and macOS machines), rootlessport and pasta (rootless Linux).
+	"gvproxy": true, "rootlessport": true, "rootlessport-child": true, "pasta": true, "pasta.avx2": true, "pasta.avx": true,
 }
 
 func isProxy(name string) bool {

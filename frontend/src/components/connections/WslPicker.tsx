@@ -15,7 +15,8 @@ import type { SuccessAction } from "./wslinstall/InstallDockerDialog";
 const distrosKey = ["wsl-distros"] as const;
 
 function isInternal(name: string) {
-  return name.toLowerCase().startsWith("docker-desktop");
+  const n = name.toLowerCase();
+  return n.startsWith("docker-desktop") || n.startsWith("podman-");
 }
 
 function DockerLine({ d, info, loading }: { d: WSLDistro; info?: WSLDockerInfo; loading: boolean }) {
@@ -25,7 +26,8 @@ function DockerLine({ d, info, loading }: { d: WSLDistro; info?: WSLDockerInfo; 
   if (info.daemonReachable)
     return <span className="text-success">Docker Engine {info.serverVersion} is running</span>;
   if (info.cliFound) return <span className="text-warning">Docker CLI found, daemon not running</span>;
-  if (isInternal(d.name)) return <span className="text-muted-foreground">Internal Docker Desktop distribution</span>;
+  if (isInternal(d.name))
+    return <span className="text-muted-foreground">{d.name.toLowerCase().startsWith("podman-") ? "Podman machine: use its Podman connection" : "Internal Docker Desktop distribution"}</span>;
   return <span className="text-muted-foreground">Docker not found in this distribution</span>;
 }
 
@@ -103,7 +105,7 @@ export function WslPicker({ value, onChange, successAction }: { value: string; o
                 role="radio"
                 aria-checked={selected}
                 disabled={internal}
-                title={internal ? "Internal Docker Desktop distribution: use the named pipe connection instead" : undefined}
+                title={internal ? "Internal distribution of Docker Desktop or a Podman machine: use the named pipe connection instead" : undefined}
                 onClick={() => onChange(d.name)}
                 className="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left disabled:cursor-not-allowed"
               >

@@ -189,3 +189,13 @@ func (s *ConnectionService) DeleteSecret(ctx context.Context, connectionID, kind
 	}
 	return m.DeleteSecret(connectionID, kind)
 }
+
+// PodmanMachines lists the Podman machines on this computer with their running state. It only
+// reads `podman machine list`; a stopped machine carries the hint to start it and is never started.
+func (s *ConnectionService) PodmanMachines(ctx context.Context) ([]model.PodmanMachineInfo, error) {
+	out, err := engine.PodmanMachines(ctx)
+	if out == nil {
+		out = []model.PodmanMachineInfo{}
+	}
+	return out, err
+}

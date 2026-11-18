@@ -1,5 +1,6 @@
 import { ConnectionType, WSLInstallState, type ConnectionProfile, type EnvironmentReport, type WSLDistroReport } from "@bindings/model";
 import { endpointSummary, typeLabel } from "@/components/connections/connectionMeta";
+import { engineVersionLabel, isPodmanKind } from "@/lib/engineKind";
 
 /** What the setup wizard knows about one engine it could connect to. */
 export type CandidateState =
@@ -125,7 +126,7 @@ export function buildCandidates(report: EnvironmentReport): Candidate[] {
   const out: Candidate[] = [];
   const claimed = new Set<string>();
   for (const l of report.local ?? []) {
-    if (!l.reachable) continue;
+    if (!l.reachable || l.stopped) continue;
     const match = saved.find((s) => s.endpoint.toLowerCase() === l.profile.endpoint.toLowerCase());
     if (match) claimed.add(match.id);
     out.push({
@@ -137,7 +138,7 @@ export function buildCandidates(report: EnvironmentReport): Candidate[] {
       state: "running",
       viaDesktop: false,
       isDefault: false,
-      facts: dot([typeLabel(l.profile.type), `Docker Engine ${l.serverVersion ?? ""} running`]),
+      facts: dot([typeLabel(l.profile.type), isPodmanKind(l.kind) ? `${engineVersionLabel(l.kind, l.serverVersion)} running` : `Docker Engine ${l.serverVersion ?? ""} running`]),
     });
   }
   for (const d of report.wsl?.distros ?? []) {

@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { useUI } from "@/stores/uiStore";
 import { useActiveConnection, useConnections, useConnectionStatus, useFailingConnections, useSelectConnection } from "@/hooks/useActiveConnection";
 import { ConnectionDot } from "@/components/connections/ConnectionStatus";
+import { isPodmanKind } from "@/lib/engineKind";
+import { EngineBadge } from "@/components/connections/EngineBadge";
 import { stateText } from "@/components/connections/connectionMeta";
 import { Button } from "@/components/ui/button";
 import OperationCenter from "@/components/activity/OperationCenter";
@@ -24,6 +26,7 @@ function PickerItem({ c, active, onPick }: { c: ConnectionProfile; active: boole
     <DropdownMenuItem onSelect={onPick} className="gap-2">
       <ConnectionDot state={status?.state} />
       <span className="truncate">{c.name}</span>
+      <EngineBadge kind={status?.kind} />
       <span className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground">
         {stateText(status?.state)}
         {active && <Check className="size-3.5 text-primary" />}
@@ -47,11 +50,12 @@ export default function TopBar() {
     <header className="flex h-[60px] shrink-0 items-center gap-3 border-b border-border px-4 lg:px-5">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" className="h-9 w-48 shrink-0 justify-between gap-2 bg-card xl:w-60" aria-label="Active engine">
+          <Button variant="outline" className="h-9 w-52 shrink-0 justify-between gap-2 bg-card xl:w-64" aria-label="Active engine">
             <span className="flex min-w-0 items-center gap-2">
               <ConnectionDot state={status?.state} />
               <span className="truncate">{profile?.name ?? "No engine selected"}</span>
-              {profile && <span className="hidden text-xs text-muted-foreground xl:inline">{stateText(status?.state)}</span>}
+              <EngineBadge kind={status?.kind} />
+              {profile && !isPodmanKind(status?.kind) && <span className="hidden text-xs text-muted-foreground xl:inline">{stateText(status?.state)}</span>}
             </span>
             <span className="flex shrink-0 items-center gap-1">
               {failing.length > 0 && (
@@ -63,8 +67,8 @@ export default function TopBar() {
             </span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-72">
-          <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Docker engines</DropdownMenuLabel>
+        <DropdownMenuContent align="start" className="w-[22rem]">
+          <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Engines</DropdownMenuLabel>
           {conns?.map((c) => (
             <PickerItem key={c.id} c={c} active={c.id === connectionId} onPick={() => void select(c.id)} />
           ))}

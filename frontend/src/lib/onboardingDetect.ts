@@ -1,5 +1,6 @@
 import { WSLInstallState, type EnvironmentReport, type LocalEngineReport, type WSLDistroReport } from "@bindings/model";
 import { typeLabel } from "@/components/connections/connectionMeta";
+import { engineVersionLabel, isPodmanKind } from "@/lib/engineKind";
 import { rankCandidate, type Candidate } from "./onboardingCandidates";
 
 /** How a checklist row ended: found and working, found but needs attention, or not there. */
@@ -25,7 +26,7 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 function distroItem(d: WSLDistroReport): DetectItem {
   const k = d.docker;
   const label = `${d.name} · WSL ${d.version}${d.default ? " · default" : ""}`;
-  if (d.internal) return { label, detail: "Docker Desktop's internal distribution", tone: "none" };
+  if (d.internal) return { label, detail: "Internal distribution of Docker Desktop or a Podman machine", tone: "none" };
   switch (k.state) {
     case WSLInstallState.WSLStateStopped:
       return { label, detail: "Stopped, not started to look for Docker", tone: "none" };
@@ -60,7 +61,12 @@ function wslRow(r: EnvironmentReport): DetectRow {
 
 function localRow(l: LocalEngineReport): DetectRow {
   const where = typeLabel(l.profile.type);
-  if (l.reachable) return { id: `local:${l.profile.endpoint}`, title: l.profile.name, tone: "ok", detail: `${where} · Docker Engine ${l.serverVersion ?? ""} answers`.replace("  ", " ") };
+  const id = `local:${l.profile.endpoint}`;
+  if (l.stopped) return { id, title: l.profile.name, tone: "warn", detail: `${where} · Stopped. ${l.error ?? ""}`.trim() };
+  if (l.reachable) {
+    const engine = isPodmanKind(l.kind) ? engineVersionLabel(l.kind, l.serverVersion) : `Docker Engine ${l.serverVersion ?? ""}`.trim();
+    return { id, title: l.profile.name, tone: "ok", detail: `${where} · ${engine} answers` };
+  }
   return { id: `local:${l.profile.endpoint}`, title: l.profile.name, tone: "none", detail: `${where} · ${l.error || "does not answer"}` };
 }
 

@@ -4,22 +4,24 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { useDiskUsage } from "@/hooks/useSystem";
 import { cn } from "@/lib/utils";
+import { useEngineName } from "@/lib/engineKind";
 import { Bytes, Card } from "./parts";
 
 export function DiskUsageTab({ connectionId }: { connectionId: string }) {
   const q = useDiskUsage(connectionId);
+  const engine = useEngineName(connectionId);
   if (q.isLoading) return <Skeleton className="h-60 w-full" />;
   if (q.error || !q.data)
     return (
-      <EmptyState icon={<Activity />} title="Could not load Docker disk usage">
+      <EmptyState icon={<Activity />} title={`Could not load ${engine} disk usage`}>
         <p className="text-destructive">{String(q.error)}</p>
         <Button className="mt-3" onClick={() => void q.refetch()}>Retry</Button>
       </EmptyState>
     );
   return (
     <Card
-      title="Docker disk usage"
-      subtitle="Space used by Docker objects, as reported by the Engine (docker system df). This is not the free or used space of the host disk."
+      title={`${engine} disk usage`}
+      subtitle={`Space used by ${engine} objects, as reported by the Engine (system df). This is not the free or used space of the host disk.`}
       actions={
         <Button size="sm" variant="outline" onClick={() => void q.refetch()} disabled={q.isFetching}>
           <RefreshCw className={cn("size-3.5", q.isFetching && "animate-spin")} /> Refresh

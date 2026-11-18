@@ -29,7 +29,7 @@ export default function SystemPage() {
     <ConnectionGate>
       {({ connectionId }) => (
         <div className="h-full overflow-auto p-5">
-          <PageHeader title="System" subtitle="Docker Engine information, disk usage, events, ports and cleanup" />
+          <PageHeader title="System" subtitle="Engine information, disk usage, events, ports and cleanup" />
           <Tabs value={tab} onValueChange={setTab} className="gap-4">
             <TabsList className="w-fit">
               <TabsTrigger value="overview">Overview</TabsTrigger>

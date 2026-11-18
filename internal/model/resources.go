@@ -90,32 +90,33 @@ type NetworkCreateRequest struct {
 
 // EngineInfo is the System > Overview read model.
 type EngineInfo struct {
-	ConnectionID      string   `json:"connectionId"`
-	Name              string   `json:"name"`
-	ServerVersion     string   `json:"serverVersion"`
-	APIVersion        string   `json:"apiVersion,omitempty"`
-	MinAPIVersion     string   `json:"minApiVersion,omitempty"`
-	OperatingSystem   string   `json:"operatingSystem"`
-	OSType            string   `json:"osType"`
-	KernelVersion     string   `json:"kernelVersion"`
-	Architecture      string   `json:"architecture"`
-	NCPU              int      `json:"ncpu"`
-	MemTotal          int64    `json:"memTotal"`
-	StorageDriver     string   `json:"storageDriver"`
-	LoggingDriver     string   `json:"loggingDriver"`
-	CgroupDriver      string   `json:"cgroupDriver"`
-	CgroupVersion     string   `json:"cgroupVersion,omitempty"`
-	DockerRootDir     string   `json:"dockerRootDir"`
-	DefaultRuntime    string   `json:"defaultRuntime"`
-	Runtimes          []string `json:"runtimes"`
-	SecurityOptions   []string `json:"securityOptions"`
-	Containers        int      `json:"containers"`
-	ContainersRunning int      `json:"containersRunning"`
-	ContainersPaused  int      `json:"containersPaused"`
-	ContainersStopped int      `json:"containersStopped"`
-	Images            int      `json:"images"`
-	ServerTime        string   `json:"serverTime,omitempty"`
-	Warnings          []string `json:"warnings"`
+	ConnectionID      string     `json:"connectionId"`
+	Name              string     `json:"name"`
+	ServerVersion     string     `json:"serverVersion"`
+	Kind              EngineKind `json:"kind,omitempty"`
+	APIVersion        string     `json:"apiVersion,omitempty"`
+	MinAPIVersion     string     `json:"minApiVersion,omitempty"`
+	OperatingSystem   string     `json:"operatingSystem"`
+	OSType            string     `json:"osType"`
+	KernelVersion     string     `json:"kernelVersion"`
+	Architecture      string     `json:"architecture"`
+	NCPU              int        `json:"ncpu"`
+	MemTotal          int64      `json:"memTotal"`
+	StorageDriver     string     `json:"storageDriver"`
+	LoggingDriver     string     `json:"loggingDriver"`
+	CgroupDriver      string     `json:"cgroupDriver"`
+	CgroupVersion     string     `json:"cgroupVersion,omitempty"`
+	DockerRootDir     string     `json:"dockerRootDir"`
+	DefaultRuntime    string     `json:"defaultRuntime"`
+	Runtimes          []string   `json:"runtimes"`
+	SecurityOptions   []string   `json:"securityOptions"`
+	Containers        int        `json:"containers"`
+	ContainersRunning int        `json:"containersRunning"`
+	ContainersPaused  int        `json:"containersPaused"`
+	ContainersStopped int        `json:"containersStopped"`
+	Images            int        `json:"images"`
+	ServerTime        string     `json:"serverTime,omitempty"`
+	Warnings          []string   `json:"warnings"`
 }
 
 // DiskCategory is one Docker disk-usage category exactly as the Engine reports it.

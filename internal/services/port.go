@@ -83,7 +83,7 @@ func (s *PortService) checker(ctx context.Context, connectionID string) (*ports.
 	if err != nil {
 		return nil, err
 	}
-	c := &ports.Checker{Engine: engineSource{cli: cli}}
+	c := &ports.Checker{Engine: engineSource{cli: cli, label: engineLabel(engineKindOf(ctx, cli)) + " Engine"}}
 	if s.Profiles == nil {
 		c.HostUnknown = "the connection details are not available"
 		return c, nil

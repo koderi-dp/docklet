@@ -49,6 +49,7 @@ func (s *CopyAsService) load(ctx context.Context, connectionID, id string) (load
 	if info, ierr := cli.Info(ctx, client.InfoOptions{}); ierr == nil {
 		l.hints.DaemonLogDriver = info.Info.LoggingDriver
 	}
+	l.hints.Podman = engineKindOf(ctx, cli) == model.EnginePodman
 	return l, nil
 }
 

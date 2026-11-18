@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	cerrdefs "github.com/containerd/errdefs"
 	"strings"
 	"sync"
 	"time"
@@ -118,6 +119,9 @@ func (s *ImageService) checkOne(ctx context.Context, cli *client.Client, connect
 	creds, _ := s.resolver().Resolve(ctx, named.String()) // unresolved credentials: try anonymously
 	res, err := cli.DistributionInspect(ctx, named.String(), client.DistributionInspectOptions{EncodedRegistryAuth: creds.HeaderValue()})
 	if err != nil {
+		if endpointMissing(err) {
+			return fail(updateUnsupported)
+		}
 		return fail(updateCheckError(err, creds, named.String()))
 	}
 	st.RemoteDigest = res.Descriptor.Digest.String()
@@ -180,4 +184,19 @@ func updateCheckError(err error, creds registryauth.Credentials, ref string) str
 		return registryAuthError(err, creds, ref, false).Error()
 	}
 	return fmt.Sprint(imageError(err))
+}
+
+// updateUnsupported is shown when the Engine has no registry lookup (Podman's compatibility API
+// does not implement /distribution): pulling again is the way to update.
+const updateUnsupported = "This engine cannot look up registry digests through its Docker API (Podman), so Docklet cannot tell whether an update exists. Pull the image again to get the latest."
+
+// endpointMissing recognises a bare 404 from a route the Engine does not implement. A missing image or
+// repository comes with its own message ("no such image", "manifest unknown", "not found: ...").
+func endpointMissing(err error) bool {
+	if !cerrdefs.IsNotFound(err) {
+		return false
+	}
+	msg := strings.ToLower(strings.TrimSpace(err.Error()))
+	msg = strings.TrimPrefix(msg, "error response from daemon:")
+	return strings.TrimSpace(msg) == "not found" || msg == "page not found"
 }

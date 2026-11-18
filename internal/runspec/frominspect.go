@@ -49,6 +49,9 @@ type Hints struct {
 	// DaemonLogDriver is the Engine's default log driver; a container using it is not "customised".
 	// Empty means json-file.
 	DaemonLogDriver string
+	// Podman is set for a Podman engine: its inspect output spells out defaults that Docker leaves
+	// empty (a 2048 pids limit, a 64000k shm size), which must not become flags.
+	Podman bool
 }
 
 // FromInspect maps an inspected container to a Spec. img is the container's image (nil when it
@@ -73,7 +76,7 @@ func FromInspect(in container.InspectResponse, img *image.InspectResponse, h Hin
 	}
 	mapCommand(&s, c, d)
 	for _, e := range c.Env {
-		if slices.Contains(d.env, e) {
+		if slices.Contains(d.env, e) || (h.Podman && PodmanInjectedEnv(e, in.ID)) {
 			continue
 		}
 		k, v, _ := strings.Cut(e, "=")

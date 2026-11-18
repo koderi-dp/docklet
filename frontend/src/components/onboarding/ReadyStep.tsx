@@ -3,6 +3,7 @@ import { SettingRow } from "@/components/settings/SettingRow";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useActiveConnection } from "@/hooks/useActiveConnection";
+import { engineVersionLabel } from "@/lib/engineKind";
 import { useAppSettings } from "@/hooks/useApp";
 import { useNotificationSettings } from "@/hooks/useNotifications";
 import { Panel, StepFrame } from "./StepFrame";
@@ -75,7 +76,7 @@ export function ReadyStep({ ob, finishing, onFinish }: { ob: Onboarding; finishi
           </span>
           <p className="min-w-0 text-sm font-medium break-words">
             Connected to {name}
-            {status?.serverVersion ? ` · Docker ${status.serverVersion}` : ""}
+            {status?.serverVersion ? ` · ${engineVersionLabel(status.kind, status.serverVersion)}` : ""}
           </p>
         </Panel>
         <Preferences />

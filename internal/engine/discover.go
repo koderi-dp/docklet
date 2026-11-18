@@ -45,12 +45,13 @@ func discoverSockets(home, xdgRuntimeDir string, exists func(string) bool) []mod
 	return out
 }
 
-// DiscoveredProfiles is the default local engine plus any other well-known local socket that exists.
+// DiscoveredProfiles is the default local engine plus any other well-known local socket that exists,
+// including the Podman machines' pipes and Podman's API sockets.
 func DiscoveredProfiles() []model.ConnectionProfile {
 	out := []model.ConnectionProfile{DefaultLocalProfile()}
-	if runtime.GOOS == "windows" {
-		return out
+	if runtime.GOOS != "windows" {
+		home, _ := os.UserHomeDir()
+		out = append(out, discoverSockets(home, os.Getenv("XDG_RUNTIME_DIR"), isSocket)...)
 	}
-	home, _ := os.UserHomeDir()
-	return append(out, discoverSockets(home, os.Getenv("XDG_RUNTIME_DIR"), isSocket)...)
+	return append(out, podmanProfiles()...)
 }

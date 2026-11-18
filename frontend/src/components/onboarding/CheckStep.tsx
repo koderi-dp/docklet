@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import type { Candidate } from "@/lib/onboardingCandidates";
+import { engineVersionLabel } from "@/lib/engineKind";
 import { HELLO_IMAGE } from "./helloTest";
 import { Panel, StepFrame } from "./StepFrame";
 import type { Onboarding } from "./useOnboarding";
@@ -14,7 +15,7 @@ import { useEngineCheck, type HelloState } from "./useEngineCheck";
 
 function Facts({ st }: { st: ConnectionStatus }) {
   const rows: [string, string][] = [
-    ["Engine", st.serverVersion ? `Docker ${st.serverVersion}` : "Unknown"],
+    ["Engine", st.serverVersion ? engineVersionLabel(st.kind, st.serverVersion) : "Unknown"],
     ["API", st.apiVersion || "Unknown"],
     ["System", [st.os, st.arch].filter(Boolean).join("/") || "Unknown"],
     ["CPUs", st.ncpu ? String(st.ncpu) : "Unknown"],
@@ -83,7 +84,7 @@ export function CheckStep({ ob, candidate }: { ob: Onboarding; candidate: Candid
   const go = async () => {
     const r = await chk.connectNow();
     if (!r) return;
-    const result = { text: `Docker ${r.status.serverVersion ?? ""}`.trim() };
+    const result = { text: engineVersionLabel(r.status.kind, r.status.serverVersion) };
     if (!withHello) return ob.advance(result);
     ob.dispatch({ type: "result", step: "check", result });
     await chk.runHello(r.id);

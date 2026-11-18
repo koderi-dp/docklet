@@ -46,7 +46,7 @@ export default function ContainersPage() {
 
   if (!connectionId)
     return (
-      <Message icon={<Box />} title="Connect to a Docker Engine">
+      <Message icon={<Box />} title="Connect to an engine">
         <p>Select an engine from the sidebar to see its containers.</p>
         <Button className="mt-3" onClick={() => navigate("/connections")}>Manage connections</Button>
       </Message>

@@ -233,7 +233,11 @@ func (s snapshot) listing() Listing {
 }
 
 func containerHolder(b Binding) Holder {
-	return Holder{Kind: HolderContainer, Location: "Docker Engine", BindIP: b.HostIP, ContainerID: b.ContainerID,
+	loc := b.Engine
+	if loc == "" {
+		loc = "Docker Engine"
+	}
+	return Holder{Kind: HolderContainer, Location: loc, BindIP: b.HostIP, ContainerID: b.ContainerID,
 		ContainerName: b.Name, ComposeProject: b.Project, Running: b.Running}
 }
 

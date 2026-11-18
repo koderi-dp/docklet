@@ -96,6 +96,9 @@ func (s *ContainerService) List(ctx context.Context, connectionID string) ([]mod
 		out = append(out, mapSummary(connectionID, it))
 	}
 	classifyExited(ctx, cli, connectionID, out, func(i int) bool { return isOneOffLabels(items[i].Labels) })
+	if engineKindOf(ctx, cli) == model.EnginePodman {
+		fillPodmanHealth(ctx, cli, out)
+	}
 	sort.SliceStable(out, func(i, j int) bool {
 		a, b := out[i], out[j]
 		if a.ComposeProject != b.ComposeProject {

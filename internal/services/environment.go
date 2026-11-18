@@ -28,6 +28,7 @@ type envSource interface {
 	DockerContexts(ctx context.Context) ([]model.DockerContextInfo, error)
 	List(ctx context.Context) ([]model.ConnectionProfile, error)
 	Discovered() []model.ConnectionProfile
+	PodmanMachines(ctx context.Context) ([]model.PodmanMachineInfo, error)
 }
 
 // DetectEnvironment looks at what this machine already has: WSL distributions and their Docker
@@ -49,6 +50,11 @@ type liveEnv struct{ *ConnectionService }
 
 // Discovered returns the named pipe or sockets Docker usually listens on; they may not answer.
 func (liveEnv) Discovered() []model.ConnectionProfile { return engine.DiscoveredProfiles() }
+
+// PodmanMachines reads `podman machine list` (never starts anything).
+func (l liveEnv) PodmanMachines(ctx context.Context) ([]model.PodmanMachineInfo, error) {
+	return l.ConnectionService.PodmanMachines(ctx)
+}
 
 // detectEnvironment composes the existing detection calls. The sections run side by side and
 // their probes share one concurrency cap.
@@ -85,6 +91,8 @@ func detectEnvironment(ctx context.Context, goos string, src envSource) model.En
 	for i, p := range found {
 		probe(&wg, func(pctx context.Context) { rep.Local[i] = probeLocal(pctx, src, p) })
 	}
+	var stopped []model.LocalEngineReport
+	probe(&wg, func(pctx context.Context) { stopped = stoppedMachines(pctx, src) })
 	probe(&wg, func(pctx context.Context) {
 		if c, err := src.DockerContexts(pctx); err == nil && c != nil {
 			rep.Contexts = c
@@ -99,7 +107,23 @@ func detectEnvironment(ctx context.Context, goos string, src envSource) model.En
 		}
 	})
 	wg.Wait()
+	rep.Local = append(rep.Local, stopped...)
 	return rep
+}
+
+// stoppedMachines lists Podman machines that exist but do not run. They are reported with the hint
+// to start them; Docklet never starts one. Running machines are already found as discovered pipes.
+func stoppedMachines(ctx context.Context, src envSource) []model.LocalEngineReport {
+	machines, _ := src.PodmanMachines(ctx)
+	var out []model.LocalEngineReport
+	for _, m := range machines {
+		if !m.Running {
+			p := m.Profile
+			p.Name = "Podman (" + m.Name + ")"
+			out = append(out, model.LocalEngineReport{Profile: p, Kind: model.EnginePodman, Stopped: true, Error: m.Hint})
+		}
+	}
+	return out
 }
 
 type probeFunc func(wg *sync.WaitGroup, fn func(ctx context.Context))
@@ -120,13 +144,13 @@ func detectWSL(ctx context.Context, src envSource, probe probeFunc) model.WSLRep
 	out.Available = true
 	for _, d := range distros {
 		out.Distros = append(out.Distros, model.WSLDistroReport{Name: d.Name, Version: d.Version, State: d.State, Default: d.Default,
-			Internal: strings.HasPrefix(strings.ToLower(d.Name), "docker-desktop")})
+			Internal: isInternalDistro(d.Name)})
 	}
 	var wg sync.WaitGroup
 	for i := range out.Distros {
 		d := &out.Distros[i]
 		if d.Internal {
-			d.Docker = model.WSLDockerReport{State: model.WSLStateUnknown, Detail: "Docker Desktop's internal distribution."}
+			d.Docker = model.WSLDockerReport{State: model.WSLStateUnknown, Detail: "Internal distribution (Docker Desktop or a Podman machine)."}
 			continue
 		}
 		probe(&wg, func(pctx context.Context) { d.Docker = probeDistro(pctx, src, d.Name) })
@@ -169,7 +193,7 @@ func probeLocal(ctx context.Context, src envSource, p model.ConnectionProfile) m
 	case st.State != model.StateConnected:
 		out.Error = st.Error
 	default:
-		out.Reachable, out.ServerVersion = true, st.ServerVersion
+		out.Reachable, out.ServerVersion, out.Kind = true, st.ServerVersion, st.Kind
 	}
 	return out
 }
@@ -179,4 +203,11 @@ func probeError(ctx context.Context, err error) string {
 		return "Did not answer in time."
 	}
 	return err.Error()
+}
+
+// isInternalDistro marks the distributions Docker Desktop and Podman create for themselves: they are
+// reached through their own pipe, never as a WSL connection.
+func isInternalDistro(name string) bool {
+	n := strings.ToLower(name)
+	return strings.HasPrefix(n, "docker-desktop") || strings.HasPrefix(n, "podman-")
 }

@@ -18,6 +18,7 @@ type fakeEnv struct {
 	local    []model.ConnectionProfile
 	tests    map[string]model.ConnectionStatus
 	contexts []model.DockerContextInfo
+	machines []model.PodmanMachineInfo
 	saved    []model.ConnectionProfile
 	hang     map[string]bool // distro names whose probe never answers
 
@@ -60,6 +61,9 @@ func (f *fakeEnv) List(context.Context) ([]model.ConnectionProfile, error) {
 	return append(append([]model.ConnectionProfile{}, f.saved...), f.local...), nil
 }
 func (f *fakeEnv) Discovered() []model.ConnectionProfile { return f.local }
+func (f *fakeEnv) PodmanMachines(context.Context) ([]model.PodmanMachineInfo, error) {
+	return f.machines, nil
+}
 
 func TestDetect_StoppedDistroStaysStoppedAndIsNotBooted(t *testing.T) {
 	f := &fakeEnv{
@@ -191,5 +195,20 @@ func TestDetect_WSLListFailureIsReportedNotHidden(t *testing.T) {
 	rep := detectEnvironment(context.Background(), "windows", &failingDistros{})
 	if rep.WSL.Available || rep.WSL.Detail == "" {
 		t.Fatalf("a failed listing needs an explanation: %+v", rep.WSL)
+	}
+}
+
+func TestDetect_StoppedPodmanMachineIsListedWithHintAndRunningOnesAreNot(t *testing.T) {
+	f := &fakeEnv{machines: []model.PodmanMachineInfo{
+		{Name: "default", Running: true, Profile: model.ConnectionProfile{Endpoint: "npipe:////./pipe/podman-machine-default"}},
+		{Name: "work", Running: false, Hint: "Start it with: podman machine start work", Profile: model.ConnectionProfile{Endpoint: "npipe:////./pipe/podman-work"}},
+	}}
+	local := detectEnvironment(context.Background(), "windows", f).Local
+	if len(local) != 1 {
+		t.Fatalf("only the stopped machine is added (running ones are discovered pipes): %+v", local)
+	}
+	l := local[0]
+	if !l.Stopped || l.Reachable || l.Kind != model.EnginePodman || l.Error != "Start it with: podman machine start work" || l.Profile.Name != "Podman (work)" {
+		t.Fatalf("stopped machine: %+v", l)
 	}
 }

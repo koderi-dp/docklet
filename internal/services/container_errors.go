@@ -29,7 +29,7 @@ func friendlyError(err error) error {
 	case cerrdefs.IsConflict(err):
 		prefix = "Conflict"
 	case strings.Contains(low, "permission denied"):
-		prefix = "Permission denied by the Docker Engine"
+		prefix = "Permission denied by the Engine"
 	}
 	if prefix == "" {
 		return err

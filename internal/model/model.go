@@ -69,16 +69,18 @@ type ConnectionStatus struct {
 	Error         string          `json:"error,omitempty"`       // user-friendly
 	Diagnostics   string          `json:"diagnostics,omitempty"` // raw detail, redacted
 	ServerVersion string          `json:"serverVersion,omitempty"`
-	APIVersion    string          `json:"apiVersion,omitempty"`
-	OS            string          `json:"os,omitempty"`
-	Arch          string          `json:"arch,omitempty"`
-	NCPU          int             `json:"ncpu,omitempty"`
-	MemTotal      int64           `json:"memTotal,omitempty"`
-	Containers    int             `json:"containers"`
-	Images        int             `json:"images"`
-	Volumes       int             `json:"volumes"`
-	Networks      int             `json:"networks"`
-	Capabilities  Capabilities    `json:"capabilities"`
+	// Kind is docker or podman, from the Engine's own /version answer; unknown stays docker.
+	Kind         EngineKind   `json:"kind,omitempty"`
+	APIVersion   string       `json:"apiVersion,omitempty"`
+	OS           string       `json:"os,omitempty"`
+	Arch         string       `json:"arch,omitempty"`
+	NCPU         int          `json:"ncpu,omitempty"`
+	MemTotal     int64        `json:"memTotal,omitempty"`
+	Containers   int          `json:"containers"`
+	Images       int          `json:"images"`
+	Volumes      int          `json:"volumes"`
+	Networks     int          `json:"networks"`
+	Capabilities Capabilities `json:"capabilities"`
 }
 
 // Health is the Docker health status. HealthNone means NO healthcheck is

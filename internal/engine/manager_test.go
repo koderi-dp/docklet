@@ -134,13 +134,13 @@ func TestManagerList_HidesDiscoveredProfileOnlyWhenEndpointIsSaved(t *testing.T)
 	st := &memStore{profiles: []model.ConnectionProfile{{ID: "w", Name: "w", Type: model.ConnWSL, WSLDistro: "U"}}}
 	m := NewManager(st, nil)
 	l, _ := m.List(context.Background())
-	if len(l) != 2 || l[0].ID != "w" || !l[1].Discovered {
+	if len(l) < 2 || l[0].ID != "w" || !l[1].Discovered {
 		t.Fatalf("discovered must stay listed after saved: %+v", l)
 	}
 	st.profiles = append(st.profiles, model.ConnectionProfile{ID: "s", Name: "mine", Type: def.Type, Endpoint: def.Endpoint})
 	l, _ = m.List(context.Background())
 	for _, p := range l {
-		if p.Discovered {
+		if p.Discovered && p.Endpoint == def.Endpoint {
 			t.Fatalf("discovered must hide when a saved profile has the same endpoint: %+v", l)
 		}
 	}

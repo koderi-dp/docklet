@@ -43,6 +43,7 @@ A fast, lightweight desktop app for managing the Docker Engines you already have
 
 **Engines**
 - WSL2, named pipe, Unix socket, SSH, TCP with TLS, and Docker CLI contexts
+- Podman through its Docker-compatible API: Podman machines and sockets are detected, and the engine is labelled Podman. Tested with a Podman 6 machine on Windows.
 - Disk usage, events, host ports and one-click cleanup with clear confirmations
 - On Windows: install Docker Engine in a WSL distribution, see its memory and disk use, reclaim memory or restart it
 
@@ -76,6 +77,7 @@ Windows is the main platform. Linux and macOS builds are new and have had little
 ## Requirements
 
 - A Docker Engine you can reach: for example Docker installed in WSL2, on this machine, or on a server.
+- Or Podman with its API socket or machine running (tested with Podman 6 on Windows; Linux and macOS sockets are detected but untested). Docklet never starts or changes a Podman machine; update checks, BuildKit builds and build-cache cleanup are not available on Podman.
 - For Compose actions: the Docker CLI with the Compose plugin, on the machine where your compose files live.
 - For SSH connections: an OpenSSH client.
 

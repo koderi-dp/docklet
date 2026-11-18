@@ -89,6 +89,16 @@ func cpuPercent(sr container.StatsResponse) *float64 {
 	if cpus == 0 {
 		return nil
 	}
+	// Podman's system_cpu_usage does not advance with the host's CPU time the way Docker's does, so
+	// the ratio would read several hundred percent for an idle container. When the Engine's own read
+	// timestamps disagree with that clock by more than 2x, use the wall clock between the two samples.
+	if elapsed := sr.Read.Sub(sr.PreRead); !sr.PreRead.IsZero() && sr.PreRead.Year() > 1 && elapsed > 0 {
+		expected := float64(elapsed.Nanoseconds()) * cpus
+		if sysDelta < expected/2 || sysDelta > expected*2 {
+			v := cpuDelta / float64(elapsed.Nanoseconds()) * 100.0
+			return &v
+		}
+	}
 	v := cpuDelta / sysDelta * cpus * 100.0
 	return &v
 }

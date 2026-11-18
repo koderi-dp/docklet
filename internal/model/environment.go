@@ -36,7 +36,10 @@ type LocalEngineReport struct {
 	Profile       ConnectionProfile `json:"profile"`
 	Reachable     bool              `json:"reachable"`
 	ServerVersion string            `json:"serverVersion,omitempty"`
+	Kind          EngineKind        `json:"kind,omitempty"`
 	Error         string            `json:"error,omitempty"`
+	// Stopped is set for a Podman machine that exists but is not running; Error then holds the hint.
+	Stopped bool `json:"stopped,omitempty"`
 }
 
 // EnvironmentReport is the first-run detection result. Every part is a measurement;
