@@ -1,4 +1,4 @@
-import { memo, useMemo, useRef, useState, type ReactNode } from "react";
+import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ArrowDownToLine, LayoutPanelTop } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import type { HighlightColour } from "@/lib/logFilter/rules";
 import { describePane, type PaneLines, type PaneSource, type PaneSummary, type TickedItem } from "@/lib/logPanes";
 import { LogLines } from "../LogLines";
 import type { LineActions } from "../LineMenu";
+import { useLogSearchContext } from "../searchContext";
 import { PaneHeader } from "./PaneHeader";
 import { usePaneLines } from "./usePaneLines";
 
@@ -52,6 +53,10 @@ interface ViewProps extends Omit<PaneProps, "visible" | "highlights" | "streamEm
 export function LogPane({ visible, highlights, streamEmpty, ...p }: PaneProps) {
   const summary = useMemo(() => describePane(p.source, p.items), [p.source, p.items]);
   const { lines, textError } = usePaneLines(visible, highlights, summary.names, p.source.all, p.text);
+  // The search counts the lines the panes show together.
+  const { registry } = useLogSearchContext();
+  useEffect(() => registry.setPane(p.index, lines.entries), [registry, p.index, lines.entries]);
+  useEffect(() => () => registry.setPane(p.index, null), [registry, p.index]);
   // The "empty" node changes with every batch; it only matters while the stream has nothing to show.
   const hasLines = visible.length > 0;
   return <PaneView {...p} lines={lines} textError={textError} summary={summary} streamHasLines={hasLines} streamEmpty={hasLines ? null : streamEmpty} />;

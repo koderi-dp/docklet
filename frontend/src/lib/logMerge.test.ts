@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { makeEntry, type LogEntry } from "./logEntry";
-import { capEntries, mergeEntries } from "./logMerge";
+import { capEntries, mergeEntries, sortByTime } from "./logMerge";
 
 let seq = 0;
 const entry = (container: string, iso: string | undefined, text = "x"): LogEntry =>
@@ -53,5 +53,17 @@ describe("capEntries", () => {
     const r = capEntries(lines, 10, 2);
     expect(order(r.lines)).toEqual(["2", "3"]);
     expect(r.dropped).toBe(1);
+  });
+});
+
+describe("sortByTime", () => {
+  it("puts lines delivered out of order (stdout and stderr interleaved by arrival) in timestamp order", () => {
+    const l = [entry("a", "2026-01-01T04:09:57.911Z", "late"), entry("a", "2026-01-01T04:09:49.252Z", "early"), entry("a", "2026-01-01T04:09:57.911Z", "late2")];
+    expect(order(sortByTime(l))).toEqual(["early", "late", "late2"]);
+  });
+
+  it("returns the very same list when it is already in order", () => {
+    const l = [entry("a", "2026-01-01T00:00:01Z", "1"), entry("a", "2026-01-01T00:00:02Z", "2")];
+    expect(sortByTime(l)).toBe(l);
   });
 });

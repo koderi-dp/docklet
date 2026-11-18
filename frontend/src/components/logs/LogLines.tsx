@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ContextMenu, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { cn } from "@/lib/utils";
@@ -6,6 +6,7 @@ import type { LogEntry } from "@/lib/logEntry";
 import type { HighlightColour } from "@/lib/logFilter/rules";
 import { LineMenu, type LineActions, type LineContext } from "./LineMenu";
 import { LogRow } from "./LogRow";
+import { useLogSearchContext } from "./searchContext";
 
 interface Props {
   entries: readonly LogEntry[];
@@ -18,6 +19,8 @@ interface Props {
   follow: boolean;
   onFollowChange: (follow: boolean) => void;
   actions: LineActions;
+  /** Time as HH:mm:ss. */
+  shortTime?: boolean;
   ariaLabel: string;
   /** Shown instead of the list when there is nothing to show. */
   empty?: ReactNode;
@@ -28,7 +31,13 @@ interface Props {
 const ROW_ESTIMATE = 18;
 
 /** Virtualised log list: only the visible rows are in the DOM, however many lines are loaded. */
-export function LogLines({ entries, highlights, showContainer, tagWidth, timestamps, wrap, follow, onFollowChange, actions, ariaLabel, empty, className }: Props) {
+export function LogLines({ entries, highlights, showContainer, tagWidth, timestamps, wrap, follow, onFollowChange, actions, shortTime, ariaLabel, empty, className }: Props) {
+  const { search, current, registry } = useLogSearchContext();
+  const id = useId();
+  const entriesRef = useRef(entries);
+  useLayoutEffect(() => {
+    entriesRef.current = entries;
+  });
   const scroller = useRef<HTMLDivElement>(null);
   const lastTop = useRef(0);
   const [ctx, setCtx] = useState<LineContext | null>(null);
@@ -41,6 +50,19 @@ export function LogLines({ entries, highlights, showContainer, tagWidth, timesta
     getItemKey: (i) => entries[i].seq,
   });
   const total = v.getTotalSize();
+
+  // The search scrolls here through the registry: leaving the tail pauses follow, exactly like scrolling up.
+  useEffect(
+    () =>
+      registry.addReveal(id, (seq) => {
+        const i = entriesRef.current.findIndex((e) => e.seq === seq);
+        if (i < 0) return false;
+        onFollowChange(false);
+        v.scrollToIndex(i, { align: "center" });
+        return true;
+      }),
+    [registry, id, onFollowChange, v],
+  );
 
   // Wrapping changes every row height.
   useEffect(() => v.measure(), [wrap, v]);
@@ -95,7 +117,17 @@ export function LogLines({ entries, highlights, showContainer, tagWidth, timesta
             <div className="relative w-full" style={{ height: total }}>
               {v.getVirtualItems().map((item) => (
                 <div key={item.key} data-index={item.index} ref={v.measureElement} className="absolute left-0 top-0 w-full" style={{ transform: `translateY(${item.start}px)` }}>
-                  <LogRow entry={entries[item.index]} highlight={highlights[item.index]} showContainer={showContainer} timestamps={timestamps} wrap={wrap} tagWidth={tagWidth} />
+                  <LogRow
+                    entry={entries[item.index]}
+                    highlight={highlights[item.index]}
+                    showContainer={showContainer}
+                    timestamps={timestamps}
+                    wrap={wrap}
+                    tagWidth={tagWidth}
+                    shortTime={shortTime}
+                    search={search}
+                    current={current !== null && entries[item.index].seq === current}
+                  />
                 </div>
               ))}
             </div>

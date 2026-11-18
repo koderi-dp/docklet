@@ -39,6 +39,9 @@
   --color-log-tag-6: var(--log-tag-6);
   --color-log-tag-7: var(--log-tag-7);
   --color-log-tag-8: var(--log-tag-8);
+  --color-search-match: var(--search-match);
+  --color-search-current: var(--search-current);
+  --color-search-current-foreground: var(--search-current-foreground);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -85,6 +88,9 @@
   --log-tag-6: oklch(0.5 0.15 300);
   --log-tag-7: oklch(0.5 0.15 115);
   --log-tag-8: oklch(0.5 0.15 25);
+  --search-match: oklch(0.88 0.13 95);
+  --search-current: oklch(0.72 0.18 55);
+  --search-current-foreground: #0f1623;
 }
 
 .dark {
@@ -124,6 +130,9 @@
   --log-tag-6: oklch(0.76 0.13 300);
   --log-tag-7: oklch(0.76 0.13 115);
   --log-tag-8: oklch(0.76 0.13 25);
+  --search-match: oklch(0.5 0.1 95 / 0.75);
+  --search-current: oklch(0.82 0.17 85);
+  --search-current-foreground: #0f1623;
 }
 
 /* Stock shadcn/ui base theme (neutral). Selected with <html data-palette="shadcn">. */

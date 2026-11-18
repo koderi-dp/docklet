@@ -43,6 +43,13 @@ export function formatLogTime(ms: number | undefined): string {
   return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(), 3)}`;
 }
 
+/** Local "HH:mm:ss" of an epoch ms (the compact viewer); "" when unknown. */
+export function formatLogClock(ms: number | undefined): string {
+  if (ms === undefined) return "";
+  const d = new Date(ms);
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
 /** Plain-text form of lines for copy / download. Uses the Engine's own timestamps. */
 export function formatEntries(entries: readonly LogEntry[], opts: { timestamps: boolean; container: boolean }): string {
   return entries

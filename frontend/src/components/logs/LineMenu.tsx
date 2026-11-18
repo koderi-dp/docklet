@@ -11,7 +11,8 @@ export interface LineContext {
 }
 
 export interface LineActions {
-  addRule: (kind: RuleKind, target: RuleTarget, pattern: string) => void;
+  /** Absent where filter rules cannot be managed (the compact viewer): the menu then only copies. */
+  addRule?: (kind: RuleKind, target: RuleTarget, pattern: string) => void;
   copy: (text: string) => void;
 }
 
@@ -25,33 +26,38 @@ export function LineMenu({ ctx, actions, showContainer }: { ctx: LineContext | n
   // A whole line usually carries counters, ids and durations: numbers become wildcards so the rule matches its siblings.
   const pattern = ctx?.selection ? literalPattern(basis) : literalPattern(basis).replace(/\d+/g, "*").replace(/\*{2,}/g, "*");
   const usable = !!entry && basis !== "";
-  const add = (kind: RuleKind) => () => actions.addRule(kind, "message", pattern);
+  const addRule = actions.addRule;
+  const add = (kind: RuleKind) => () => addRule?.(kind, "message", pattern);
   return (
     <ContextMenuContent className="w-60">
       <ContextMenuLabel className="truncate font-mono text-xs font-normal text-muted-foreground" title={basis}>
         {usable ? `${ctx?.selection ? "Selection" : "Line"}: ${preview(basis)}` : "No line here"}
       </ContextMenuLabel>
-      <ContextMenuItem disabled={!usable} onSelect={add("include")}>
-        <Filter /> Include this
-      </ContextMenuItem>
-      <ContextMenuItem disabled={!usable} onSelect={add("exclude")}>
-        <EyeOff /> Exclude this
-      </ContextMenuItem>
-      <ContextMenuItem disabled={!usable} onSelect={add("highlight")}>
-        <Highlighter /> Highlight this
-      </ContextMenuItem>
-      {showContainer && (
+      {addRule && (
         <>
+          <ContextMenuItem disabled={!usable} onSelect={add("include")}>
+            <Filter /> Include this
+          </ContextMenuItem>
+          <ContextMenuItem disabled={!usable} onSelect={add("exclude")}>
+            <EyeOff /> Exclude this
+          </ContextMenuItem>
+          <ContextMenuItem disabled={!usable} onSelect={add("highlight")}>
+            <Highlighter /> Highlight this
+          </ContextMenuItem>
+          {showContainer && (
+            <>
+              <ContextMenuSeparator />
+              <ContextMenuItem disabled={!entry} onSelect={() => entry && addRule("include", "container", literalPattern(entry.container))}>
+                <ScanSearch /> Only this container
+              </ContextMenuItem>
+              <ContextMenuItem disabled={!entry} onSelect={() => entry && addRule("exclude", "container", literalPattern(entry.container))}>
+                <EyeOff /> Hide this container
+              </ContextMenuItem>
+            </>
+          )}
           <ContextMenuSeparator />
-          <ContextMenuItem disabled={!entry} onSelect={() => entry && actions.addRule("include", "container", literalPattern(entry.container))}>
-            <ScanSearch /> Only this container
-          </ContextMenuItem>
-          <ContextMenuItem disabled={!entry} onSelect={() => entry && actions.addRule("exclude", "container", literalPattern(entry.container))}>
-            <EyeOff /> Hide this container
-          </ContextMenuItem>
         </>
       )}
-      <ContextMenuSeparator />
       <ContextMenuItem disabled={!entry} onSelect={() => entry && actions.copy(ctx?.selection || entry.text)}>
         <Copy /> {ctx?.selection ? "Copy selection" : "Copy line"}
       </ContextMenuItem>

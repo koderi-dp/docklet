@@ -2,10 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { LogLevel } from "@/lib/logLevel";
 import type { TimeRange } from "@/lib/logRange";
 import { mergeImported, type MergeResult } from "@/lib/logFilter/savedFiltersFile";
-import { newRuleId, ruleError, type IncludeMode, type Rule, type RuleKind, type RuleTarget } from "@/lib/logFilter/rules";
+import { newRuleId, type IncludeMode, type Rule } from "@/lib/logFilter/rules";
 import { useLogFilterStore, type SavedFilter } from "@/stores/logFilterStore";
-
-const LIVE_ID = "__live__";
 
 const sameRules = (a: readonly Rule[], b: readonly Rule[]) =>
   a.length === b.length && a.every((r, i) => r.kind === b[i].kind && r.target === b[i].target && r.pattern === b[i].pattern && r.enabled === b[i].enabled && r.colour === b[i].colour);
@@ -14,19 +12,6 @@ export interface LogFilterState {
   rules: Rule[];
   includeMode: IncludeMode;
   setIncludeMode: (m: IncludeMode) => void;
-  /** Saved rules plus the live (not yet committed) text. This is what the engine evaluates. */
-  effectiveRules: Rule[];
-  /** Text of the input; filters live while typing. */
-  text: string;
-  setText: (t: string) => void;
-  draftKind: RuleKind;
-  setDraftKind: (k: RuleKind) => void;
-  draftTarget: RuleTarget;
-  setDraftTarget: (t: RuleTarget) => void;
-  /** Why the typed text is not applied (invalid regex), or null. */
-  liveError: string | null;
-  /** Turns the typed text into a rule chip. */
-  commitDraft: () => void;
   addRule: (r: Omit<Rule, "id" | "enabled"> & { enabled?: boolean }) => void;
   updateRule: (id: string, patch: Partial<Omit<Rule, "id">>) => void;
   removeRule: (id: string) => void;
@@ -34,7 +19,7 @@ export interface LogFilterState {
   toggleLevel: (l: LogLevel) => void;
   range: TimeRange;
   setRange: (r: TimeRange) => void;
-  /** True when anything narrows the view: rules, live text, levels or a time range. */
+  /** True when anything narrows the view: rules, levels or a time range. */
   active: boolean;
   clearAll: () => void;
   saved: SavedFilter[];
@@ -61,9 +46,6 @@ export function useLogFilter({ restore }: { restore: boolean }): LogFilterState 
   const [rules, setRules] = useState<Rule[]>(initial.rules);
   const [includeMode, setIncludeMode] = useState<IncludeMode>(initial.includeMode);
   const [activeSavedId, setActiveSavedId] = useState<string | null>(initial.activeSavedId);
-  const [text, setText] = useState("");
-  const [draftKind, setDraftKind] = useState<RuleKind>("include");
-  const [draftTarget, setDraftTarget] = useState<RuleTarget>("message");
   const [levels, setLevels] = useState<ReadonlySet<LogLevel>>(new Set());
   const [range, setRange] = useState<TimeRange>("all");
 
@@ -74,25 +56,12 @@ export function useLogFilter({ restore }: { restore: boolean }): LogFilterState 
   const activeSaved = useMemo(() => saved.find((s) => s.id === activeSavedId) ?? null, [saved, activeSavedId]);
   const modified = !!activeSaved && (!sameRules(activeSaved.rules, rules) || activeSaved.includeMode !== includeMode);
 
-  const live: Rule | null = useMemo(
-    () => (text === "" ? null : { id: LIVE_ID, kind: draftKind, target: draftTarget, pattern: text, enabled: true, colour: draftKind === "highlight" ? "warning" : undefined }),
-    [text, draftKind, draftTarget],
-  );
-  const liveError = live ? ruleError(live) : null;
-  const effectiveRules = useMemo(() => (live ? [...rules, live] : rules), [rules, live]);
-
   const addRule = useCallback((r: Omit<Rule, "id" | "enabled"> & { enabled?: boolean }) => {
     setRules((prev) => {
       if (prev.some((p) => p.kind === r.kind && p.target === r.target && p.pattern === r.pattern)) return prev;
       return [...prev, { enabled: true, ...r, id: newRuleId(), colour: r.kind === "highlight" ? (r.colour ?? "warning") : undefined }];
     });
   }, []);
-
-  const commitDraft = useCallback(() => {
-    if (text === "" || liveError) return;
-    addRule({ kind: draftKind, target: draftTarget, pattern: text });
-    setText("");
-  }, [text, liveError, draftKind, draftTarget, addRule]);
 
   const updateRule = useCallback((id: string, patch: Partial<Omit<Rule, "id">>) => {
     setRules((prev) =>
@@ -119,7 +88,6 @@ export function useLogFilter({ restore }: { restore: boolean }): LogFilterState 
 
   const clearAll = useCallback(() => {
     setRules([]);
-    setText("");
     setLevels(new Set());
     setRange("all");
     setActiveSavedId(null);
@@ -168,11 +136,10 @@ export function useLogFilter({ restore }: { restore: boolean }): LogFilterState 
   );
 
   return {
-    rules, includeMode, setIncludeMode, effectiveRules,
-    text, setText, draftKind, setDraftKind, draftTarget, setDraftTarget, liveError, commitDraft,
+    rules, includeMode, setIncludeMode,
     addRule, updateRule, removeRule,
     levels, toggleLevel, range, setRange,
-    active: effectiveRules.length > 0 || levels.size > 0 || range !== "all",
+    active: rules.length > 0 || levels.size > 0 || range !== "all",
     clearAll, saved, activeSaved, modified, saveAs, applySaved, updateSaved, deleteSaved, importSaved,
   };
 }

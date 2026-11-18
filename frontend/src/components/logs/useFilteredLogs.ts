@@ -5,11 +5,11 @@ import { evaluate, type EvalResult } from "@/lib/logFilter/rules";
 import type { LogFilterState } from "./useLogFilter";
 
 /**
- * Runs the filter over the loaded lines. Rules are deferred so typing stays responsive when the buffer is large;
+ * Runs the filter over the loaded lines. Rules are deferred so the view stays responsive when the buffer is large;
  * patterns are compiled once (memoised in the pattern module), never per line.
  */
 export function useFilteredLogs(entries: readonly LogEntry[], f: LogFilterState): EvalResult<LogEntry> {
-  const rules = useDeferredValue(f.effectiveRules);
+  const rules = useDeferredValue(f.rules);
   const levels = useDeferredValue(f.levels);
   const [tick, setTick] = useState(0);
 

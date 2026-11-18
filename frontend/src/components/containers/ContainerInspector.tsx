@@ -118,15 +118,18 @@ function Overview({ connectionId, c }: { connectionId: string; c: Container }) {
 
 function Logs({ connectionId, c }: { connectionId: string; c: Container }) {
   return (
-    <div>
-      <div className="mb-2 flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">Live stream</span>
-        <Link to={`/containers/${c.id}?tab=logs`} className="text-xs text-primary hover:underline">
+    <LogViewer
+      connectionId={connectionId}
+      containerId={c.id}
+      containerName={c.name}
+      compact
+      className="min-h-0 flex-1"
+      statusEnd={
+        <Link to={`/containers/${c.id}?tab=logs`} className="text-primary hover:underline">
           Open full logs
         </Link>
-      </div>
-      <LogViewer connectionId={connectionId} containerId={c.id} containerName={c.name} compact className="h-[420px]" />
-    </div>
+      }
+    />
   );
 }
 
@@ -230,9 +233,9 @@ export function ContainerInspector(p: Props) {
           <TabsTrigger value="logs">Logs</TabsTrigger>
           <TabsTrigger value="stats">Stats</TabsTrigger>
         </TabsList>
-        <div className="min-h-0 flex-1 overflow-auto">
+        <div className="flex min-h-0 flex-1 flex-col overflow-auto">
           <TabsContent value="overview"><Overview connectionId={p.connectionId} c={c} /></TabsContent>
-          <TabsContent value="logs"><Logs connectionId={p.connectionId} c={c} /></TabsContent>
+          <TabsContent value="logs" className="flex min-h-0 flex-1 flex-col"><Logs connectionId={p.connectionId} c={c} /></TabsContent>
           <TabsContent value="stats"><Stats c={c} stat={p.stat} /></TabsContent>
         </div>
       </Tabs>

@@ -65,17 +65,43 @@ export function isRegexPattern(src: string): boolean {
   return REGEX_FORM.test(src);
 }
 
-export function compilePattern(src: string, opts: CompileOptions = {}): CompiledPattern {
-  if (src === "") return { kind: "text", error: "Empty pattern", test: NEVER };
+interface Parts {
+  kind: PatternKind;
+  source: string;
+  flags: string;
+}
+
+/** The regex source and flags a pattern stands for; null for an empty pattern. */
+function partsOf(src: string, opts: CompileOptions): Parts | null {
+  if (src === "") return null;
   const rx = REGEX_FORM.exec(src);
   if (rx) {
     // g and y make `test` stateful; they have no meaning for a yes/no match.
     const given = rx[2].replace(/[gy]/g, "");
-    return build("regex", rx[1], given === "" ? "i" : given);
+    return { kind: "regex", source: rx[1], flags: given === "" ? "i" : given };
   }
   const { source, hasWildcard } = wildcardSource(src);
-  const body = opts.whole ? `^(?:${source})$` : source;
-  return build(hasWildcard ? "wildcard" : "text", body, "is");
+  return { kind: hasWildcard ? "wildcard" : "text", source: opts.whole ? `^(?:${source})$` : source, flags: "is" };
+}
+
+export function compilePattern(src: string, opts: CompileOptions = {}): CompiledPattern {
+  const p = partsOf(src, opts);
+  if (!p) return { kind: "text", error: "Empty pattern", test: NEVER };
+  return build(p.kind, p.source, p.flags);
+}
+
+/**
+ * A global regex of the pattern, for finding every match inside a line (the search marks). Null when the
+ * pattern is empty or invalid. The regex is stateful: reset `lastIndex` before use.
+ */
+export function patternRegex(src: string, opts: CompileOptions = {}): RegExp | null {
+  const p = partsOf(src, opts);
+  if (!p) return null;
+  try {
+    return new RegExp(p.source, p.flags.includes("g") ? p.flags : p.flags + "g");
+  } catch {
+    return null;
+  }
 }
 
 const CACHE_LIMIT = 300;

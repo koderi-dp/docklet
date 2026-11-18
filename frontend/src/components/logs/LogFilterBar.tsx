@@ -1,27 +1,18 @@
 import type { ReactNode } from "react";
-import { Plus, Search, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { LOG_LEVELS, type LogLevel } from "@/lib/logLevel";
 import { TIME_RANGES } from "@/lib/logRange";
-import type { EvalResult, RuleKind, RuleTarget } from "@/lib/logFilter/rules";
+import type { EvalResult } from "@/lib/logFilter/rules";
 import { LEVEL_DOT, LEVEL_LABEL } from "./logColours";
-import { KIND_LABEL, RuleChip, TARGET_LABEL } from "./RuleChip";
+import { AddFilterPopover } from "./AddFilterPopover";
+import { LogSearchBox } from "./LogSearchBox";
+import { RuleChip } from "./RuleChip";
 import { SavedFilters } from "./SavedFilters";
 import type { LogFilterState } from "./useLogFilter";
+import type { LogSearchState } from "./useLogSearch";
 
 const SHOWN_LEVELS = LOG_LEVELS.filter((l) => l !== "other");
 const RANGE_LABEL: Record<string, string> = { "5m": "5 min", "15m": "15 min", "1h": "1 h", all: "All" };
-
-const PLACEHOLDER: Record<RuleTarget, string> = {
-  message: "Filter lines: text, GET /api/*, /timeout|refused/",
-  container: "Container name: web-*, db",
-  level: "Level: error, warn, info, debug",
-};
-
-const selectTrigger = "h-8 w-auto shrink-0 gap-1.5 px-2 text-[13px]";
 
 function LevelChips({ f, counts }: { f: LogFilterState; counts: Record<LogLevel, number> }) {
   return (
@@ -33,6 +24,7 @@ function LevelChips({ f, counts }: { f: LogFilterState; counts: Record<LogLevel,
             key={l}
             type="button"
             aria-pressed={on}
+            title={on ? `Showing ${LEVEL_LABEL[l]} lines. Click to stop filtering by this level.` : `Show only ${LEVEL_LABEL[l]} lines (several levels can be on)`}
             onClick={() => f.toggleLevel(l)}
             className={cn(
               "inline-flex h-8 items-center gap-1.5 rounded-md border px-2 text-xs transition-colors focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none",
@@ -95,85 +87,41 @@ function IncludeMode({ f }: { f: LogFilterState }) {
 
 interface Props {
   filter: LogFilterState;
+  search: LogSearchState;
   result: Pick<EvalResult<unknown>, "counts" | "levelCounts">;
+  /** Containers whose lines are shown (suggestions for a Container filter); empty hides that target. */
+  containerNames?: readonly string[];
   /** Right-aligned controls on the level / time row (the action buttons). */
   trailing?: ReactNode;
   className?: string;
 }
 
 /**
- * The one filter bar: a live input (Enter turns it into a rule chip), level and time chips, saved filters,
- * and the stack of rule chips. Used by the Logs screen and the single-container viewer.
+ * The filter bar. Row 1: search (finds, never hides) on the left, explicit filters on the right ("+ Filter",
+ * saved filters). Row 2: level and time chips and the action buttons. Row 3: the filter chips.
+ * Used by the Logs screen and the full-page single-container viewer.
  */
-export function LogFilterBar({ filter: f, result, trailing, className }: Props) {
+export function LogFilterBar({ filter: f, search, result, containerNames, trailing, className }: Props) {
   const includes = f.rules.filter((r) => r.kind === "include" && r.enabled).length;
   const hasChips = f.rules.length > 0;
+  const keep = () => {
+    f.addRule({ kind: "include", target: "message", pattern: search.query });
+    search.clear();
+  };
   return (
     <div className={cn("space-y-2", className)}>
       <div className="flex items-center gap-1.5">
-        <div className="flex min-w-0 flex-1 items-center gap-1.5">
-          <Select value={f.draftKind} onValueChange={(v) => f.setDraftKind(v as RuleKind)}>
-            <SelectTrigger size="sm" className={selectTrigger} aria-label="Rule kind">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {(Object.keys(KIND_LABEL) as RuleKind[]).map((k) => (
-                <SelectItem key={k} value={k}>
-                  {KIND_LABEL[k]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={f.draftTarget} onValueChange={(v) => f.setDraftTarget(v as RuleTarget)}>
-            <SelectTrigger size="sm" className={selectTrigger} aria-label="Rule applies to">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {(Object.keys(TARGET_LABEL) as RuleTarget[]).map((t) => (
-                <SelectItem key={t} value={t}>
-                  {TARGET_LABEL[t]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <div className="relative min-w-0 flex-1">
-            <Search className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={f.text}
-              onChange={(e) => f.setText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  f.commitDraft();
-                } else if (e.key === "Escape") f.setText("");
-              }}
-              placeholder={PLACEHOLDER[f.draftTarget]}
-              aria-label="Filter log lines"
-              aria-invalid={!!f.liveError}
-              className={cn("h-8 pr-8 pl-7 text-[13px]", f.liveError && "border-destructive")}
-            />
-            {f.text !== "" && (
-              <div className="absolute top-1/2 right-1 flex -translate-y-1/2 items-center gap-1">
-                <button type="button" aria-label="Clear text" title="Clear (Esc)" onClick={() => f.setText("")} className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground">
-                  <X className="size-3" />
-                </button>
-              </div>
-            )}
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-8 shrink-0 gap-1.5 px-2.5 text-[13px]"
-            disabled={f.text.trim() === "" || !!f.liveError}
-            title={f.liveError ? "Fix the pattern first" : f.text.trim() === "" ? "Type what to filter on first" : "Keep this as a filter (Enter)"}
-            onClick={f.commitDraft}
-          >
-            <Plus className="size-3.5" /> Add filter
-          </Button>
+        <LogSearchBox search={search} onKeep={keep} />
+        <div className="flex shrink-0 items-center gap-1.5">
+          <AddFilterPopover rules={f.rules} addRule={f.addRule} containerNames={containerNames} />
+          <SavedFilters f={f} />
         </div>
-        <SavedFilters f={f} />
       </div>
+      {search.error && (
+        <p role="alert" className="text-xs text-destructive">
+          Invalid regular expression: {search.error}. Nothing is marked.
+        </p>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
         <div className="flex flex-wrap items-center gap-2">
           <LevelChips f={f} counts={result.levelCounts} />
@@ -182,17 +130,7 @@ export function LogFilterBar({ filter: f, result, trailing, className }: Props) 
         {trailing}
       </div>
 
-      {f.liveError && (
-        <p role="alert" className="text-xs text-destructive">
-          Invalid regular expression: {f.liveError}. Not applied yet.
-        </p>
-      )}
-
-      {!hasChips && (
-        <p className="text-xs text-muted-foreground">
-          No filters yet. Type above and press Enter or Add filter to keep it, or right-click a log line and choose Include, Exclude or Highlight. Filters stack.
-        </p>
-      )}
+      {!hasChips && <p className="text-xs text-muted-foreground">No filters. Use + Filter, or right-click a log line.</p>}
 
       {hasChips && (
         <div className="flex max-h-[84px] flex-wrap items-center gap-1.5 overflow-y-auto">
@@ -200,6 +138,9 @@ export function LogFilterBar({ filter: f, result, trailing, className }: Props) 
           {f.rules.map((r) => (
             <RuleChip key={r.id} rule={r} count={result.counts[r.id]} onChange={(patch) => f.updateRule(r.id, patch)} onRemove={() => f.removeRule(r.id)} />
           ))}
+          <button type="button" onClick={f.clearAll} className="h-7 rounded px-1.5 text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground" title="Remove all filters and reset levels and time range">
+            Clear all
+          </button>
         </div>
       )}
     </div>

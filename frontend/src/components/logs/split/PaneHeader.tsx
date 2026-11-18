@@ -55,7 +55,7 @@ export function PaneHeader(p: Props) {
           size="icon-xs"
           aria-label="Filter this pane"
           aria-pressed={p.searchOpen}
-          title="Filter this pane only (same patterns as the filter bar)"
+          title="Filter this pane: hides the lines that do not match (same patterns as the search)"
           className={cn("shrink-0", (p.searchOpen || filtering) && "bg-primary/10 text-foreground")}
           onClick={() => p.onSearchOpen(!p.searchOpen)}
         >
@@ -90,7 +90,7 @@ export function PaneHeader(p: Props) {
             onKeyDown={(e) => {
               if (e.key === "Escape") closeSearch();
             }}
-            placeholder="This pane only: text, GET /api/*, /timeout/"
+            placeholder="Filter this pane: text, GET /api/*, /timeout/"
             aria-label="Filter this pane"
             aria-invalid={!!p.textError}
             className={cn("h-7 pr-7 text-xs", p.textError && "border-destructive")}

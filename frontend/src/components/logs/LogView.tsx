@@ -7,10 +7,13 @@ import { downloadText } from "@/lib/downloadText";
 import { formatEntries, type LogEntry } from "@/lib/logEntry";
 import type { EvalResult } from "@/lib/logFilter/rules";
 import { LogActions } from "./LogActions";
+import { LogCompactBar } from "./LogCompactBar";
 import { LogFilterBar } from "./LogFilterBar";
 import { LogLines } from "./LogLines";
 import type { LineActions } from "./LineMenu";
+import { LogSearchContext } from "./searchContext";
 import type { LogFilterState } from "./useLogFilter";
+import { useLogSearch } from "./useLogSearch";
 
 interface Props {
   /** Every loaded line (before filtering): used for "n of N lines". */
@@ -21,6 +24,14 @@ interface Props {
   tagWidth: number;
   /** Status text on the left of the action row. */
   status: ReactNode;
+  /** Right end of the status row (e.g. a link to the full view). */
+  statusEnd?: ReactNode;
+  /** Containers whose lines are shown: suggestions for a Container filter. */
+  containerNames?: readonly string[];
+  /** The narrow inspector layout: one control row, no filter rules, time as HH:mm:ss and off by default. */
+  compact?: boolean;
+  /** Overflow-menu items before the standard ones (compact only). */
+  menuExtra?: ReactNode;
   /** Extra controls in the action row. */
   extra?: ReactNode;
   paused: boolean;
@@ -41,9 +52,10 @@ interface Props {
 export function LogView(p: Props) {
   const { filter, result } = p;
   const [wrap, setWrap] = useState(true);
-  const [timestamps, setTimestamps] = useState(true);
+  const [timestamps, setTimestamps] = useState(!p.compact);
   const [follow, setFollow] = useState(true);
   const visible = result.visible;
+  const search = useLogSearch(visible, !!p.renderBody);
 
   const copyVisible = () => {
     navigator.clipboard
@@ -58,8 +70,8 @@ export function LogView(p: Props) {
   }, []);
   const addRule = filter.addRule;
   const actions: LineActions = useMemo(
-    () => ({ addRule: (kind, target, pattern) => addRule({ kind, target, pattern }), copy: copyText }),
-    [addRule, copyText],
+    () => ({ addRule: p.compact ? undefined : (kind, target, pattern) => addRule({ kind, target, pattern }), copy: copyText }),
+    [addRule, copyText, p.compact],
   );
 
   const filteredOut = p.total > 0 && visible.length === 0;
@@ -75,54 +87,66 @@ export function LogView(p: Props) {
     p.emptyNoLines
   );
 
+  const actionProps = {
+    paused: p.paused,
+    onPause: p.onPause,
+    canPause: p.canPause,
+    wrap,
+    onWrap: setWrap,
+    timestamps,
+    onTimestamps: setTimestamps,
+    hasVisible: visible.length > 0,
+    hasLines: p.total > 0,
+    onCopy: copyVisible,
+    onDownload: download,
+    onClear: p.onClear,
+  };
+
   return (
-    <div className={cn("flex min-h-0 flex-col gap-2", p.className)}>
-      <LogFilterBar
-        filter={filter}
-        result={result}
-        trailing={
-          <LogActions
-            extra={p.extra}
-            paused={p.paused}
-            onPause={p.onPause}
-            canPause={p.canPause}
-            wrap={wrap}
-            onWrap={setWrap}
-            timestamps={timestamps}
-            onTimestamps={setTimestamps}
-            hasVisible={visible.length > 0}
-            hasLines={p.total > 0}
-            onCopy={copyVisible}
-            onDownload={download}
-            onClear={p.onClear}
-          />
-        }
-      />
-      <div className="min-w-0 text-xs text-muted-foreground">{p.status}</div>
-      {p.renderBody ? (
-        <div className="min-h-0 flex-1">{p.renderBody({ wrap, timestamps, actions, empty })}</div>
-      ) : (
-        <div className="relative min-h-0 flex-1">
-          <LogLines
-            entries={visible}
-            highlights={result.highlights}
-            showContainer={p.showContainer}
-            tagWidth={p.tagWidth}
-            timestamps={timestamps}
-            wrap={wrap}
-            follow={follow}
-            onFollowChange={setFollow}
-            actions={actions}
-            ariaLabel={p.ariaLabel}
-            empty={empty}
-          />
-          {!follow && visible.length > 0 && (
-            <Button size="sm" className="absolute right-4 bottom-3 shadow-sm" onClick={() => setFollow(true)}>
-              <ArrowDownToLine className="size-3.5" /> Jump to latest
-            </Button>
-          )}
+    <LogSearchContext.Provider value={search.context}>
+      <div className={cn("flex min-h-0 flex-col gap-2", p.className)}>
+        {p.compact ? (
+          <LogCompactBar search={search} filter={filter} levelCounts={result.levelCounts} menuExtra={p.menuExtra} {...actionProps} />
+        ) : (
+          <LogFilterBar filter={filter} search={search} result={result} containerNames={p.containerNames} trailing={<LogActions extra={p.extra} {...actionProps} />} />
+        )}
+        <div className="flex min-w-0 items-center justify-between gap-2 text-xs text-muted-foreground">
+          <div className="min-w-0">
+            {p.status}
+            {p.compact && filter.active && (
+              <button type="button" onClick={filter.clearAll} className="ml-1.5 text-primary hover:underline">
+                Clear filters
+              </button>
+            )}
+          </div>
+          {p.statusEnd && <div className="shrink-0">{p.statusEnd}</div>}
         </div>
-      )}
-    </div>
+        {p.renderBody ? (
+          <div className="min-h-0 flex-1">{p.renderBody({ wrap, timestamps, actions, empty })}</div>
+        ) : (
+          <div className="relative min-h-0 flex-1">
+            <LogLines
+              entries={visible}
+              highlights={result.highlights}
+              showContainer={p.showContainer}
+              tagWidth={p.tagWidth}
+              timestamps={timestamps}
+              wrap={wrap}
+              follow={follow}
+              onFollowChange={setFollow}
+              actions={actions}
+              shortTime={p.compact}
+              ariaLabel={p.ariaLabel}
+              empty={empty}
+            />
+            {!follow && visible.length > 0 && (
+              <Button size="sm" className="absolute right-4 bottom-3 shadow-sm" onClick={() => setFollow(true)}>
+                <ArrowDownToLine className="size-3.5" /> Jump to latest
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+    </LogSearchContext.Provider>
   );
 }

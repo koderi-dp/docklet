@@ -53,3 +53,15 @@ export function capEntries(lines: LogEntry[], perContainer = PER_CONTAINER_CAP, 
   }
   return { lines: out, dropped };
 }
+
+/**
+ * One container's lines in time order. The Engine delivers stdout and stderr as separate streams, so lines can
+ * arrive out of order; they are placed by timestamp (arrival order breaks ties). Returns the input when it is
+ * already in order, which is the normal case.
+ */
+export function sortByTime(lines: readonly LogEntry[]): readonly LogEntry[] {
+  for (let i = 1; i < lines.length; i++) {
+    if (before(lines[i], lines[i - 1])) return [...lines].sort((a, b) => a.sortKey - b.sortKey || a.seq - b.seq);
+  }
+  return lines;
+}

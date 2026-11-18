@@ -111,6 +111,7 @@ export function LogsScreen({ connectionId }: { connectionId: string }) {
         filter={filter}
         result={result}
         showContainer
+        containerNames={targets.map((t) => t.name)}
         tagWidth={tagWidth}
         status={status}
         paused={streams.paused}
