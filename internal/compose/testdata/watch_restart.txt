@@ -1,0 +1,9 @@
+Watch enabled
+Syncing service "web" after 1 changes were detected
+ Container docklet-test-watch-web-1 Restarting 
+ Container docklet-test-watch-web-1 Started 
+service(s) ["web"] restarted
+Syncing service "web" after 1 changes were detected
+ Container docklet-test-watch-web-1 Restarting 
+ Container docklet-test-watch-web-1 Started 
+service(s) ["web"] restarted

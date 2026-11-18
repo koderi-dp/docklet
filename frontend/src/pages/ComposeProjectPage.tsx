@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ConnectionGate } from "@/components/shared/ConnectionGate";
@@ -14,9 +15,11 @@ import { ProjectHealthText, ProjectStateBadge } from "@/components/compose/Proje
 import { ProjectTotalsStrip } from "@/components/compose/ProjectTotalsStrip";
 import { ResourcesTab } from "@/components/compose/ResourcesTab";
 import { ServicesTab } from "@/components/compose/ServicesTab";
+import { WatchTab } from "@/components/compose/watch/WatchTab";
 import { projectContainers, useComposeProject } from "@/hooks/useCompose";
 import { useContainersQuery, useContainerStats } from "@/hooks/useContainers";
 import { useProjectTotals } from "@/hooks/useProjectTotals";
+import { useWatchState } from "@/hooks/useComposeWatch";
 
 export default function ComposeProjectPage() {
   const { projectName = "" } = useParams();
@@ -32,6 +35,11 @@ function ProjectView({ connectionId, name }: { connectionId: string; name: strin
   const runningIds = useMemo(() => containers.filter((c) => c.state === "running").map((c) => c.id), [containers]);
   const { stats } = useContainerStats(connectionId, runningIds, true);
   const live = useProjectTotals(connectionId, containers, stats);
+  const watch = useWatchState(connectionId, name).data;
+  const watchActive = watch?.active === true;
+  useEffect(() => {
+    if (tab === "watch" && !watchActive) setTab("services");
+  }, [tab, watchActive]);
 
   const back = (
     <Link to="/compose" className="hover:underline">
@@ -82,6 +90,12 @@ function ProjectView({ connectionId, name }: { connectionId: string; name: strin
           <TabsTrigger value="logs">Logs</TabsTrigger>
           <TabsTrigger value="configuration">Configuration</TabsTrigger>
           <TabsTrigger value="resources">Resources</TabsTrigger>
+          {watch?.active && (
+            <TabsTrigger value="watch" className="gap-1.5">
+              Watch
+              <span className={cn("size-1.5 rounded-full", watch.running ? "bg-success" : "bg-destructive")} aria-hidden />
+            </TabsTrigger>
+          )}
         </TabsList>
         <TabsContent value="services">
           <ServicesTab connectionId={connectionId} project={p} containers={containers} />
@@ -91,6 +105,9 @@ function ProjectView({ connectionId, name }: { connectionId: string; name: strin
         </TabsContent>
         <TabsContent value="configuration">
           <ConfigTab connectionId={connectionId} project={p} active={tab === "configuration"} />
+        </TabsContent>
+        <TabsContent value="watch">
+          <WatchTab connectionId={connectionId} project={p} />
         </TabsContent>
         <TabsContent value="resources">
           <ResourcesTab connectionId={connectionId} project={p.name} />

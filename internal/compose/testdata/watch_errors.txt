@@ -1,0 +1,6 @@
+no such service: nosuch
+none of the selected services is configured for watch, consider setting a 'develop' section
+go-yaml load error in parser (while parsing a flow node) at L2.C1: did not find expected node content
+ Container docklet-test-watch-web-1 Error
+failed to solve: process "/bin/sh -c exit 3" did not complete successfully: exit code: 3
+#7 ERROR: process "/bin/sh -c exit 3" did not complete successfully: exit code: 3

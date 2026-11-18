@@ -17,6 +17,7 @@ import { useProjectFolderMenu } from "@/components/host/useProjectFolderMenu";
 import { DownDialog } from "./DownDialog";
 import { ForgetProjectDialog } from "./ForgetProjectDialog";
 import { UpOptionsPopover } from "./UpOptionsPopover";
+import { WatchHeaderControl, WatchMenuItem } from "./watch/WatchHeaderControl";
 
 interface Props {
   connectionId: string;
@@ -45,6 +46,7 @@ export function ProjectActions({ connectionId, project, containers, labels, onFo
   const engine = useProjectEngineBatch(connectionId);
   const [confirmDown, setConfirmDown] = useState(false);
   const [confirmForget, setConfirmForget] = useState(false);
+  const [watchOpen, setWatchOpen] = useState(false);
   const cap = project.capability;
   const busy = verbs.isBusy(project.name);
   const folderItems = useProjectFolderMenu(connectionId, project.workingDir, project.configFiles ?? []);
@@ -192,6 +194,7 @@ export function ProjectActions({ connectionId, project, containers, labels, onFo
         );
       })}
       <UpOptionsPopover project={project.name} labels={labels} disabledReason={baseReason} onUp={upOpts} />
+      <WatchHeaderControl connectionId={connectionId} project={project} dialogOpen={watchOpen} onDialogOpenChange={setWatchOpen} />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -205,6 +208,7 @@ export function ProjectActions({ connectionId, project, containers, labels, onFo
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Compose CLI</DropdownMenuLabel>
+          <WatchMenuItem connectionId={connectionId} project={project} onChoose={() => setWatchOpen(true)} />
           {VERBS.filter((v) => v.verb === "pull" || v.verb === "build").map((v) => {
             const reason = baseReason;
             return (

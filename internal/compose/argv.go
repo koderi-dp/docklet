@@ -17,6 +17,7 @@ const (
 	VerbPull    Verb = "pull"
 	VerbBuild   Verb = "build"
 	VerbConfig  Verb = "config"
+	VerbWatch   Verb = "watch"
 )
 
 // Request is everything needed to build one Compose invocation. Paths come from
@@ -31,6 +32,7 @@ type Request struct {
 	Build         bool // up only
 	RemoveOrphans bool // up, down
 	Volumes       bool // down only; deletes named volumes
+	NoUp          bool // watch only: do not build and start services first
 
 	// Profiles are passed as global --profile flags (before the verb).
 	Profiles []string
@@ -94,6 +96,9 @@ func Argv(r Request) ([]string, error) {
 	if r.Volumes && r.Verb != VerbDown {
 		return nil, fmt.Errorf("--volumes is only valid for down")
 	}
+	if r.NoUp && r.Verb != VerbWatch {
+		return nil, fmt.Errorf("--no-up is only valid for watch")
+	}
 	if r.RemoveOrphans && r.Verb != VerbUp && r.Verb != VerbDown {
 		return nil, fmt.Errorf("--remove-orphans is only valid for up and down")
 	}
@@ -128,6 +133,11 @@ func Argv(r Request) ([]string, error) {
 	case VerbPull:
 		// Services with both build and image would otherwise fail with "pull access denied".
 		args = append(args, "pull", "--ignore-buildable")
+	case VerbWatch:
+		args = append(args, "watch")
+		if r.NoUp {
+			args = append(args, "--no-up")
+		}
 	case VerbStart, VerbStop, VerbRestart, VerbBuild:
 		args = append(args, string(r.Verb))
 	case VerbConfig:

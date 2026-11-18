@@ -34,6 +34,9 @@ type ComposeService struct {
 	// runner executes CLI commands; nil means the real process runner (tests inject a fake).
 	runner compose.Runner
 
+	watchMu sync.Mutex
+	watches map[string]*watchRun // connection + project -> live or ended watch
+
 	cliMu    sync.Mutex
 	cliCache map[string]cliEntry
 	svcCache map[string]svcEntry

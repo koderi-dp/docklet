@@ -19,6 +19,7 @@ func init() {
 	application.RegisterEvent[model.ContainersChanged](model.EventContainersChanged)
 	application.RegisterEvent[model.ConnectionStatus](model.EventConnectionStatus)
 	application.RegisterEvent[model.Operation](model.EventOperationUpdated)
+	application.RegisterEvent[model.ComposeWatchChanged](model.EventComposeWatch)
 	application.RegisterEvent[model.ImagesChanged](model.EventImagesChanged)
 	application.RegisterEvent[model.VolumesChanged](model.EventVolumesChanged)
 	application.RegisterEvent[model.NetworksChanged](model.EventNetworksChanged)
