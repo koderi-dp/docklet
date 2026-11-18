@@ -45,11 +45,12 @@ A fast, lightweight desktop app for managing the Docker Engines you already have
 - On Windows: install Docker Engine in a WSL distribution, see its memory and disk use, reclaim memory or restart it
 
 **App**
+- First-run setup that finds your Docker engines and connects to one
 - Optional alerts when a container crashes, runs out of memory or turns unhealthy
 - Command palette (Ctrl/Cmd+K)
 - Dark and light themes, adjustable text size
 
-![Live logs with level filters](docs/screenshots/logs.png)
+![Logs from several containers with search and filters](docs/screenshots/logs.png)
 
 ![A Compose project](docs/screenshots/compose.png)
 
