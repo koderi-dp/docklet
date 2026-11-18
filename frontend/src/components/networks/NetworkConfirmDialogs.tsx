@@ -43,7 +43,7 @@ export function NetworkConfirmDialogs({ confirmRemove, onCancelRemove, onRemove,
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive! text-destructive-foreground! hover:bg-destructive/90!"
               onClick={() => {
                 const t = confirmRemove ?? [];
                 onCancelRemove();
@@ -78,7 +78,7 @@ export function NetworkConfirmDialogs({ confirmRemove, onCancelRemove, onRemove,
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => onPrune()}>
+            <AlertDialogAction className="bg-destructive! text-destructive-foreground! hover:bg-destructive/90!" onClick={() => onPrune()}>
               Prune unused networks
             </AlertDialogAction>
           </AlertDialogFooter>

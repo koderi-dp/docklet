@@ -182,7 +182,7 @@ export function CleanupTab({ connectionId }: { connectionId: string }) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction disabled={!canRun} className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => void run()}>
+            <AlertDialogAction disabled={!canRun} className="bg-destructive! text-destructive-foreground! hover:bg-destructive/90!" onClick={() => void run()}>
               Run cleanup
             </AlertDialogAction>
           </AlertDialogFooter>
