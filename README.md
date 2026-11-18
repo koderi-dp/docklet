@@ -17,29 +17,34 @@ A fast, lightweight desktop app for managing the Docker Engines you already have
 - Compose-grouped or flat list with search, filters, sorting and bulk actions
 - Create, start, stop, restart, pause, kill and remove
 - Edit a container's settings and recreate it, with automatic rollback if the new one fails to start
-- Live logs with regex search and level filters
-- Built-in terminal, or open your own
+- Live logs with stackable include, exclude and highlight filters, wildcards and regex
+- One Logs screen for several containers or whole projects at once
+- Built-in terminal, or open your own; a debug shell for containers that have none
+- Port check before you create: see which program or container already holds a port
 - Live CPU and memory, processes, and a file browser that also works on stopped containers
 - Published ports open in your browser
 
 **Compose**
 - Up, Down, Start, Stop, Restart, Pull and Build, for a whole project or one service
 - Open a compose file from disk and start it right away
+- Open the project in your editor or file manager
 
 **Images, volumes and networks**
 - Pull, build, push, tag, save, load and remove images
 - See when a newer image is available, then update and recreate in one step
 - Create, browse, export and import volumes
 - Create networks and connect or disconnect containers
+- Sign in to registries, with credentials kept in the OS credential store
 
 **Engines**
 - WSL2, named pipe, Unix socket, SSH, TCP with TLS, and Docker CLI contexts
-- Disk usage, events and one-click cleanup with clear confirmations
+- Disk usage, events, host ports and one-click cleanup with clear confirmations
+- On Windows: install Docker Engine in a WSL distribution, see its memory and disk use, reclaim memory or restart it
 
 **App**
 - Optional alerts when a container crashes, runs out of memory or turns unhealthy
 - Command palette (Ctrl/Cmd+K)
-- Dark and light themes
+- Dark and light themes, adjustable text size
 
 ![Live logs with level filters](docs/screenshots/logs.png)
 
