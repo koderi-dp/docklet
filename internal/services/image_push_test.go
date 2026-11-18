@@ -36,7 +36,7 @@ func TestConsumePush_ReportsProgressUntilComplete(t *testing.T) {
 func TestRegistryAuthError_ExplainsMissingOrRejectedCredentials(t *testing.T) {
 	denied := errors.New("denied: requested access to the resource is denied")
 	none := registryauth.Credentials{Registry: "ghcr.io"}
-	want := "No credentials for ghcr.io. Run `docker login ghcr.io` in a terminal, then retry."
+	want := "No credentials for ghcr.io. Sign in to ghcr.io in Settings > Registries (or run `docker login ghcr.io` in a terminal), then retry."
 	if got := registryAuthError(denied, none, "ghcr.io/o/a:1", false); got.Error() != want {
 		t.Errorf("got %q", got)
 	}

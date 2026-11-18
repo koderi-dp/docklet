@@ -7,6 +7,7 @@ import { ConnectionDot } from "@/components/connections/ConnectionStatus";
 import { stateText } from "@/components/connections/connectionMeta";
 import { Button } from "@/components/ui/button";
 import OperationCenter from "@/components/activity/OperationCenter";
+import { RegistrySignInHost } from "@/components/registries/RegistrySignInDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -79,6 +80,7 @@ export default function TopBar() {
         <kbd className="hidden text-xs lg:inline">{shortcutLabel("K")}</kbd>
       </button>
       <OperationCenter />
+      <RegistrySignInHost />
       <Button variant="ghost" size="icon" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label="Toggle theme">
         {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
       </Button>

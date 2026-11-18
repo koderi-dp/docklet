@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useOperations } from "@/hooks/useOperations";
+import { useSignInDialog } from "@/hooks/useRegistries";
 import { usePullImage, useRegistryAuthStatus } from "@/hooks/useImages";
 import { quickRefProblem } from "./imageFilters";
 import { describeSource } from "./PushImageDialog";
@@ -23,6 +24,7 @@ export function PullImageDialog({ connectionId, engineName, open, onOpenChange }
   const [serverError, setServerError] = useState<string | null>(null);
   const pull = usePullImage(connectionId);
   const { setCenterOpen } = useOperations();
+  const openSignIn = useSignInDialog((s) => s.open);
 
   useEffect(() => {
     if (open) {
@@ -101,7 +103,13 @@ export function PullImageDialog({ connectionId, engineName, open, onOpenChange }
               {auth.data.hasCredentials ? (
                 <span className="text-success">Docker credentials found ({describeSource(auth.data.source)}); they will be used.</span>
               ) : (
-                <span>no Docker credentials found; pulling anonymously. For a private registry run docker login in a terminal first.</span>
+                <span>
+                  no credentials found; pulling anonymously. For a private registry{" "}
+                  <button type="button" className="text-primary underline-offset-2 hover:underline" onClick={() => openSignIn({ registry: auth.data?.registry })}>
+                    sign in first
+                  </button>
+                  .
+                </span>
               )}
             </p>
           )}

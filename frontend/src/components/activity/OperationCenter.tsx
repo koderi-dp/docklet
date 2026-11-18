@@ -10,6 +10,7 @@ import { AlertsPanel } from "@/components/notifications/AlertsPanel";
 import { useConnections } from "@/hooks/useActiveConnection";
 import { useAlertEvents, useAlerts } from "@/hooks/useNotifications";
 import { useOperationLogs, useOperations } from "@/hooks/useOperations";
+import { RegistryAuthOffer } from "@/components/registries/RegistryAuthOffer";
 import { StatusIcon } from "./OperationStatusIcon";
 import { OperationHistory } from "./OperationHistory";
 
@@ -127,6 +128,7 @@ function OperationRow({ op, connectionName, onCancel }: { op: Operation; connect
               </p>
             )
           )}
+          <RegistryAuthOffer op={op} />
           <button
             type="button"
             className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"

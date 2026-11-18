@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePushImage, useRegistryAuthStatus } from "@/hooks/useImages";
 import { useOperations } from "@/hooks/useOperations";
+import { useSignInDialog } from "@/hooks/useRegistries";
 import { errorMessage } from "@/lib/errors";
 
 interface Props {
@@ -23,6 +24,7 @@ function isLoopbackRegistry(registry: string): boolean {
 
 export function describeSource(source: string): string {
   if (source === "config") return "Docker config file";
+  if (source === "docklet") return "Docklet sign-in";
   if (source.startsWith("helper:")) return `credential helper "${source.slice(7)}"`;
   return source;
 }
@@ -30,6 +32,7 @@ export function describeSource(source: string): string {
 export function PushImageDialog({ connectionId, engineName, image, onClose }: Props) {
   const [serverError, setServerError] = useState<string | null>(null);
   const push = usePushImage(connectionId);
+  const openSignIn = useSignInDialog((s) => s.open);
   const { setCenterOpen } = useOperations();
   const ref = image && !image.dangling ? image.ref : null;
   const status = useRegistryAuthStatus(connectionId, ref);
@@ -93,9 +96,11 @@ export function PushImageDialog({ connectionId, engineName, image, onClose }: Pr
             </p>
           ) : null}
           {status.data && !hasCreds && !loopback && (
-            <p className="text-muted-foreground">
-              Run <code className="font-mono">docker login {registry}</code> in a terminal, then reopen this dialog. Docklet reads your existing Docker
-              credentials and does not manage logins.
+            <p className="flex flex-wrap items-center gap-2 text-muted-foreground">
+              <Button type="button" size="sm" variant="outline" onClick={() => openSignIn({ registry })}>
+                Sign in to {registry}
+              </Button>
+              <span>Credentials are saved on this computer. Existing docker login entries are used too.</span>
             </p>
           )}
           {serverError && <p className="whitespace-pre-wrap text-destructive">{serverError}</p>}
@@ -112,7 +117,7 @@ export function PushImageDialog({ connectionId, engineName, image, onClose }: Pr
                 <span>{pushButton}</span>
               </TooltipTrigger>
               <TooltipContent>
-                {status.isLoading ? "Checking credentials" : registry ? `No credentials for ${registry}. Run docker login ${registry} in a terminal.` : "Not available"}
+                {status.isLoading ? "Checking credentials" : registry ? `No credentials for ${registry}. Sign in first.` : "Not available"}
               </TooltipContent>
             </Tooltip>
           )}

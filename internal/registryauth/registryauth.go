@@ -19,12 +19,16 @@ import (
 	"time"
 
 	"github.com/distribution/reference"
+
+	"docklet/internal/secrets"
 )
 
 // Source values describe where credentials came from.
 const (
 	SourceNone   = "none"
 	SourceConfig = "config"
+	// SourceDocklet marks credentials kept in the OS credential store by Docklet itself.
+	SourceDocklet = "docklet"
 )
 
 const (
@@ -135,7 +139,14 @@ type Resolver struct {
 	// ConfigDir overrides the Docker config directory (default: $DOCKER_CONFIG or ~/.docker).
 	ConfigDir string
 	Runner    Runner
+	// Store is Docklet's own credential store (OS credential store); nil disables it.
+	Store secrets.Store
+	// LookPath finds credential helpers (default exec.LookPath); tests replace it.
+	LookPath func(string) (string, error)
 }
+
+// DefaultResolver reads the Docker config on this computer and Docklet's entries in the OS credential store.
+func DefaultResolver() *Resolver { return &Resolver{Store: secrets.NewOSStore()} }
 
 // RegistryOf returns the registry host of an image reference, with Docker Hub
 // aliases (docker.io, index.docker.io, registry-1.docker.io) mapped to "docker.io".
@@ -176,6 +187,16 @@ type authEntry struct {
 	Username      string `json:"username"`
 	Password      string `json:"password"`
 	IdentityToken string `json:"identitytoken"`
+}
+
+// helperFor returns the credential helper the Docker CLI would use for host ("" = none).
+func (c configFile) helperFor(host string) string {
+	for k, v := range c.CredHelpers {
+		if NormalizeHost(k) == host {
+			return v
+		}
+	}
+	return c.CredsStore
 }
 
 func (r *Resolver) configPath() string {
@@ -227,27 +248,24 @@ func (r *Resolver) Resolve(ctx context.Context, ref string) (Credentials, error)
 func (r *Resolver) ResolveHost(ctx context.Context, host string) (Credentials, error) {
 	host = NormalizeHost(host)
 	res := Credentials{Registry: host, Source: SourceNone}
-	cfg, err := r.loadConfig()
-	if err != nil {
-		return res, err
-	}
-	helper := ""
-	for k, v := range cfg.CredHelpers {
-		if NormalizeHost(k) == host {
-			helper = v
-			break
+	cfg, cfgErr := r.loadConfig()
+	if cfgErr != nil {
+		// An unreadable config must not hide Docklet's own sign-ins.
+		if c, ok := r.fromDockletStore(host); ok {
+			return c, nil
 		}
-	}
-	if helper == "" {
-		helper = cfg.CredsStore
+		return res, cfgErr
 	}
 	var helperErr error
-	if helper != "" {
+	if helper := cfg.helperFor(host); helper != "" {
 		c, err := r.fromHelper(ctx, helper, host)
 		if err == nil && c.Has() {
 			return c, nil
 		}
 		helperErr = err
+	}
+	if c, ok := r.fromDockletStore(host); ok {
+		return c, nil
 	}
 	for k, e := range cfg.Auths {
 		if NormalizeHost(k) != host {
@@ -276,38 +294,16 @@ var helperNameRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 
 func (r *Resolver) fromHelper(ctx context.Context, name, host string) (Credentials, error) {
 	res := Credentials{Registry: host, Source: SourceNone}
-	if !helperNameRe.MatchString(name) {
-		return res, fmt.Errorf("invalid credential helper name %q", name)
-	}
-	runner := r.Runner
-	if runner == nil {
-		runner = execRunner{}
-	}
-	server := host
-	if host == hubHost {
-		server = hubServerURL
-	}
-	stdout, stderr, err := runner.Run(ctx, "docker-credential-"+name, server, "get")
+	user, secret, err := Helper{Name: name, Runner: r.Runner}.Get(ctx, ServerKey(host))
 	if err != nil {
-		msg := string(bytes.TrimSpace(stdout)) + " " + string(bytes.TrimSpace(stderr))
-		if isNotFound(msg) {
-			return res, nil
-		}
-		return res, fmt.Errorf("credential helper %s failed: %s", name, Redact(strings.TrimSpace(firstLine(string(stderr))+" "+errText(err))))
+		return res, err
 	}
-	var out struct {
-		Username string `json:"Username"`
-		Secret   string `json:"Secret"`
-	}
-	if err := json.Unmarshal(stdout, &out); err != nil {
-		return res, fmt.Errorf("credential helper %s returned unreadable output", name)
-	}
-	if out.Secret == "" {
+	if secret == "" {
 		return res, nil
 	}
-	c := Credentials{Registry: host, Source: "helper:" + name, Username: out.Username, Password: out.Secret}
-	if out.Username == "<token>" {
-		c.Username, c.Password, c.IdentityToken = "", "", out.Secret
+	c := Credentials{Registry: host, Source: "helper:" + name, Username: user, Password: secret}
+	if user == "<token>" {
+		c.Username, c.Password, c.IdentityToken = "", "", secret
 	}
 	return c, nil
 }

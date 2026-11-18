@@ -10,6 +10,7 @@ import { EditorRow } from "@/components/settings/EditorRow";
 import { ExternalTerminalRow } from "@/components/settings/ExternalTerminalRow";
 import { TraySettingsSection } from "@/components/settings/TraySettingsSection";
 import { RunSetupRow } from "@/components/settings/RunSetupRow";
+import { RegistriesSection } from "@/components/registries/RegistriesSection";
 import { AboutSection } from "@/components/settings/AboutSection";
 import { NotificationSettingsSection } from "@/components/notifications/NotificationSettingsSection";
 import { cn } from "@/lib/utils";
@@ -176,6 +177,8 @@ export default function SettingsPage() {
         </Row>
         <RunSetupRow />
       </Section>
+
+      <RegistriesSection />
 
       <NotificationSettingsSection />
 
