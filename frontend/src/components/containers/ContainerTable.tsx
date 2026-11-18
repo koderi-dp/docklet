@@ -224,6 +224,7 @@ export function ContainerTable(p: ContainerTableProps) {
                   onInspect={() => live.current.p.onInspect(c)}
                   onOpenDetails={() => live.current.p.onOpenDetails(c)}
                   onCopyId={() => live.current.p.onCopyId(c)}
+                  projectDir={c.composeWorkingDir}
                 />
               </div>
             );

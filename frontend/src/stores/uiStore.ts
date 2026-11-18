@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { ConnectionProfile } from "@bindings/model";
+import { DEFAULT_TEXT_SIZE, normalizeTextSize, type TextSize } from "@/lib/textSize";
 
 export type ContainerViewMode = "grouped" | "flat";
 export type ThemePreference = "dark" | "light" | "system";
@@ -16,6 +17,12 @@ export interface TableSortState {
 /** Terminal used for "Open in external terminal": auto-detect, or a custom template containing {cmd}. */
 export interface ExternalTerminalSetting {
   mode: "auto" | "custom";
+  template: string;
+}
+
+/** Editor used for "Open in editor": auto-detect, a named one, or a custom template containing {path}. */
+export interface EditorSetting {
+  mode: "auto" | "vscode" | "cursor" | "custom";
   template: string;
 }
 
@@ -50,6 +57,10 @@ interface UIState {
   setThemePreference: (p: ThemePreference) => void;
   themePalette: ThemePalette;
   setThemePalette: (p: ThemePalette) => void;
+
+  /** Whole-window zoom in percent (see lib/textSize); applied natively by lib/textZoom. */
+  textSize: TextSize;
+  setTextSize: (n: number) => void;
 
   /** Terminal font size in px (read by terminal views). */
   terminalFontSize: number;
@@ -89,6 +100,8 @@ interface UIState {
   setTableSort: (table: string, sort: TableSortState) => void;
   externalTerminal: ExternalTerminalSetting;
   setExternalTerminal: (v: ExternalTerminalSetting) => void;
+  editor: EditorSetting;
+  setEditor: (v: EditorSetting) => void;
 }
 
 export const useUI = create<UIState>()(
@@ -113,6 +126,8 @@ export const useUI = create<UIState>()(
         set(themePreference === "system" ? { themePreference } : { themePreference, theme: themePreference }),
       themePalette: "docklet",
       setThemePalette: (themePalette) => set({ themePalette }),
+      textSize: DEFAULT_TEXT_SIZE,
+      setTextSize: (n) => set({ textSize: normalizeTextSize(n) }),
       terminalFontSize: 13,
       setTerminalFontSize: (n) => set({ terminalFontSize: Math.min(24, Math.max(10, Math.round(n))) }),
       logTail: 500,
@@ -142,6 +157,8 @@ export const useUI = create<UIState>()(
       setTableSort: (table, sort) => set((s) => ({ tableSort: { ...s.tableSort, [table]: sort } })),
       externalTerminal: { mode: "auto", template: "" },
       setExternalTerminal: (externalTerminal) => set({ externalTerminal }),
+      editor: { mode: "auto", template: "" },
+      setEditor: (editor) => set({ editor }),
     }),
     {
       name: "docklet-ui",
@@ -152,6 +169,7 @@ export const useUI = create<UIState>()(
         theme: s.theme,
         themePreference: s.themePreference,
         themePalette: s.themePalette,
+        textSize: s.textSize,
         terminalFontSize: s.terminalFontSize,
         logTail: s.logTail,
         reconnectOnStartup: s.reconnectOnStartup,
@@ -160,6 +178,7 @@ export const useUI = create<UIState>()(
         inspectorWidth: s.inspectorWidth,
         tableSort: s.tableSort,
         externalTerminal: s.externalTerminal,
+        editor: s.editor,
       }),
     },
   ),

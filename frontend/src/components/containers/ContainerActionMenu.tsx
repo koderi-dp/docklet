@@ -1,4 +1,4 @@
-import { Copy, ExternalLink, Eye, MoreHorizontal, Pause, Pencil, Play, RotateCw, Skull, Square, SquareTerminal, Trash2 } from "lucide-react";
+import { Copy, ExternalLink, Eye, FolderOpen, MoreHorizontal, Pause, Pencil, Play, RotateCw, Skull, Square, SquareTerminal, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -9,6 +9,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { type ContainerAction, ineligibleReason } from "@/lib/actionEligibility";
 import { externalTerminalReason, useOpenExternalTerminal } from "@/components/containers/externalTerminal";
+import { useActiveConnection } from "@/hooks/useActiveConnection";
+import { useHostActions, useLocalPath } from "@/hooks/useHost";
 import { openRecreate } from "@/components/containers/recreate/recreateStore";
 
 export interface ContainerActionMenuProps {
@@ -20,11 +22,16 @@ export interface ContainerActionMenuProps {
   onInspect?: () => void;
   onOpenDetails?: () => void;
   onCopyId: () => void;
+  /** Compose working directory of the container's project (engine path), when it has one. */
+  projectDir?: string;
 }
 
 /** Eligibility-aware per-container overflow menu. Disabled items explain why via title. */
-export function ContainerActionMenu({ id, name, state, busy, onAction, onInspect, onOpenDetails, onCopyId }: ContainerActionMenuProps) {
+export function ContainerActionMenu({ id, name, state, busy, onAction, onInspect, onOpenDetails, onCopyId, projectDir }: ContainerActionMenuProps) {
   const openExternal = useOpenExternalTerminal();
+  const { connectionId } = useActiveConnection();
+  const { exists: projectDirHere } = useLocalPath(connectionId, projectDir);
+  const { showFolder } = useHostActions(connectionId);
   const externalReason = externalTerminalReason(state);
   const item = (action: ContainerAction, label: string, icon: React.ReactNode, destructive = false) => {
     const reason = busy ? "Another action is in progress" : ineligibleReason(action, state);
@@ -77,6 +84,12 @@ export function ContainerActionMenu({ id, name, state, busy, onAction, onInspect
           <SquareTerminal />
           Open in external terminal
         </DropdownMenuItem>
+        {projectDir && projectDirHere && (
+          <DropdownMenuItem onSelect={() => void showFolder(projectDir)}>
+            <FolderOpen />
+            Open project folder
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem onSelect={onCopyId}>
           <Copy />
           Copy ID

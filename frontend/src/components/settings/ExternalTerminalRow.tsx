@@ -4,9 +4,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SettingRow } from "./SettingRow";
 import { useUI } from "@/stores/uiStore";
 
-/** Template must contain {cmd}; mirrors the backend check (ValidateTerminalTemplate). */
-export function templateProblem(template: string): string | null {
-  if (!template.includes("{cmd}")) return "The command must contain {cmd}, e.g. alacritty -e {cmd}";
+/** Template must contain the placeholder and start with a program; mirrors the backend check (cmdtemplate.Validate). */
+export function templateProblem(template: string, token = "{cmd}", example = "alacritty -e {cmd}"): string | null {
+  if (!template.includes(token)) return `The command must contain ${token}, e.g. ${example}`;
+  if (template.trimStart().startsWith(token)) return `${token} cannot be the program itself, e.g. ${example}`;
   return null;
 }
 

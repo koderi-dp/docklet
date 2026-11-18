@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { IconButton } from "@/components/shared/IconButton";
 import { InspectorActions } from "@/components/shared/InspectorActions";
+import { ShowFolderButton } from "@/components/host/ShowFolderButton";
 import { CopyValue, PathText } from "@/components/shared/CopyValue";
 import { HealthBadge } from "@/components/shared/StatusBadge";
 import { isEligible, type ContainerAction } from "@/lib/actionEligibility";
@@ -76,6 +77,7 @@ function Overview({ connectionId, c }: { connectionId: string; c: Container }) {
                     <div className="flex items-center gap-1.5">
                       <span className="rounded bg-muted px-1 font-sans text-[11px] text-muted-foreground">{m.type}</span>
                       {m.readOnly && <span className="font-sans text-[11px] text-muted-foreground">read-only</span>}
+                      {m.type === "bind" && <span className="ml-auto"><ShowFolderButton connectionId={c.connectionId} path={m.source} /></span>}
                     </div>
                     <div className="mt-0.5 text-muted-foreground"><PathText value={m.source} /></div>
                     <div>→ <PathText value={m.destination} /></div>

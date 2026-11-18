@@ -6,6 +6,7 @@ import type { Container, ContainerDetail } from "@bindings/model";
 import { Button } from "@/components/ui/button";
 import { formatCreated, uniquePortsLong } from "./format";
 import { PortList } from "./PortLink";
+import { ShowFolderButton } from "@/components/host/ShowFolderButton";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -88,6 +89,7 @@ export function OverviewPanel({ c, d }: { c: Container; d: ContainerDetail }) {
               <li key={m.destination} className="break-all">
                 <span className="mr-1.5 rounded bg-muted px-1 py-0.5 font-sans text-[11px] text-muted-foreground">{m.type}</span>
                 {m.source} → {m.destination}
+                {m.type === "bind" && <span className="ml-1 inline-block align-middle"><ShowFolderButton connectionId={c.connectionId} path={m.source} /></span>}
                 {m.readOnly ? " (ro)" : ""}
               </li>
             ))}

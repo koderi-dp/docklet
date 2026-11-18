@@ -6,12 +6,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SettingRow as Row } from "@/components/settings/SettingRow";
+import { EditorRow } from "@/components/settings/EditorRow";
 import { ExternalTerminalRow } from "@/components/settings/ExternalTerminalRow";
 import { TraySettingsSection } from "@/components/settings/TraySettingsSection";
 import { RunSetupRow } from "@/components/settings/RunSetupRow";
 import { AboutSection } from "@/components/settings/AboutSection";
 import { NotificationSettingsSection } from "@/components/notifications/NotificationSettingsSection";
 import { cn } from "@/lib/utils";
+import { TEXT_SIZES, type TextSize } from "@/lib/textSize";
 import { useUI, type ContainerViewMode, type ThemePalette, type ThemePreference } from "@/stores/uiStore";
 
 function Section({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
@@ -63,6 +65,8 @@ const LOG_TAILS = [100, 200, 500, 1000, 5000];
 export default function SettingsPage() {
   const themePreference = useUI((s) => s.themePreference);
   const setThemePreference = useUI((s) => s.setThemePreference);
+  const textSize = useUI((s) => s.textSize);
+  const setTextSize = useUI((s) => s.setTextSize);
   const themePalette = useUI((s) => s.themePalette);
   const setThemePalette = useUI((s) => s.setThemePalette);
   const containerView = useUI((s) => s.containerView);
@@ -102,6 +106,14 @@ export default function SettingsPage() {
             ]}
           />
         </Row>
+        <Row label="Text size" hint="Everything in the window.">
+          <Segmented<`${TextSize}`>
+            label="Text size"
+            value={`${textSize}`}
+            onChange={(v) => setTextSize(Number(v))}
+            options={TEXT_SIZES.map((n) => ({ value: `${n}` as `${TextSize}`, label: `${n}%` }))}
+          />
+        </Row>
       </Section>
 
       <Section title="Behavior">
@@ -116,6 +128,7 @@ export default function SettingsPage() {
             ]}
           />
         </Row>
+        <EditorRow />
         <div className="px-4 py-3 text-xs text-muted-foreground">
           Deleting containers, images, volumes and networks always asks for confirmation. This cannot be turned off.
         </div>

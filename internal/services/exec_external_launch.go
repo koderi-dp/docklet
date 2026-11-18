@@ -8,9 +8,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"time"
 
+	"docklet/internal/cmdtemplate"
 	"docklet/internal/compose"
 	"docklet/internal/model"
 )
@@ -180,56 +180,10 @@ func terminalArgv(goos string, t model.ExternalTerminal, script string, look fun
 
 // ValidateTerminalTemplate checks a custom command template.
 func ValidateTerminalTemplate(tpl string) error {
-	if !strings.Contains(tpl, "{cmd}") {
-		return errors.New("the custom terminal command must contain {cmd}, e.g. alacritty -e {cmd}")
-	}
-	if len(splitFields(tpl)) == 0 {
-		return errors.New("the custom terminal command is empty")
-	}
-	return nil
+	return cmdtemplate.Validate(tpl, "{cmd}")
 }
 
-// expandTemplate splits the template into argv (double quotes group words, no shell) and
-// replaces a lone {cmd} word by the invocation; {cmd} inside a longer word becomes the joined text.
+// expandTemplate turns the template into argv; {cmd} becomes the invocation.
 func expandTemplate(tpl string, inv []string) ([]string, error) {
-	if err := ValidateTerminalTemplate(tpl); err != nil {
-		return nil, err
-	}
-	var out []string
-	for _, f := range splitFields(tpl) {
-		switch {
-		case f == "{cmd}":
-			out = append(out, inv...)
-		case strings.Contains(f, "{cmd}"):
-			out = append(out, strings.ReplaceAll(f, "{cmd}", strings.Join(inv, " ")))
-		default:
-			out = append(out, f)
-		}
-	}
-	return out, nil
-}
-
-func splitFields(s string) []string {
-	var out []string
-	var cur strings.Builder
-	inQ, has := false, false
-	for _, r := range s {
-		switch {
-		case r == '"':
-			inQ, has = !inQ, true
-		case (r == ' ' || r == '\t') && !inQ:
-			if has {
-				out = append(out, cur.String())
-				cur.Reset()
-				has = false
-			}
-		default:
-			cur.WriteRune(r)
-			has = true
-		}
-	}
-	if has {
-		out = append(out, cur.String())
-	}
-	return out
+	return cmdtemplate.Expand(tpl, "{cmd}", inv)
 }

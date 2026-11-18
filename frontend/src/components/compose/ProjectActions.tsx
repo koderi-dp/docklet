@@ -13,6 +13,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useComposeVerb, useProjectEngineBatch, type ComposeVerb, type UpOptions } from "@/hooks/useCompose";
 import { partitionByEligibility } from "@/lib/actionEligibility";
 import type { ComposeProject, Container } from "@bindings/model";
+import { useProjectFolderMenu } from "@/components/host/useProjectFolderMenu";
 import { DownDialog } from "./DownDialog";
 import { ForgetProjectDialog } from "./ForgetProjectDialog";
 import { UpOptionsPopover } from "./UpOptionsPopover";
@@ -46,6 +47,7 @@ export function ProjectActions({ connectionId, project, containers, labels, onFo
   const [confirmForget, setConfirmForget] = useState(false);
   const cap = project.capability;
   const busy = verbs.isBusy(project.name);
+  const folderItems = useProjectFolderMenu(connectionId, project.workingDir, project.configFiles ?? []);
 
   const notCreated = project.notCreated;
   const NOT_CREATED = "The project has not been created yet: there is nothing to act on. Use Up first.";
@@ -148,6 +150,7 @@ export function ProjectActions({ connectionId, project, containers, labels, onFo
                 </DropdownMenuItem>
               );
             })}
+            {folderItems}
             {project.managed && (
               <>
                 <DropdownMenuSeparator />
@@ -219,6 +222,7 @@ export function ProjectActions({ connectionId, project, containers, labels, onFo
               </DropdownMenuItem>
             );
           })}
+          {folderItems}
           {project.managed && (
             <>
               <DropdownMenuSeparator />
