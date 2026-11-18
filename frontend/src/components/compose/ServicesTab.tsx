@@ -8,7 +8,7 @@ import { ContainerStatusBadge } from "@/components/containers/ContainerStatusBad
 import { HealthBadge, StateDot } from "@/components/shared/StatusBadge";
 import { publishedPorts } from "@/components/containers/format";
 import { useComposeVerb, useProjectEngineBatch } from "@/hooks/useCompose";
-import { ineligibleReason, partitionByEligibility } from "@/lib/actionEligibility";
+import { partitionByEligibility } from "@/lib/actionEligibility";
 import type { ComposeProject, Container } from "@bindings/model";
 import { ProjectStateBadge } from "./ProjectStateBadge";
 
@@ -16,16 +16,18 @@ type Act = "start" | "stop" | "restart";
 const ICON: Record<Act, React.ReactNode> = { start: <Play />, stop: <Square />, restart: <RotateCw /> };
 const LABEL: Record<Act, string> = { start: "Start", stop: "Stop", restart: "Restart" };
 
-function ActionButtons({ targets, name, busy, onAct }: { targets: Container[]; name: string; busy: boolean; onAct: (a: Act) => void }) {
+/**
+ * Engine actions for one container or all containers of a service. Only actions that apply to the
+ * current state are shown (a running container has no Start button), so a row never carries
+ * look-alike icons that do nothing.
+ */
+function ActionButtons({ targets, name, busy, onAct, omit }: { targets: Container[]; name: string; busy: boolean; onAct: (a: Act) => void; omit?: Act }) {
   return (
     <div className="flex justify-end gap-1">
       {(["start", "stop", "restart"] as const).map((a) => {
         const eligible = partitionByEligibility(a, targets).eligible.length;
-        const reason = busy
-          ? "Another action is in progress"
-          : eligible === 0
-            ? (targets.length === 1 ? ineligibleReason(a, targets[0].state) : undefined) ?? `No container can be ${LABEL[a].toLowerCase()}ed`
-            : undefined;
+        if (a === omit || eligible === 0) return null;
+        const reason = busy ? "Another action is in progress" : undefined;
         return (
           <Tooltip key={a}>
             <TooltipTrigger asChild>
@@ -35,7 +37,7 @@ function ActionButtons({ targets, name, busy, onAct }: { targets: Container[]; n
                 </Button>
               </span>
             </TooltipTrigger>
-            <TooltipContent>{reason ?? `${LABEL[a]} ${eligible} container${eligible === 1 ? "" : "s"} (Engine)`}</TooltipContent>
+            <TooltipContent>{reason ?? (targets.length === 1 ? LABEL[a] : `${LABEL[a]} ${eligible} container${eligible === 1 ? "" : "s"}`)}</TooltipContent>
           </Tooltip>
         );
       })}
@@ -90,6 +92,7 @@ export function ServicesTab({ connectionId, project, containers }: { connectionI
                 busy={engine.pending}
                 onAct={(a, t) => void engine.run(a, t)}
                 upReason={g.name ? upReason : "Containers without a service label cannot be started with Compose"}
+                composeAvailable={cap.canRun && !!g.name}
                 onUp={() => void verbs.run("up", project.name, { service: g.name })}
               />
             );
@@ -107,6 +110,7 @@ function ServiceRows({
   busy,
   onAct,
   upReason,
+  composeAvailable,
   onUp,
 }: {
   name: string;
@@ -115,8 +119,13 @@ function ServiceRows({
   busy: boolean;
   onAct: (a: Act, t: Container[]) => void;
   upReason?: string;
+  /** False when Compose cannot run for this service: existing containers then get plain Start instead of Up. */
+  composeAvailable: boolean;
   onUp: () => void;
 }) {
+  // Up is shown when it would do something. Without Compose it stays only for a service that has no
+  // container yet, disabled, so the reason can be read.
+  const needsUp = list.length === 0 || (running < list.length && composeAvailable);
   return (
     <>
       <tr className="h-[42px] border-y border-border bg-primary/[0.07]">
@@ -142,17 +151,20 @@ function ServiceRows({
         <td />
         <td className="px-3">
           <div className="flex items-center justify-end gap-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-flex">
-                  <Button variant="ghost" size="icon" className="size-7" disabled={!!upReason} aria-label={`Compose Up service ${name}`} onClick={onUp}>
-                    <Play className="size-3.5" />
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-sm">{upReason ?? `Create and start only this service (docker compose up -d ${name})`}</TooltipContent>
-            </Tooltip>
-            {list.length > 0 && <ActionButtons targets={list} name={`service ${name}`} busy={busy} onAct={(a) => onAct(a, list)} />}
+            {needsUp && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">
+                    <Button variant="outline" size="sm" className="h-7 gap-1.5 px-2 text-xs" disabled={!!upReason} aria-label={`Compose Up service ${name}`} onClick={onUp}>
+                      <Play className="size-3.5" /> Up
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-sm">{upReason ?? `Create and start this service (docker compose up -d ${name})`}</TooltipContent>
+              </Tooltip>
+            )}
+            {/* Up already starts stopped containers; plain Start is only offered when Compose cannot run. */}
+            {list.length > 0 && <ActionButtons targets={list} name={`service ${name}`} busy={busy} omit={composeAvailable ? "start" : undefined} onAct={(a) => onAct(a, list)} />}
           </div>
         </td>
       </tr>
