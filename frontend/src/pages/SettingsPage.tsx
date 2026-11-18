@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { SettingRow as Row } from "@/components/settings/SettingRow";
 import { ExternalTerminalRow } from "@/components/settings/ExternalTerminalRow";
 import { TraySettingsSection } from "@/components/settings/TraySettingsSection";
+import { RunSetupRow } from "@/components/settings/RunSetupRow";
 import { AboutSection } from "@/components/settings/AboutSection";
 import { NotificationSettingsSection } from "@/components/notifications/NotificationSettingsSection";
 import { cn } from "@/lib/utils";
@@ -160,6 +161,7 @@ export default function SettingsPage() {
             <Link to="/connections">Open connections</Link>
           </Button>
         </Row>
+        <RunSetupRow />
       </Section>
 
       <NotificationSettingsSection />

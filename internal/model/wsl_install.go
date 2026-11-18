@@ -32,6 +32,7 @@ type WSLInstallPlan struct {
 	DocsURL          string           `json:"docsUrl,omitempty"`
 	User             string           `json:"user,omitempty"` // default user added to the docker group (empty for root)
 	Systemd          bool             `json:"systemd"`        // systemd is PID 1 now
+	DockerDesktop    bool             `json:"dockerDesktop"`  // the docker command is Docker Desktop's integration proxy
 	DaemonStart      string           `json:"daemonStart,omitempty"`
 	Steps            []WSLInstallStep `json:"steps"`
 	SystemdSteps     []WSLInstallStep `json:"systemdSteps"` // extra steps when the user opts into enabling systemd

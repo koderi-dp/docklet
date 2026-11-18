@@ -8,7 +8,9 @@ import { GC_MS, STALE_MS } from "@/hooks/queryUtils";
 import { useUI } from "@/stores/uiStore";
 import AppShell from "@/components/layout/AppShell";
 import Unavailable from "@/pages/Unavailable";
+import { useOnboardingGate } from "@/hooks/useOnboardingGate";
 
+const OnboardingView = lazy(() => import("@/components/onboarding/OnboardingView"));
 const ContainersPage = lazy(() => import("@/pages/ContainersPage"));
 const ContainerDetailsPage = lazy(() => import("@/pages/ContainerDetailsPage"));
 const ConnectionsPage = lazy(() => import("@/pages/ConnectionsPage"));
@@ -66,6 +68,19 @@ const router = createHashRouter([
   },
 ]);
 
+/** Decides before the first paint between the first-run wizard and the app, so neither flashes. */
+function Root() {
+  const gate = useOnboardingGate();
+  if (gate === "loading") return <div className="h-screen w-screen bg-background" aria-busy="true" />;
+  if (gate === "onboarding")
+    return (
+      <Suspense fallback={<div className="h-screen w-screen bg-background" aria-busy="true" />}>
+        <OnboardingView />
+      </Suspense>
+    );
+  return <RouterProvider router={router} />;
+}
+
 export default function App() {
   const theme = useUI((s) => s.theme);
   useEffect(() => {
@@ -74,7 +89,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider delayDuration={300}>
-        <RouterProvider router={router} />
+        <Root />
         {/* Bottom right, clear of the 32px status bar. Sonner stacks toasts as a pile and fans them out on hover. */}
         <Toaster position="bottom-right" offset={{ bottom: 44, right: 16 }} visibleToasts={4} gap={8} closeButton />
       </TooltipProvider>

@@ -83,6 +83,9 @@ func (s *AppService) SaveAppSettings(ctx context.Context, settings model.AppSett
 	if _, ok := update.Interval(settings.CheckForUpdates); !ok {
 		settings.CheckForUpdates = model.UpdateCheckNever
 	}
+	// The setup state belongs to SetOnboarding: a stale copy from the UI must not overwrite it.
+	stored := LoadAppSettings(ctx, kv)
+	settings.Onboarding, settings.OnboardingAt = stored.Onboarding, stored.OnboardingAt
 	raw, err := json.Marshal(settings)
 	if err != nil {
 		return model.AppSettings{}, err

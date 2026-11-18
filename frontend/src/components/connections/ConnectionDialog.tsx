@@ -31,7 +31,7 @@ const CARD_ORDER = [
 
 type Result = { kind: "ok"; status: ConnectionStatus } | { kind: "error"; message: string; diagnostics?: string };
 
-function ConnectionForm({ editId, onClose }: { editId?: string; onClose: () => void }) {
+function ConnectionForm({ editId, onClose, onSaved }: { editId?: string; onClose: () => void; onSaved?: (p: ConnectionProfile) => void }) {
   const qc = useQueryClient();
   const { data: conns } = useConnections();
   const existing = editId ? conns?.find((c) => c.id === editId) : undefined;
@@ -102,7 +102,8 @@ function ConnectionForm({ editId, onClose }: { editId?: string; onClose: () => v
       toast.success(`${editing ? "Saved" : "Added"} ${saved.name}`, {
         description: editing && saved.id === activeId ? "Reconnect to apply the changes." : undefined,
       });
-      if (!editing && !activeId) void select(saved.id);
+      if (onSaved) onSaved(saved);
+      else if (!editing && !activeId) void select(saved.id);
       onClose();
     } catch (e) {
       setResult({ kind: "error", message: errorMessage(e) });
@@ -220,7 +221,7 @@ export function ConnectionDialogHost() {
   return (
     <Dialog open={!!req} onOpenChange={(o) => !o && open(null)}>
       <DialogContent className="max-h-[90vh] gap-4 overflow-y-auto sm:max-w-[640px]">
-        {req && <ConnectionForm key={`${req.mode}:${req.id ?? ""}`} editId={req.mode === "edit" ? req.id : undefined} onClose={() => open(null)} />}
+        {req && <ConnectionForm key={`${req.mode}:${req.id ?? ""}`} editId={req.mode === "edit" ? req.id : undefined} onSaved={req.onSaved} onClose={() => open(null)} />}
       </DialogContent>
     </Dialog>
   );

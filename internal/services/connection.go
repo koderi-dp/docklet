@@ -22,6 +22,8 @@ type ConnectionService struct {
 	Ops *ops.Manager
 	// WSLExec runs commands inside WSL distributions; nil uses wsl.exe.
 	WSLExec wsldocker.Exec
+	// EnvironmentHook may rewrite the detection result (test aid, see app_services.go); nil in normal use.
+	EnvironmentHook func(model.EnvironmentReport) model.EnvironmentReport
 }
 
 func (s *ConnectionService) mgr() (*engine.Manager, error) {

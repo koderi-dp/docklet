@@ -94,8 +94,17 @@ func (r *appRuntime) buildServices(osNotifications *notifications.NotificationSe
 	if v := os.Getenv("DOCKLET_UPDATE_CURRENT_VERSION"); v != "" {
 		r.appSvc.Version = v // testing aid: pretend to run another version
 	}
+	connections := &services.ConnectionService{Manager: m, Ops: o}
+	if os.Getenv("DOCKLET_FAKE_ENVIRONMENT") == "nothing" {
+		// Testing aid: first-run detection finds nothing, so the "nothing usable" screen can be seen
+		// without uninstalling anything. Nothing else changes.
+		connections.EnvironmentHook = func(r model.EnvironmentReport) model.EnvironmentReport {
+			return model.EnvironmentReport{OS: r.OS, Local: []model.LocalEngineReport{}, Contexts: []model.DockerContextInfo{},
+				Saved: []model.ConnectionProfile{}, WSL: model.WSLReport{Distros: []model.WSLDistroReport{}, Detail: "No WSL distributions are installed (or WSL itself is not installed)."}}
+		}
+	}
 	return []application.Service{
-		application.NewService(&services.ConnectionService{Manager: m, Ops: o}),
+		application.NewService(connections),
 		application.NewService(containers),
 		application.NewService(&services.OperationService{Ops: o, History: r.db.ListOperationHistory}),
 		application.NewService(&services.DialogService{Picker: r.picker}),

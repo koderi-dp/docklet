@@ -12,7 +12,7 @@ func (p Plan) DTO() model.WSLInstallPlan {
 	}
 	out := model.WSLInstallPlan{
 		Distro: f.Distro, DistroPretty: f.OS.PrettyName, State: p.State, Supported: p.Supported,
-		Reason: p.Reason, DocsURL: p.DocsURL, User: user, Systemd: f.Systemd, DaemonStart: p.DaemonStart,
+		Reason: p.Reason, DocsURL: p.DocsURL, User: user, Systemd: f.Systemd, DockerDesktop: f.DesktopStub, DaemonStart: p.DaemonStart,
 		Steps: stepsDTO(p.Steps), SystemdSteps: stepsDTO(p.SystemdSteps),
 		PackagesToRemove: p.Remove, Notes: p.Notes,
 	}

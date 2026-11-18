@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { ConnectionProfile } from "@bindings/model";
 
 export type ContainerViewMode = "grouped" | "flat";
 export type ThemePreference = "dark" | "light" | "system";
@@ -23,6 +24,8 @@ export interface ConnectionDialogRequest {
   mode: "add" | "edit";
   /** Profile id when editing. */
   id?: string;
+  /** Called with the saved profile. When set, the dialog does not select or connect it itself (the setup wizard decides). */
+  onSaved?: (profile: ConnectionProfile) => void;
 }
 
 interface UIState {

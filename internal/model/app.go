@@ -27,7 +27,18 @@ type AppSettings struct {
 	CloseToTray          bool   `json:"closeToTray"`
 	StartMinimizedToTray bool   `json:"startMinimizedToTray"`
 	CheckForUpdates      string `json:"checkForUpdates"` // never | startup | weekly
+	// Onboarding is the first-run setup state: "" (never decided), pending, completed or skipped.
+	// It is owned by SetOnboarding; SaveAppSettings keeps the stored value.
+	Onboarding   string `json:"onboarding"`
+	OnboardingAt int64  `json:"onboardingAt"` // unix milliseconds of completion or skip; 0 otherwise
 }
+
+// First-run setup states for AppSettings.Onboarding.
+const (
+	OnboardingPending   = "pending"
+	OnboardingCompleted = "completed"
+	OnboardingSkipped   = "skipped"
+)
 
 // UpdateStatus is the outcome of a check against the latest GitHub release.
 type UpdateStatus struct {

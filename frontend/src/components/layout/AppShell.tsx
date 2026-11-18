@@ -10,27 +10,7 @@ import { RemoveConnectionDialogHost } from "@/components/connections/RemoveConne
 import { CommandPalette } from "@/components/palette/CommandPalette";
 import { useTrayEvents } from "@/hooks/useApp";
 import { useGlobalShortcuts } from "@/components/palette/useGlobalShortcuts";
-
-/** Resolves themePreference "system" into the dark/light `theme` that App.tsx applies. */
-function useSystemTheme() {
-  const pref = useUI((s) => s.themePreference);
-  useEffect(() => {
-    if (pref !== "system") {
-      if (useUI.getState().theme !== pref) useUI.setState({ theme: pref });
-      return;
-    }
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const apply = () => useUI.setState({ theme: mq.matches ? "dark" : "light" });
-    apply();
-    mq.addEventListener("change", apply);
-    return () => mq.removeEventListener("change", apply);
-  }, [pref]);
-  const palette = useUI((s) => s.themePalette);
-  useEffect(() => {
-    if (palette === "shadcn") document.documentElement.dataset.palette = "shadcn";
-    else delete document.documentElement.dataset.palette;
-  }, [palette]);
-}
+import { useSystemTheme } from "@/hooks/useSystemTheme";
 
 export default function AppShell() {
   useConnectionStatusEvents();
