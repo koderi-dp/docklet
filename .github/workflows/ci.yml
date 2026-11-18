@@ -1,5 +1,10 @@
 name: CI
 
+# Runners: jobs run on the self-hosted Windows runner (labels self-hosted, Windows, X64) unless the
+# repository variable HOSTED_RUNNERS is 'true', which switches back to GitHub-hosted machines and enables the
+# native Linux and macOS jobs. Linux is covered on the self-hosted runner by a Docker container when the
+# variable RUNNER_HAS_DOCKER is 'true' (the runner's service account must be allowed to use Docker).
+
 on:
   push:
     branches: [main]
@@ -22,10 +27,16 @@ env:
 jobs:
   test-and-build:
     name: Test and build (Windows)
-    runs-on: windows-latest
+    runs-on: ${{ fromJSON(vars.HOSTED_RUNNERS == 'true' && '"windows-latest"' || '["self-hosted","Windows","X64"]') }}
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+
+      # On a self-hosted Windows machine plain "bash" can resolve to the WSL launcher in System32.
+      - name: Use Git Bash on the self-hosted runner
+        if: runner.environment == 'self-hosted'
+        shell: pwsh
+        run: '"C:/Program Files/Git/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append'
 
       - uses: actions/setup-go@v5
         with:
@@ -109,6 +120,7 @@ jobs:
   # Nobody has used the Linux build interactively yet; this job is the only evidence it works.
   linux:
     name: Test, build and smoke test (Linux)
+    if: vars.HOSTED_RUNNERS == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -224,10 +236,34 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  # Linux on the self-hosted Windows runner: the same vet, tests and build inside a Docker container.
+  # It cannot run the .deb and AppArmor smoke tests of the job above (those need a real Ubuntu machine).
+  linux-container:
+    name: Test and build (Linux, container)
+    if: vars.HOSTED_RUNNERS != 'true' && vars.RUNNER_HAS_DOCKER == 'true'
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the Linux toolchain image
+        shell: pwsh
+        run: |
+          $go = (Select-String -Path go.mod -Pattern '^go ([0-9.]+)').Matches[0].Groups[1].Value
+          docker build -f .github/ci/linux.Dockerfile --build-arg "GO_VERSION=$go" --build-arg "WAILS_VERSION=$env:WAILS_VERSION" -t docklet-ci-linux .github/ci
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Vet, test and build in the container
+        shell: pwsh
+        run: |
+          docker run --rm -v "${env:GITHUB_WORKSPACE}:/src:ro" -v docklet-ci-gomod:/root/go/pkg/mod -v docklet-ci-gobuild:/root/.cache/go-build -v docklet-ci-npm:/root/.npm docklet-ci-linux bash /src/.github/scripts/linux-container.sh
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
   # macOS (Apple Silicon): vet, tests and a build. Nobody here has a Mac to debug on, so this job
   # may fail without blocking the others; check its log when it does.
   macos:
     name: Test and build (macOS)
+    if: vars.HOSTED_RUNNERS == 'true'
     runs-on: macos-latest
     continue-on-error: true
     timeout-minutes: 30
