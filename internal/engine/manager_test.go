@@ -10,8 +10,8 @@ import (
 
 func TestManager_ClientIsPerConnectionAndErrorsWhenNotConnected(t *testing.T) {
 	a, b := newFakeDaemon("A-1.0"), newFakeDaemon("B-2.0")
-	defer a.srv.Close()
-	defer b.srv.Close()
+	defer a.close()
+	defer b.close()
 	m, _ := testManager(t, map[string]*fakeDaemon{"a": a, "b": b})
 	ctx := context.Background()
 
@@ -47,7 +47,7 @@ func TestManager_ClientIsPerConnectionAndErrorsWhenNotConnected(t *testing.T) {
 
 func TestManager_DebouncesEventsAndClosesStreamOnDisconnect(t *testing.T) {
 	d := newFakeDaemon("1")
-	defer d.srv.Close()
+	defer d.close()
 	m, em := testManager(t, map[string]*fakeDaemon{"a": d})
 	ctx := context.Background()
 
@@ -94,7 +94,7 @@ func TestManager_ConnectFailureYieldsFriendlyErrorStatus(t *testing.T) {
 
 func TestManagerTest_NeverRegistersClientOrEmitsEvents(t *testing.T) {
 	d := newFakeDaemon("T-9")
-	defer d.srv.Close()
+	defer d.close()
 	m, em := testManager(t, map[string]*fakeDaemon{"a": d})
 	st := m.store.(*memStore)
 	before := len(st.profiles)

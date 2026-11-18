@@ -126,3 +126,10 @@ func waitFor(t *testing.T, cond func() bool, what string) {
 	}
 	t.Fatalf("timed out waiting for: %s", what)
 }
+
+// close shuts the fake daemon down. Open event streams are cut first: httptest's Close waits for
+// active requests, and a stream still held by a connected Manager would make it wait forever.
+func (d *fakeDaemon) close() {
+	d.srv.CloseClientConnections()
+	d.srv.Close()
+}
