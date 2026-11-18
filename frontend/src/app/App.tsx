@@ -9,6 +9,7 @@ import { useUI } from "@/stores/uiStore";
 import AppShell from "@/components/layout/AppShell";
 import Unavailable from "@/pages/Unavailable";
 import { useOnboardingGate } from "@/hooks/useOnboardingGate";
+import { useTextSizeShortcuts } from "@/hooks/useTextSizeShortcuts";
 
 const OnboardingView = lazy(() => import("@/components/onboarding/OnboardingView"));
 const ContainersPage = lazy(() => import("@/pages/ContainersPage"));
@@ -18,6 +19,7 @@ const DashboardPage = lazy(() => import("@/pages/DashboardPage"));
 const ImagesPage = lazy(() => import("@/pages/ImagesPage"));
 const ComposePage = lazy(() => import("@/pages/ComposePage"));
 const ComposeProjectPage = lazy(() => import("@/pages/ComposeProjectPage"));
+const LogsPage = lazy(() => import("@/pages/LogsPage"));
 const VolumesPage = lazy(() => import("@/pages/VolumesPage"));
 const NetworksPage = lazy(() => import("@/pages/NetworksPage"));
 const SystemPage = lazy(() => import("@/pages/SystemPage"));
@@ -57,6 +59,7 @@ const router = createHashRouter([
       { path: "images", element: page(<ImagesPage />) },
       { path: "compose", element: page(<ComposePage />) },
       { path: "compose/:projectName", element: page(<ComposeProjectPage />) },
+      { path: "logs", element: page(<LogsPage />) },
       { path: "volumes", element: page(<VolumesPage />) },
       { path: "networks", element: page(<NetworksPage />) },
       { path: "system", element: page(<SystemPage />) },
@@ -83,6 +86,7 @@ function Root() {
 
 export default function App() {
   const theme = useUI((s) => s.theme);
+  useTextSizeShortcuts();
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
   }, [theme]);
