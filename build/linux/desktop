@@ -1,13 +1,13 @@
 [Desktop Entry]
 Version=1.0
-Name=My Product
-Comment=A docklet application
+Name=Docklet
+Comment=Desktop client for existing Docker Engines
 # The Exec line includes %u to pass the URL to the application
-Exec=/usr/local/bin/docklet.exe %u
+Exec=/usr/local/bin/docklet %u
 Terminal=false
 Type=Application
-Icon=docklet.exe
+Icon=docklet
 Categories=Utility;
-StartupWMClass=docklet.exe
+StartupWMClass=docklet
 
  

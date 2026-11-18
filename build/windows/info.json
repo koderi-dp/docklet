@@ -7,11 +7,11 @@
 		"0409": {
 			"FileVersion": "0.1.0",
 			"ProductVersion": "0.1.0",
-			"CompanyName": "My Company",
-			"FileDescription": "A docklet application",
-			"LegalCopyright": "© 2026, My Company",
-			"ProductName": "My Product",
-			"Comments": "This is a comment"
+			"CompanyName": "Docklet",
+			"FileDescription": "Desktop client for existing Docker Engines",
+			"LegalCopyright": "(c) 2026 Danijel",
+			"ProductName": "Docklet",
+			"Comments": "Docklet does not bundle or replace Docker Engine"
 		}
 	}
 }

@@ -3,26 +3,26 @@
 #
 # The lines below are called `modelines`. See `:help modeline`
 
-name: "docklet.exe"
+name: "docklet"
 arch: ${GOARCH}
 platform: "linux"
 version: "0.1.0"
 section: "default"
 priority: "extra"
 maintainer: ${GIT_COMMITTER_NAME} <${GIT_COMMITTER_EMAIL}>
-description: "A docklet application"
-vendor: "My Company"
+description: "Desktop client for existing Docker Engines"
+vendor: "Docklet"
 homepage: "https://wails.io"
 license: "MIT"
 release: "1"
 
 contents:
-  - src: "./bin/docklet.exe"
-    dst: "/usr/local/bin/docklet.exe"
+  - src: "./bin/docklet"
+    dst: "/usr/local/bin/docklet"
   - src: "./build/appicon.png"
-    dst: "/usr/share/icons/hicolor/128x128/apps/docklet.exe.png"
-  - src: "./build/linux/docklet.exe.desktop"
-    dst: "/usr/share/applications/docklet.exe.desktop"
+    dst: "/usr/share/icons/hicolor/128x128/apps/docklet.png"
+  - src: "./build/linux/docklet.desktop"
+    dst: "/usr/share/applications/docklet.desktop"
 
 # Default dependencies for the GTK4 + WebKitGTK 6.0 stack (Ubuntu 24.04+ / Debian 13+)
 depends:
