@@ -6,10 +6,12 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { IconButton } from "@/components/shared/IconButton";
@@ -75,24 +77,30 @@ export function LogCompactBar(p: Props) {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
           {p.menuExtra}
-          {p.menuExtra && <DropdownMenuSeparator />}
-          <DropdownMenuLabel className="text-xs text-muted-foreground">Levels</DropdownMenuLabel>
-          {SHOWN_LEVELS.map((l) => (
-            <DropdownMenuCheckboxItem key={l} checked={f.levels.has(l)} onCheckedChange={() => f.toggleLevel(l)} onSelect={(e) => e.preventDefault()}>
-              <span aria-hidden className={cn("size-1.5 rounded-full", LEVEL_DOT[l])} />
-              {LEVEL_LABEL[l]}
-              <span className="ml-auto text-xs text-muted-foreground tabular-nums">{p.levelCounts[l].toLocaleString()}</span>
-            </DropdownMenuCheckboxItem>
-          ))}
-          <DropdownMenuSeparator />
-          <DropdownMenuLabel className="text-xs text-muted-foreground">Time range</DropdownMenuLabel>
-          <DropdownMenuRadioGroup value={f.range} onValueChange={(v) => f.setRange(v as TimeRange)}>
-            {TIME_RANGES.map((r) => (
-              <DropdownMenuRadioItem key={r.id} value={r.id}>
-                {r.label}
-              </DropdownMenuRadioItem>
-            ))}
-          </DropdownMenuRadioGroup>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>Levels · {f.levels.size === 0 ? "all" : [...f.levels].map((l) => LEVEL_LABEL[l]).join(", ")}</DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="w-44">
+              {SHOWN_LEVELS.map((l) => (
+                <DropdownMenuCheckboxItem key={l} checked={f.levels.has(l)} onCheckedChange={() => f.toggleLevel(l)} onSelect={(e) => e.preventDefault()}>
+                  <span aria-hidden className={cn("size-1.5 rounded-full", LEVEL_DOT[l])} />
+                  {LEVEL_LABEL[l]}
+                  <span className="ml-auto text-xs text-muted-foreground tabular-nums">{p.levelCounts[l].toLocaleString()}</span>
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>Time range · {TIME_RANGES.find((r) => r.id === f.range)?.label ?? f.range}</DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <DropdownMenuRadioGroup value={f.range} onValueChange={(v) => f.setRange(v as TimeRange)}>
+                {TIME_RANGES.map((r) => (
+                  <DropdownMenuRadioItem key={r.id} value={r.id}>
+                    {r.label}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
           <DropdownMenuSeparator />
           <DropdownMenuItem disabled={!p.hasVisible} onSelect={p.onCopy}>
             <Copy /> Copy visible

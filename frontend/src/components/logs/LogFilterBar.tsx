@@ -24,11 +24,12 @@ function LevelChips({ f, counts }: { f: LogFilterState; counts: Record<LogLevel,
             key={l}
             type="button"
             aria-pressed={on}
-            title={on ? `Showing ${LEVEL_LABEL[l]} lines. Click to stop filtering by this level.` : `Show only ${LEVEL_LABEL[l]} lines (several levels can be on)`}
+            title={on ? `Showing ${LEVEL_LABEL[l]} lines. Click to stop filtering by this level.` : counts[l] === 0 ? `No ${LEVEL_LABEL[l]} lines in what the filters currently show` : `Show only ${LEVEL_LABEL[l]} lines (several levels can be on)`}
             onClick={() => f.toggleLevel(l)}
             className={cn(
               "inline-flex h-8 items-center gap-1.5 rounded-md border px-2 text-xs transition-colors focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none",
               on ? "border-primary/50 bg-primary/10 text-foreground" : "border-border text-muted-foreground hover:bg-muted/60",
+              !on && counts[l] === 0 && "opacity-50",
             )}
           >
             <span aria-hidden className={cn("size-1.5 rounded-full", LEVEL_DOT[l])} />

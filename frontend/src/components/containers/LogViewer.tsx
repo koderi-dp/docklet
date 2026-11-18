@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu";
+import { DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger } from "@/components/ui/dropdown-menu";
 import { useUI } from "@/stores/uiStore";
 import { makeEntry, type LogEntry } from "@/lib/logEntry";
 import { sortByTime } from "@/lib/logMerge";
@@ -83,16 +83,18 @@ export function LogViewer({ connectionId, containerId, containerName, compact, c
   );
 
   const tailMenu = (
-    <>
-      <DropdownMenuLabel className="text-xs text-muted-foreground">Load on open</DropdownMenuLabel>
-      <DropdownMenuRadioGroup value={String(tail)} onValueChange={(v) => setTail(Number(v))}>
-        {TAIL_OPTIONS.map((o) => (
-          <DropdownMenuRadioItem key={o.value} value={String(o.value)}>
-            {o.label}
-          </DropdownMenuRadioItem>
-        ))}
-      </DropdownMenuRadioGroup>
-    </>
+    <DropdownMenuSub>
+      <DropdownMenuSubTrigger>Lines to load · {TAIL_OPTIONS.find((o) => o.value === tail)?.label ?? tail}</DropdownMenuSubTrigger>
+      <DropdownMenuSubContent>
+        <DropdownMenuRadioGroup value={String(tail)} onValueChange={(v) => setTail(Number(v))}>
+          {TAIL_OPTIONS.map((o) => (
+            <DropdownMenuRadioItem key={o.value} value={String(o.value)}>
+              {o.label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuSubContent>
+    </DropdownMenuSub>
   );
 
   const tailSelect = (
