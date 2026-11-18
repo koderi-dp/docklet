@@ -174,6 +174,9 @@ jobs:
           GDK_BACKEND: x11
         run: |
           set -euo pipefail
+          # WebKitGTK sandboxes its helper processes with bubblewrap, which needs unprivileged user
+          # namespaces. Ubuntu 24.04 runners block those through AppArmor, so allow them for this job.
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           export HOME="$RUNNER_TEMP/docklet-home"
           mkdir -p "$HOME"
           cat > "$RUNNER_TEMP/smoke.sh" <<'SMOKE'
