@@ -5,7 +5,8 @@ export function formatBytes(n: number): string {
   const units = ["KB", "MB", "GB", "TB"];
   let v = n / 1024;
   let i = 0;
-  while (v >= 1024 && i < units.length - 1) {
+  // 1023.5 and up would print as "1024", so it moves to the next unit instead.
+  while (v >= 1023.5 && i < units.length - 1) {
     v /= 1024;
     i++;
   }
@@ -44,7 +45,7 @@ export function publishedPorts(ports: readonly PortBinding[]): string[] {
   return publishedBindings(ports).map((x) => x.label);
 }
 
-/** Dedupe long-form ports (IPv4 + IPv6 mappings of the same host port). */
+/** Dedupe long-form ports: the IPv4 and IPv6 "all interfaces" mappings of the same host port show once. */
 export function uniquePortsLong(ports: readonly PortBinding[]): string[] {
   return uniquePortBindings(ports).map((x) => x.label);
 }
@@ -55,12 +56,18 @@ export function uniquePortBindings(ports: readonly PortBinding[]): { label: stri
   const out: { label: string; binding: PortBinding }[] = [];
   for (const p of ports) {
     const label = formatPortLong(p);
-    if (!seen.has(label)) {
-      seen.add(label);
+    // 0.0.0.0 and :: are the same "all interfaces" binding; a specific address stays its own row.
+    const key = p.hostPort && isWildcardIp(p.hostIp) ? formatPortLong({ ...p, hostIp: "" }) : label;
+    if (!seen.has(key)) {
+      seen.add(key);
       out.push({ label, binding: p });
     }
   }
   return out;
+}
+
+function isWildcardIp(ip: string | undefined): boolean {
+  return !ip || ip === "0.0.0.0" || ip === "::" || ip === "[::]";
 }
 
 /** Uptime text from the Engine status ("Up 2 hours (healthy)" -> "2 hours"); undefined when not running. */
