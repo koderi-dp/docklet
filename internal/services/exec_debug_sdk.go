@@ -75,3 +75,28 @@ func (a sdkDebugAPI) ListDebug(ctx context.Context) ([]debugInfo, error) {
 	}
 	return out, nil
 }
+
+// HasRunningExec asks the engine for the container's exec processes. Finished
+// ones stay listed for a few minutes, so each is checked.
+func (a sdkDebugAPI) HasRunningExec(ctx context.Context, id string) (bool, error) {
+	r, err := a.cli.ContainerInspect(ctx, id, client.ContainerInspectOptions{})
+	if err != nil {
+		if cerrdefs.IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	for _, execID := range r.Container.ExecIDs {
+		e, err := a.cli.ExecInspect(ctx, execID, client.ExecInspectOptions{})
+		if err != nil {
+			if cerrdefs.IsNotFound(err) {
+				continue
+			}
+			return false, err
+		}
+		if e.Running {
+			return true, nil
+		}
+	}
+	return false, nil
+}

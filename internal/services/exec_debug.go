@@ -48,6 +48,8 @@ type debugAPI interface {
 	StartContainer(ctx context.Context, id string) error
 	RemoveContainer(ctx context.Context, id string) error
 	ListDebug(ctx context.Context) ([]debugInfo, error)
+	// HasRunningExec reports whether a process started with exec (a shell session) is still running in the container.
+	HasRunningExec(ctx context.Context, id string) (bool, error)
 }
 
 // debugSidecar is a live sidecar owned by one session.
@@ -130,12 +132,16 @@ func buildDebugSpec(targetID string, o debugSpecOptions) (*container.Config, *co
 }
 
 // staleDebugContainers picks the sidecars to sweep: carrying our label, older
-// than maxAge and not owned by a live session of this process.
-func staleDebugContainers(list []debugInfo, live func(id string) bool, now time.Time, maxAge time.Duration) []string {
+// than maxAge, not owned by a live session of this process and not in use by
+// anyone else. inUse is the engine's view (a shell is still running in the
+// sidecar), which is how a session of another Docklet on the same engine is
+// recognised; it is asked last, and only for candidates, because it costs a
+// round trip per container.
+func staleDebugContainers(list []debugInfo, live, inUse func(id string) bool, now time.Time, maxAge time.Duration) []string {
 	cutoff := now.Add(-maxAge).Unix()
 	var out []string
 	for _, c := range list {
-		if c.Labels[debugLabel] != "true" || c.Created > cutoff || live(c.ID) {
+		if c.Labels[debugLabel] != "true" || c.Created > cutoff || live(c.ID) || inUse(c.ID) {
 			continue
 		}
 		out = append(out, c.ID)
