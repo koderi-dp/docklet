@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import path from "node:path";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
@@ -27,4 +28,15 @@ export default defineConfig({
     },
   },
   plugins: [react(), tailwindcss(), wails("./bindings")],
+  test: {
+    coverage: {
+      provider: "v8",
+      // Count every source file, also the ones no test imports; otherwise the percentage only
+      // describes the files that already have tests.
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: ["src/**/*.test.ts", "src/**/*.d.ts"],
+      reporter: ["text-summary", "html"],
+      reportsDirectory: "coverage",
+    },
+  },
 });
