@@ -34,7 +34,7 @@ func TestBuildDebugSpec_JoinsNamespacesWithoutExtraPrivileges(t *testing.T) {
 	}
 }
 
-func TestStaleDebugContainers_OnlyOldUnownedWithOurLabel(t *testing.T) {
+func TestStaleDebugContainers_OnlyOldUnownedUnusedWithOurLabel(t *testing.T) {
 	now := time.Unix(10_000, 0)
 	old := now.Add(-time.Hour).Unix()
 	mine := map[string]string{debugLabel: "true"}
@@ -42,12 +42,19 @@ func TestStaleDebugContainers_OnlyOldUnownedWithOurLabel(t *testing.T) {
 		{ID: "stale", Created: old, Labels: mine},
 		{ID: "fresh", Created: now.Add(-time.Minute).Unix(), Labels: mine},
 		{ID: "live", Created: old, Labels: mine},
+		{ID: "other-docklet", Created: old, Labels: mine},
 		{ID: "foreign", Created: old, Labels: map[string]string{"docklet.helper": "1"}},
 		{ID: "unlabelled", Created: old},
 	}
-	got := staleDebugContainers(list, func(id string) bool { return id == "live" }, now, debugStaleAge)
+	var asked []string
+	inUse := func(id string) bool { asked = append(asked, id); return id == "other-docklet" }
+	got := staleDebugContainers(list, func(id string) bool { return id == "live" }, inUse, now, debugStaleAge)
 	if len(got) != 1 || got[0] != "stale" {
 		t.Fatalf("got %v", got)
+	}
+	// The engine is only asked about real candidates.
+	if len(asked) != 2 || asked[0] != "stale" || asked[1] != "other-docklet" {
+		t.Fatalf("asked %v", asked)
 	}
 }
 
@@ -62,6 +69,8 @@ type fakeDebugAPI struct {
 	createNames []string
 	removed     []string
 	listed      []debugInfo
+	busy        map[string]bool  // sidecars with a shell still running (another Docklet's session)
+	busyErr     map[string]error // sidecars the engine cannot answer for
 }
 
 func (f *fakeDebugAPI) EngineOS(context.Context) (string, error) { return f.os, nil }
@@ -93,6 +102,10 @@ func (f *fakeDebugAPI) RemoveContainer(_ context.Context, id string) error {
 	return nil
 }
 func (f *fakeDebugAPI) ListDebug(context.Context) ([]debugInfo, error) { return f.listed, nil }
+
+func (f *fakeDebugAPI) HasRunningExec(_ context.Context, id string) (bool, error) {
+	return f.busy[id], f.busyErr[id]
+}
 
 func (f *fakeDebugAPI) removedIDs() []string {
 	f.mu.Lock()
@@ -205,8 +218,10 @@ func TestSweepDebug_RemovesOnlyStaleUnownedAndIsThrottled(t *testing.T) {
 	d := &fakeDebugAPI{listed: []debugInfo{
 		{ID: "left", Created: old, Labels: mine},
 		{ID: "owned", Created: old, Labels: mine},
+		{ID: "elsewhere", Created: old, Labels: mine},
+		{ID: "unknown", Created: old, Labels: mine},
 		{ID: "other", Created: old, Labels: map[string]string{"x": "y"}},
-	}}
+	}, busy: map[string]bool{"elsewhere": true}, busyErr: map[string]error{"unknown": errors.New("engine busy")}}
 	s, _ := newDebugSvc(d, &fakeExecAPI{})
 	s.debug.add("c1", "owned")
 	if n, err := s.SweepDebugContainers(context.Background(), "c1"); err != nil || n != 1 {

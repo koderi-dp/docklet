@@ -153,7 +153,8 @@ func (s *ExecService) finishSidecar(sc *debugSidecar) string {
 }
 
 // SweepDebugContainers removes leftover toolbox containers (our label only) that
-// are older than a few minutes and belong to no live session of this process.
+// are older than a few minutes, belong to no live session of this process and
+// have no shell running in them (which would be another Docklet's session).
 // It returns how many were removed. Calls are throttled per connection.
 func (s *ExecService) SweepDebugContainers(ctx context.Context, connectionID string) (int, error) {
 	api, err := s.debugAPIFor(ctx, connectionID)
@@ -180,7 +181,13 @@ func (s *ExecService) sweepDebug(ctx context.Context, connectionID string, api d
 		return 0
 	}
 	n := 0
-	for _, id := range staleDebugContainers(list, func(id string) bool { return s.debug.isLive(connectionID, id) }, time.Now(), debugStaleAge) {
+	live := func(id string) bool { return s.debug.isLive(connectionID, id) }
+	// When the engine cannot say, keep the container: removing one in use ends someone's session.
+	inUse := func(id string) bool {
+		busy, err := api.HasRunningExec(ctx, id)
+		return err != nil || busy
+	}
+	for _, id := range staleDebugContainers(list, live, inUse, time.Now(), debugStaleAge) {
 		if api.RemoveContainer(ctx, id) == nil {
 			n++
 		}
