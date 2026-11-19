@@ -10,9 +10,8 @@ on:
     branches: [main]
     # Text and pictures cannot break the build.
     paths-ignore: ["**/*.md", "docs/**", "LICENSE"]
-  # Every pull request gets a check, also one that only changes text or pictures: the pipeline waits for a
-  # check before it merges, and a pull request without one would never be merged.
   pull_request:
+    paths-ignore: ["**/*.md", "docs/**", "LICENSE"]
 
 concurrency:
   group: ci-${{ github.ref }}
