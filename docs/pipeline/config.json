@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "mainBranch": "main",
+  "branch": "feat/<id>",
+  "checks": {
+    "task": "go test ./internal/... && npm --prefix frontend test",
+    "gate": "wails3 generate bindings -clean=true -ts -i && npm --prefix frontend ci && npm --prefix frontend run build && npm --prefix frontend test && go vet . ./internal/... && go test ./internal/..."
+  },
+  "riskyPaths": [
+    "internal/registryauth/**"
+  ],
+  "protectedPaths": [
+    ".github/**"
+  ],
+  "models": {
+    "implementer": {
+      "model": "sonnet",
+      "effort": "medium"
+    },
+    "reviewer": {
+      "model": "opus",
+      "effort": "high"
+    },
+    "final": {
+      "model": "opus",
+      "effort": "xhigh"
+    },
+    "escalate": {
+      "model": "opus",
+      "effort": "high"
+    }
+  },
+  "limits": {
+    "fixRounds": 3,
+    "silentMinutes": 10,
+    "taskMinutes": 45,
+    "itemTokens": 4000000,
+    "parallel": 1
+  },
+  "runner": "subagent",
+  "merge": "pr",
+  "mergeMethod": "merge",
+  "retain": {
+    "plans": true,
+    "briefs": false,
+    "superpowers": false
+  },
+  "stop": [
+    "product decision the spec leaves open",
+    "security trade-off",
+    "CI that cannot be made green",
+    "credentials or external services",
+    "new cost",
+    "destructive data change"
+  ],
+  "afterMerge": [
+    "docs/pipeline/BACKLOG.md"
+  ],
+  "notify": "milestones",
+  "renameSession": true,
+  "pushMain": true,
+  "taskReview": "risky",
+  "mode": "direct",
+  "superpowers": "off",
+  "queue": "github",
+  "queueLabel": "pipeline"
+}
