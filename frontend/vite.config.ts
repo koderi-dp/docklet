@@ -5,12 +5,17 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import wails from "@wailsio/runtime/plugins/vite";
 
+// Set by `wails3 task dev:browser`: the Go backend runs in Wails server mode and Vite forwards the runtime
+// calls, events and streams (everything under /wails) to it, so the UI works in a normal browser.
+const serverModeBackend = process.env.DOCKLET_SERVER_URL;
+
 export default defineConfig({
   resolve: { alias: { "@": path.resolve(__dirname, "./src"), "@bindings": path.resolve(__dirname, "./bindings/docklet/internal") } },
   server: {
     host: "127.0.0.1",
     port: Number(process.env.WAILS_VITE_PORT) || 9245,
     strictPort: true,
+    proxy: serverModeBackend ? { "/wails": { target: serverModeBackend, ws: true } } : undefined,
   },
   build: {
     rolldownOptions: {

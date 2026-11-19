@@ -20,6 +20,21 @@ GOARCH=arm64 wails3 package                        # Windows on ARM64 (architect
 
 `docklet --version` prints the embedded version without starting the app.
 
+## The UI in a browser
+
+`wails3 task dev:browser` runs the app without the desktop window: the Go backend in Wails server mode and the UI in a normal browser with hot reload. Open `http://localhost:9250`.
+
+```
+wails3 task dev:browser                                              # UI on 9250, backend on 9251
+wails3 task dev:browser BROWSER_PORT=9260 BROWSER_BACKEND_PORT=9261  # other ports
+```
+
+- It is the real backend with your real connections: stopping or removing something in the browser does it for real.
+- The port has no authentication. It is bound to localhost only; stop the task when you are done and do not bind it to another address.
+- Frontend edits reload at once. Go changes need the task restarted.
+- Native parts are missing in a browser: file dialogs, the tray, OS notifications, opening an external terminal. Check those with `wails3 dev`.
+- Vite forwards everything under `/wails` to the backend when `DOCKLET_SERVER_URL` is set (`frontend/vite.config.ts`); the task sets it.
+
 ## Tests
 
 ```

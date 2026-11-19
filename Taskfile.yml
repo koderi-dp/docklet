@@ -10,6 +10,9 @@ vars:
     sh: |
       grep -m1 '^  version:' build/config.yml | cut -d ' ' -f4 | tr -cd '0-9A-Za-z.+-'
   VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
+  # Ports of `dev:browser`; different from VITE_PORT so it can run next to `wails3 dev`.
+  BROWSER_PORT: '{{.BROWSER_PORT | default 9250}}'
+  BROWSER_BACKEND_PORT: '{{.BROWSER_BACKEND_PORT | default 9251}}'
   # Target OS for build/package/run. Defaults to the host OS, and is overridden
   # by `wails3 build GOOS=...` (or the GOOS env var) for cross-compilation. The
   # tasks below dispatch to the matching platform Taskfile via this variable.
@@ -43,6 +46,39 @@ tasks:
     summary: Runs the application in development mode
     cmds:
       - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}
+
+  dev:browser:
+    summary: Runs the real backend in server mode and the UI in a browser, with hot reload
+    desc: |
+      Opens no desktop window. The Go backend runs in Wails server mode on BROWSER_BACKEND_PORT and Vite
+      serves the UI with hot reload on BROWSER_PORT, forwarding /wails to the backend.
+      Open http://localhost:{{.BROWSER_PORT}} in a browser.
+
+      It is the real backend: actions change real containers. The port has no authentication and is
+      bound to localhost only; stop the task when you are done. Go changes need a restart.
+    deps:
+      - dev:browser:backend
+      - dev:browser:frontend
+
+  dev:browser:backend:
+    internal: true
+    deps:
+      - task: common:build:server
+        vars:
+          DEV: "true"
+    env:
+      WAILS_SERVER_HOST: localhost
+      WAILS_SERVER_PORT: "{{.BROWSER_BACKEND_PORT}}"
+    cmds:
+      - '"./{{.BIN_DIR}}/{{.APP_NAME}}-server{{exeExt}}"'
+
+  dev:browser:frontend:
+    internal: true
+    dir: frontend
+    env:
+      DOCKLET_SERVER_URL: "http://localhost:{{.BROWSER_BACKEND_PORT}}"
+    cmds:
+      - npm run dev -- --port {{.BROWSER_PORT}} --strictPort
 
   install:msix:tools:
     summary: Installs tools required for Windows MSIX packaging
