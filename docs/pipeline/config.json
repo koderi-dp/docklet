@@ -38,7 +38,7 @@
     "parallel": 1
   },
   "runner": "subagent",
-  "merge": "pr",
+  "merge": "auto",
   "mergeMethod": "merge",
   "retain": {
     "plans": true,
