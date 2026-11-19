@@ -80,6 +80,47 @@ tasks:
     cmds:
       - npm run dev -- --port {{.BROWSER_PORT}} --strictPort
 
+  e2e:
+    summary: Runs the end-to-end tests (Playwright against Docklet and a throwaway Docker engine)
+    desc: |
+      Needs Docker on this machine. Builds Docklet for Linux in server mode, starts the test stack
+      (e2e/docker-compose.yml: a Docker-in-Docker engine with SSH, a registry and Docklet) and runs the
+      Playwright tests in e2e/tests against http://localhost:9260. The stack stays up afterwards for the
+      next run; remove it with `wails3 task e2e:down`. A failed test leaves a trace in e2e/test-results.
+    deps:
+      - e2e:up
+    dir: e2e
+    cmds:
+      - npm ci
+      - npx playwright install chromium
+      - npx playwright test
+
+  e2e:up:
+    summary: Builds and starts the end-to-end test stack
+    deps:
+      - e2e:build
+    cmds:
+      - docker compose -f e2e/docker-compose.yml up -d --build --wait
+
+  e2e:down:
+    summary: Removes the end-to-end test stack and its volumes
+    cmds:
+      - docker compose -f e2e/docker-compose.yml down -v
+
+  e2e:build:
+    summary: Cross-compiles Docklet in server mode for the test stack (Linux, no cgo)
+    internal: true
+    deps:
+      - task: common:build:frontend
+        vars:
+          BUILD_FLAGS: "-tags server,production"
+    env:
+      GOOS: linux
+      GOARCH: "{{ARCH}}"
+      CGO_ENABLED: "0"
+    cmds:
+      - go build -tags server,production -trimpath -buildvcs=false -ldflags="-w -s" -o e2e/.build/docklet-server .
+
   install:msix:tools:
     summary: Installs tools required for Windows MSIX packaging
     cmds:

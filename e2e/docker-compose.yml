@@ -1,0 +1,46 @@
+# The end-to-end test stack: a throwaway Docker engine, a registry, and Docklet in server mode.
+# Start it with `wails3 task e2e:up`; the tests open http://localhost:9260.
+name: docklet-e2e
+
+services:
+  # Holds the image the "pull" scenario pulls, so the tests do not depend on Docker Hub being reachable later.
+  registry:
+    image: registry:2
+
+  engine:
+    build: ./engine
+    privileged: true
+    hostname: engine
+    volumes:
+      - keys:/keys
+      - engine-data:/var/lib/docker
+      # Compose project files, at the same path as in the Docklet container.
+      - projects:/projects
+    healthcheck:
+      test: ["CMD", "docker", "info"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  docklet:
+    build:
+      context: .
+      dockerfile: docklet/Dockerfile
+    depends_on:
+      engine:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${DOCKLET_E2E_PORT:-9260}:8080"
+    volumes:
+      - keys:/keys:ro
+      - projects:/projects
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  keys:
+  engine-data:
+  projects:

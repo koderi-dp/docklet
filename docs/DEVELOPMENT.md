@@ -46,6 +46,35 @@ go vet . ./internal/... && go test ./internal/...
 - TypeScript bindings are generated from the Go services (`wails3 generate bindings -clean=true -ts -i`). They are not committed; the build generates them.
 - Tests are unit tests against fakes and do not need a Docker daemon.
 
+## End-to-end tests
+
+`wails3 task e2e` runs Playwright tests that drive the real UI against a throwaway Docker engine. It needs Docker on this machine and nothing else.
+
+```
+wails3 task e2e                                    # build, start the stack, run every test
+cd e2e && npx playwright test tests/images.spec.ts # one file, with the stack already up
+wails3 task e2e:down                               # remove the stack and its volumes
+```
+
+What runs (`e2e/docker-compose.yml`):
+
+- `engine`: Docker-in-Docker with an SSH server. The tests only ever touch this engine, never yours.
+- `registry`: holds the image the pull test fetches.
+- `docklet`: Docklet for Linux in Wails server mode, on `http://localhost:9260`, with an empty profile on every run.
+
+How a run goes: `e2e/support/globalSetup.ts` runs `e2e/support/seed.sh` in the engine (the containers, registry image and Compose project named in `e2e/support/names.ts`) and recreates the Docklet container. `tests/connect.setup.ts` then skips first-time setup and adds the engine over TCP; every other test depends on it. Tests share one Docklet and one engine, so they run one after another.
+
+Writing tests:
+
+- Find elements by role and visible name (`getByRole("button", { name: "Pull Image" })`). A control that cannot be found that way needs an accessible label in the frontend, not a test id.
+- Find table rows with `rowOf` from `e2e/support/app.ts`. A row's name cell changes while an action runs, so matching on it gives false results.
+- Check the result in the engine too (`containerState`, `engineDocker` in `e2e/support/engine.ts`), not only on screen.
+- Each test must work on its own after the seed. Add what it needs to `seed.sh`.
+
+A failed test leaves a screenshot and a trace in `e2e/test-results`; open the trace with `npx playwright show-trace <trace.zip>` from `e2e`.
+
+Not covered: the Windows build (WSL, named pipes), native dialogs, the tray, and SSH password auth (the container has no credential store). CI does not run these tests yet.
+
 ## Releases
 
 Push a version tag to publish a release:
