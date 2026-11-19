@@ -64,9 +64,8 @@ Download the latest installer from the [Releases](https://github.com/koderi-dp/d
 | Platform | File |
 |---|---|
 | Windows (x64) | `docklet-<version>-windows-amd64-installer.exe` |
-| Windows (ARM64) | `docklet-<version>-windows-arm64-installer.exe` |
-| Linux (experimental) | `.AppImage` or `.deb` |
-| macOS (experimental) | `.zip` |
+| Linux (experimental, not in every release) | `.AppImage` or `.deb` |
+| macOS (experimental, not in every release) | `.zip` |
 
 The installers are not code signed yet, so Windows SmartScreen and macOS Gatekeeper will show a warning the first time.
 

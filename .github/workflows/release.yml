@@ -63,14 +63,16 @@ jobs:
             echo "prerelease=$prerelease"
           } >> "$GITHUB_OUTPUT"
 
-  # Required. Runs the same checks as CI, then builds installers for amd64 and arm64 one after the other.
+  # Required. Runs the same checks as CI, then builds one installer per architecture, one after the other.
+  # Only amd64 is built unless the repository variable WINDOWS_ARCHES lists more, e.g. 'amd64 arm64'.
   windows:
-    name: Windows (amd64 + arm64)
+    name: Windows (${{ vars.WINDOWS_ARCHES || 'amd64' }})
     needs: prepare
     runs-on: ${{ fromJSON(vars.HOSTED_RUNNERS == 'true' && '"windows-latest"' || '["self-hosted","Windows","X64"]') }}
     timeout-minutes: 45
     env:
       VERSION: ${{ needs.prepare.outputs.version }}
+      ARCHES: ${{ vars.WINDOWS_ARCHES || 'amd64' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -134,12 +136,12 @@ jobs:
       # bin/docklet-<arch>-installer.exe, so each output is renamed straight away.
       # Signing: no certificate is available. Sign the .exe before packaging and the installer after
       # (`wails3 task windows:sign` / `windows:sign:installer`, see build/windows/Taskfile.yml).
-      - name: Package (amd64 and arm64)
+      - name: Package
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p dist
-          for arch in amd64 arm64; do
+          for arch in $ARCHES; do
             GOARCH="$arch" wails3 package "VERSION=$VERSION"
             if [[ "$arch" == "amd64" ]]; then
               reported="$(./bin/docklet.exe --version)"
