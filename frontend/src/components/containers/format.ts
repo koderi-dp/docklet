@@ -73,7 +73,7 @@ function isWildcardIp(ip: string | undefined): boolean {
 /** Uptime text from the Engine status ("Up 2 hours (healthy)" -> "2 hours"); undefined when not running. */
 export function uptimeLabel(c: Pick<Container, "state" | "status">): string | undefined {
   if (c.state !== "running" && c.state !== "paused") return undefined;
-  const m = /^Up\s+(.*?)(\s*\((?:Paused|healthy|unhealthy|health:.*)\))*$/i.exec(c.status.trim());
+  const m = /^Up\s+(.*?)(\s*\((?:Paused|healthy|unhealthy|health:[^)]*)\))*$/i.exec(c.status.trim());
   return m?.[1] || undefined;
 }
 

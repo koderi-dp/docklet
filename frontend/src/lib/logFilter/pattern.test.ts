@@ -74,4 +74,21 @@ describe("compilePattern", () => {
     expect(isRegexPattern(literalPattern("/x/"))).toBe(false);
     expect(compilePattern(literalPattern("a*b")).test("aXb")).toBe(false);
   });
+
+  it("literalPattern keeps backslashes literal in front of any character", () => {
+    for (const text of ["C:\\dir\\file", "a\\\\b", "ends with \\", "\\/x/"]) {
+      const p = compilePattern(literalPattern(text), { whole: true });
+      expect(p.error).toBeNull();
+      expect(p.test(text)).toBe(true);
+    }
+  });
+
+  it("a wildcard put after a backslash of a literal pattern still works", () => {
+    // The log line menu replaces digit runs by * after escaping the line.
+    const p = compilePattern(literalPattern("C:\\5 done").replace(/\d+/g, "*"), { whole: true });
+    expect(p.kind).toBe("wildcard");
+    expect(p.test("C:\\123 done")).toBe(true);
+    expect(p.test("C:\\* done")).toBe(true);
+    expect(p.test("C:5 done")).toBe(false);
+  });
 });

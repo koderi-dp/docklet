@@ -121,7 +121,9 @@ export function getPattern(src: string, opts: CompileOptions = {}): CompiledPatt
 
 /** Escapes text so that it matches itself literally when used as a pattern (for rules built from a log line). */
 export function literalPattern(text: string): string {
-  const t = text.replace(/\\(?=[*?/\\])/g, "\\\\").replace(/[*?]/g, "\\$&");
+  // Every backslash is doubled, not only one in front of a special character: the caller may turn what
+  // follows into a wildcard afterwards (digits -> *), and a single backslash would then escape it.
+  const t = text.replace(/\\/g, "\\\\").replace(/[*?]/g, "\\$&");
   // Text shaped like /regex/ would be read as one; escaping the first slash keeps it literal.
   return REGEX_FORM.test(t) ? `\\${t}` : t;
 }

@@ -116,6 +116,12 @@ describe("uptimeLabel", () => {
     expect(up("Up About an hour (Paused)", "paused")).toBe("About an hour");
     expect(up("Up Less than a second")).toBe("Less than a second");
   });
+  it("answers at once for a status with many repeated health suffixes", () => {
+    // With `health:.*` the expression backtracked exponentially on this shape (22 repeats took 127 ms,
+    // each further one doubled it); 60 would never finish.
+    const status = "Up (health:" + ")(health:".repeat(60);
+    expect(up(status)).toBe(status.slice(3));
+  });
   it("tolerates surrounding whitespace and lower case", () => {
     expect(up("  up 3 days  ")).toBe("3 days");
   });
