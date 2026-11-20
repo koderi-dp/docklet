@@ -22,8 +22,18 @@ describe("makeEntry", () => {
     expect(e.timestamp).toBe("");
     expect(e.sortKey).toBe(3);
   });
-  it("strips ANSI colours from the stored text", () => {
-    expect(makeEntry({ timestamp: "", stream: "stdout", text: "\u001b[32mok\u001b[0m" }, "c", 1, 0).text).toBe("ok");
+  it("stores the plain text of a coloured line and the styled ranges beside it", () => {
+    const e = makeEntry({ timestamp: "", stream: "stdout", text: "\u001b[31mERROR\u001b[0m boom" }, "c", 1, 0);
+    expect(e.text).toBe("ERROR boom");
+    expect(e.level).toBe("error");
+    expect(e.ansi).toEqual([{ start: 0, end: 5, style: { fg: 1 } }]);
+  });
+  it("keeps no range list for a line without escape codes", () => {
+    expect("ansi" in makeEntry({ timestamp: "", stream: "stdout", text: "plain" }, "c", 1, 0)).toBe(false);
+  });
+  it("copies and downloads coloured lines as plain text", () => {
+    const e = makeEntry({ timestamp: "", stream: "stdout", text: "\u001b[1;32mok\u001b[0m \u001b]0;t\u0007done" }, "c", 1, 0);
+    expect(formatEntries([e], { timestamps: false, container: false })).toBe("ok done");
   });
 });
 
