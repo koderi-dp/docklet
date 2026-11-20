@@ -1,12 +1,12 @@
 {
 	"fixed": {
-		"file_version": "0.5.1",
-		"product_version": "0.5.1"
+		"file_version": "0.5.2",
+		"product_version": "0.5.2"
 	},
 	"info": {
 		"0409": {
-			"FileVersion": "0.5.1",
-			"ProductVersion": "0.5.1",
+			"FileVersion": "0.5.2",
+			"ProductVersion": "0.5.2",
 			"CompanyName": "Docklet",
 			"FileDescription": "Desktop client for existing Docker Engines",
 			"LegalCopyright": "(c) 2026 Danijel",
