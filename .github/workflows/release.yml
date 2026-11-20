@@ -2,11 +2,7 @@ name: Release
 
 # Push a tag like v0.2.0 (or v0.2.0-rc.1 for a pre-release), or run this workflow by hand with a version.
 # A manual run creates the tag on the commit it was started from.
-# Runners: jobs run on the self-hosted Windows runner (labels self-hosted, Windows, X64) unless the
-# repository variable HOSTED_RUNNERS is 'true', which switches back to GitHub-hosted machines and enables the
-# native Linux and macOS jobs. Linux is covered on the self-hosted runner by a Docker container when the
-# variable RUNNER_HAS_DOCKER is 'true' (the runner's service account must be allowed to use Docker).
-# macOS installers are only built on GitHub-hosted runners.
+# Runners: every job runs on a GitHub-hosted machine.
 on:
   push:
     tags: ["v*.*.*"]
@@ -27,19 +23,13 @@ env:
 jobs:
   prepare:
     name: Resolve version
-    runs-on: ${{ fromJSON(vars.HOSTED_RUNNERS == 'true' && '"ubuntu-24.04"' || '["self-hosted","Windows","X64"]') }}
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       version: ${{ steps.v.outputs.version }}
       tag: ${{ steps.v.outputs.tag }}
       prerelease: ${{ steps.v.outputs.prerelease }}
     steps:
-      # On a self-hosted Windows machine plain "bash" can resolve to the WSL launcher in System32.
-      - name: Use Git Bash on the self-hosted runner
-        if: runner.environment == 'self-hosted'
-        shell: pwsh
-        run: '"C:/Program Files/Git/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append'
-
       - id: v
         name: Derive version from the tag or input
         shell: bash
@@ -68,7 +58,7 @@ jobs:
   windows:
     name: Windows (${{ vars.WINDOWS_ARCHES || 'amd64' }})
     needs: prepare
-    runs-on: ${{ fromJSON(vars.HOSTED_RUNNERS == 'true' && '"windows-latest"' || '["self-hosted","Windows","X64"]') }}
+    runs-on: windows-latest
     timeout-minutes: 45
     env:
       VERSION: ${{ needs.prepare.outputs.version }}
@@ -76,22 +66,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # On a self-hosted Windows machine plain "bash" can resolve to the WSL launcher in System32.
-      - name: Use Git Bash on the self-hosted runner
-        if: runner.environment == 'self-hosted'
-        shell: pwsh
-        run: '"C:/Program Files/Git/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append'
-
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-          # A self-hosted runner keeps its caches on disk; uploading them to GitHub only costs time.
-          cache: ${{ runner.environment != 'self-hosted' }}
 
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: ${{ runner.environment != 'self-hosted' && 'npm' || '' }}
+          cache: npm
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install Wails CLI
@@ -163,7 +145,6 @@ jobs:
   # Required. Linux packages: AppImage and .deb. arm64 runs on GitHub's ubuntu-24.04-arm runner and is optional.
   linux:
     name: Linux (${{ matrix.arch }})
-    if: vars.HOSTED_RUNNERS == 'true'
     needs: prepare
     runs-on: ${{ matrix.runner }}
     continue-on-error: ${{ matrix.optional }}
@@ -182,13 +163,11 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-          # A self-hosted runner keeps its caches on disk; uploading them to GitHub only costs time.
-          cache: ${{ runner.environment != 'self-hosted' }}
 
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: ${{ runner.environment != 'self-hosted' && 'npm' || '' }}
+          cache: npm
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install system packages
@@ -244,45 +223,9 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  # Linux packages on the self-hosted Windows runner, built in a Docker container (amd64 only).
-  linux-container:
-    name: Linux (amd64, container)
-    if: vars.HOSTED_RUNNERS != 'true' && vars.RUNNER_HAS_DOCKER == 'true'
-    needs: prepare
-    runs-on: [self-hosted, Windows, X64]
-    timeout-minutes: 45
-    env:
-      VERSION: ${{ needs.prepare.outputs.version }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build the Linux toolchain image
-        shell: pwsh
-        run: |
-          $go = (Select-String -Path go.mod -Pattern '^go ([0-9.]+)').Matches[0].Groups[1].Value
-          docker build -f .github/ci/linux.Dockerfile --build-arg "GO_VERSION=$go" --build-arg "WAILS_VERSION=$env:WAILS_VERSION" -t docklet-ci-linux .github/ci
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-      - name: Package (AppImage and deb) in the container
-        shell: pwsh
-        run: |
-          $out = Join-Path $env:RUNNER_TEMP "linux-out"
-          Remove-Item -Recurse -Force $out -ErrorAction SilentlyContinue
-          New-Item -ItemType Directory -Force $out | Out-Null
-          docker run --rm -v "${env:GITHUB_WORKSPACE}:/src:ro" -v "${out}:/out" -v docklet-ci-gomod:/root/go/pkg/mod -v docklet-ci-gobuild:/root/.cache/go-build -v docklet-ci-npm:/root/.npm docklet-ci-linux bash /src/.github/scripts/linux-package.sh "$env:VERSION" amd64
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: release-linux-amd64
-          path: ${{ runner.temp }}/linux-out/*
-          if-no-files-found: error
-          retention-days: 1
-
-  # Optional: the macOS build has never run anywhere yet. If it fails, the release goes out without it.
+  # Optional: if the macOS build fails, the release goes out without it.
   macos:
     name: macOS (arm64)
-    if: vars.HOSTED_RUNNERS == 'true'
     needs: prepare
     runs-on: macos-latest
     continue-on-error: true
@@ -295,13 +238,11 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-          # A self-hosted runner keeps its caches on disk; uploading them to GitHub only costs time.
-          cache: ${{ runner.environment != 'self-hosted' }}
 
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: ${{ runner.environment != 'self-hosted' && 'npm' || '' }}
+          cache: npm
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install Wails CLI
@@ -338,9 +279,9 @@ jobs:
   # builds are new and unproven): other platforms are included when they produced an artifact, skipped otherwise.
   release:
     name: Create GitHub Release
-    needs: [prepare, windows, linux, linux-container, macos]
+    needs: [prepare, windows, linux, macos]
     if: ${{ always() && needs.windows.result == 'success' }}
-    runs-on: ${{ fromJSON(vars.HOSTED_RUNNERS == 'true' && '"ubuntu-24.04"' || '["self-hosted","Windows","X64"]') }}
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
       contents: write
@@ -351,12 +292,6 @@ jobs:
       TAG: ${{ needs.prepare.outputs.tag }}
       PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
     steps:
-      # On a self-hosted Windows machine plain "bash" can resolve to the WSL launcher in System32.
-      - name: Use Git Bash on the self-hosted runner
-        if: runner.environment == 'self-hosted'
-        shell: pwsh
-        run: '"C:/Program Files/Git/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append'
-
       # Missing optional artifacts simply do not appear in dist/.
       - uses: actions/download-artifact@v4
         with:

@@ -2,7 +2,7 @@
 
 ## before dispatch
 
-- Stop before anything that needs a real registry account, a code-signing certificate, a force push or a change to the CI runner's service account: these are the user's decisions.
+- Stop before anything that needs a real registry account, a code-signing certificate, a force push: these are the user's decisions.
 
 ## in every implementer brief
 
@@ -21,4 +21,4 @@
 
 ## after merge
 
-- Read the real conclusion of the CI run on the self-hosted runner; never tag a commit whose message contains `[skip ci]`.
+- Read the real conclusion of the CI run; never tag a commit whose message contains `[skip ci]`.
