@@ -1,6 +1,6 @@
 // The unit shown by every log view: one Engine log line, analysed once when it arrives.
 import type { LogLine } from "@bindings/model";
-import { stripAnsi } from "@/lib/ansi";
+import { parseAnsi, type AnsiSpan } from "@/lib/ansi";
 import { detectLevel } from "@/lib/logLevel";
 import { parseLogTime } from "@/lib/logRange";
 import type { FilterableLine } from "@/lib/logFilter/rules";
@@ -13,6 +13,8 @@ export interface LogEntry extends FilterableLine {
   timestamp: string;
   /** Position in the merged stream: the Engine time, or the previous line's key when the time cannot be read. */
   sortKey: number;
+  /** Ranges of `text` the program styled with ANSI codes; absent for a line without any. */
+  ansi?: readonly AnsiSpan[];
 }
 
 /**
@@ -20,9 +22,9 @@ export interface LogEntry extends FilterableLine {
  * (they sort by arrival, right after the line that came before them).
  */
 export function makeEntry(line: LogLine, container: string, seq: number, fallbackKey: number): LogEntry {
-  const text = stripAnsi(line.text);
+  const { text, spans } = parseAnsi(line.text);
   const time = parseLogTime(line.timestamp);
-  return {
+  const entry: LogEntry = {
     seq,
     container,
     stream: line.stream,
@@ -32,6 +34,8 @@ export function makeEntry(line: LogLine, container: string, seq: number, fallbac
     time,
     sortKey: time ?? fallbackKey,
   };
+  if (spans) entry.ansi = spans;
+  return entry;
 }
 
 const pad = (n: number, w = 2) => String(n).padStart(w, "0");

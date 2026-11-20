@@ -88,6 +88,25 @@
   --log-tag-6: oklch(0.5 0.15 300);
   --log-tag-7: oklch(0.5 0.15 115);
   --log-tag-8: oklch(0.5 0.15 25);
+  /* The 16 named ANSI colours of log lines (0-7 standard, 8-15 bright), readable on the light log background. */
+  --ansi-0: oklch(0.25 0.02 250);
+  --ansi-1: oklch(0.5 0.18 25);
+  --ansi-2: oklch(0.5 0.14 145);
+  --ansi-3: oklch(0.52 0.12 80);
+  --ansi-4: oklch(0.5 0.17 258);
+  --ansi-5: oklch(0.5 0.18 330);
+  --ansi-6: oklch(0.5 0.1 205);
+  --ansi-7: oklch(0.52 0.02 250);
+  --ansi-8: oklch(0.45 0.02 250);
+  --ansi-9: oklch(0.58 0.22 25);
+  --ansi-10: oklch(0.58 0.17 145);
+  --ansi-11: oklch(0.6 0.14 80);
+  --ansi-12: oklch(0.58 0.2 258);
+  --ansi-13: oklch(0.58 0.22 330);
+  --ansi-14: oklch(0.58 0.12 205);
+  --ansi-15: oklch(0.6 0.02 250);
+  /* Black, white or uncoloured text on one of them used as a background. */
+  --ansi-on-bg: #ffffff;
   --search-match: oklch(0.88 0.13 95);
   --search-current: oklch(0.72 0.18 55);
   --search-current-foreground: #0f1623;
@@ -130,6 +149,24 @@
   --log-tag-6: oklch(0.76 0.13 300);
   --log-tag-7: oklch(0.76 0.13 115);
   --log-tag-8: oklch(0.76 0.13 25);
+  /* The 16 named ANSI colours of log lines, readable on the dark log background. */
+  --ansi-0: oklch(0.6 0.02 250);
+  --ansi-1: oklch(0.72 0.16 25);
+  --ansi-2: oklch(0.76 0.15 145);
+  --ansi-3: oklch(0.8 0.13 85);
+  --ansi-4: oklch(0.72 0.13 258);
+  --ansi-5: oklch(0.74 0.15 330);
+  --ansi-6: oklch(0.78 0.1 205);
+  --ansi-7: oklch(0.87 0.01 250);
+  --ansi-8: oklch(0.7 0.02 250);
+  --ansi-9: oklch(0.8 0.15 25);
+  --ansi-10: oklch(0.86 0.17 145);
+  --ansi-11: oklch(0.9 0.14 90);
+  --ansi-12: oklch(0.82 0.11 258);
+  --ansi-13: oklch(0.84 0.13 330);
+  --ansi-14: oklch(0.88 0.1 205);
+  --ansi-15: oklch(0.98 0 0);
+  --ansi-on-bg: #0b1019;
   --search-match: oklch(0.5 0.1 95 / 0.75);
   --search-current: oklch(0.82 0.17 85);
   --search-current-foreground: #0f1623;

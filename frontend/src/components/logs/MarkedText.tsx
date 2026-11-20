@@ -2,6 +2,10 @@ import { Fragment } from "react";
 import { cn } from "@/lib/utils";
 import type { TextRange } from "@/lib/logFilter/search";
 
+/** How a search match is drawn; the current one is stronger. */
+export const markClass = (current: boolean) =>
+  cn("rounded-[2px] px-px", current ? "bg-search-current text-search-current-foreground ring-1 ring-foreground/60" : "bg-search-match text-foreground");
+
 /** A message with the search matches marked. The current match is drawn stronger. */
 export function MarkedText({ text, ranges, current }: { text: string; ranges: readonly TextRange[]; current: boolean }) {
   const parts: React.ReactNode[] = [];
@@ -9,10 +13,7 @@ export function MarkedText({ text, ranges, current }: { text: string; ranges: re
   ranges.forEach((r, i) => {
     if (r.start > at) parts.push(<Fragment key={`t${i}`}>{text.slice(at, r.start)}</Fragment>);
     parts.push(
-      <mark
-        key={`m${i}`}
-        className={cn("rounded-[2px] px-px", current ? "bg-search-current text-search-current-foreground ring-1 ring-foreground/60" : "bg-search-match text-foreground")}
-      >
+      <mark key={`m${i}`} className={markClass(current)}>
         {text.slice(r.start, r.end)}
       </mark>,
     );

@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RefreshCw } from "lucide-react";
+import { AnsiText } from "@/components/logs/AnsiText";
 import { Button } from "@/components/ui/button";
 import { useComposeLogs } from "@/hooks/useCompose";
+import { parseAnsi } from "@/lib/ansi";
 import { cn } from "@/lib/utils";
 
 const TAILS = [200, 500, 1000, 2000];
 const selectCls =
   "h-8 rounded-md border border-border bg-background px-2 text-[13px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/60";
+
+const NO_MARKS: never[] = [];
 
 function time(ts: string): string {
   const d = new Date(ts);
@@ -19,7 +23,7 @@ export function LogsTab({ connectionId, project, services, active }: { connectio
   const [tail, setTail] = useState(500);
   const q = useComposeLogs(connectionId, project, tail, active);
   const box = useRef<HTMLDivElement>(null);
-  const lines = useMemo(() => (q.data ?? []).filter((l) => service === "all" || l.service === service), [q.data, service]);
+  const lines = useMemo(() => (q.data ?? []).filter((l) => service === "all" || l.service === service).map((l) => ({ ...l, ...parseAnsi(l.text) })), [q.data, service]);
 
   useEffect(() => {
     if (box.current) box.current.scrollTop = box.current.scrollHeight;
@@ -69,7 +73,7 @@ export function LogsTab({ connectionId, project, services, active }: { connectio
                 <span className="w-24 shrink-0 truncate text-info" title={l.container}>
                   {l.service || l.container}
                 </span>
-                <span className={cn(l.stream === "stderr" && "text-warning")}>{l.text}</span>
+                <span className={cn(l.stream === "stderr" && "text-warning")}>{l.spans ? <AnsiText text={l.text} spans={l.spans} ranges={NO_MARKS} current={false} /> : l.text}</span>
               </div>
             ))
           )}
