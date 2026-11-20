@@ -1,0 +1,54 @@
+name: Set up the Docklet build
+description: >
+  Go, Node, the Wails CLI, the frontend dependencies, the generated bindings and the built frontend.
+  Run it after actions/checkout (and, on Linux, after the GTK/WebKit packages are installed).
+
+# The tool versions live here and nowhere else.
+inputs:
+  wails-version:
+    description: Wails CLI version
+    default: v3.1.0
+  node-version:
+    description: Node.js version
+    default: "22"
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-go@v5
+      with:
+        go-version-file: go.mod
+
+    - uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: npm
+        cache-dependency-path: frontend/package-lock.json
+
+    # Compiling the CLI takes about a minute; the binary is kept per OS, architecture and version.
+    - id: wails-cache
+      uses: actions/cache@v4
+      with:
+        path: ~/go/bin/wails3*
+        key: wails3-${{ runner.os }}-${{ runner.arch }}-${{ inputs.wails-version }}
+
+    - name: Install Wails CLI
+      if: steps.wails-cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ inputs.wails-version }}
+
+    - name: Install frontend dependencies
+      shell: bash
+      working-directory: frontend
+      run: npm ci
+
+    # The TypeScript types are generated from the Go services and are not committed.
+    - name: Generate bindings
+      shell: bash
+      run: wails3 generate bindings -clean=true -ts -i
+
+    # Runs tsc first, so this is also the typecheck. main.go embeds frontend/dist, so it comes before any Go step.
+    - name: Frontend build
+      shell: bash
+      working-directory: frontend
+      run: npm run build

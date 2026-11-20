@@ -3,6 +3,8 @@ name: Release
 # Push a tag like v0.2.0 (or v0.2.0-rc.1 for a pre-release), or run this workflow by hand with a version.
 # A manual run creates the tag on the commit it was started from.
 # Runners: every job runs on a GitHub-hosted machine.
+# The shared setup (Go, Node, Wails CLI, bindings, frontend build) is .github/actions/setup.
+# Rerunning a run whose release already exists adds or replaces its files.
 on:
   push:
     tags: ["v*.*.*"]
@@ -15,10 +17,6 @@ on:
 
 permissions:
   contents: read
-
-env:
-  WAILS_VERSION: v3.1.0
-  NODE_VERSION: "22"
 
 jobs:
   prepare:
@@ -53,7 +51,7 @@ jobs:
             echo "prerelease=$prerelease"
           } >> "$GITHUB_OUTPUT"
 
-  # Required. Runs the same checks as CI, then builds one installer per architecture, one after the other.
+  # Required. The tagged commit has already been through CI, so this only builds: one installer per architecture, one after the other.
   # amd64 and arm64 are built unless the repository variable WINDOWS_ARCHES says otherwise, e.g. 'amd64'.
   windows:
     name: Windows (${{ vars.WINDOWS_ARCHES || 'amd64 arm64' }})
@@ -66,43 +64,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install Wails CLI
-        run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
-
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: npm ci
-
-      - name: Generate bindings
-        run: wails3 generate bindings -clean=true -ts -i
-
-      - name: Frontend typecheck
-        working-directory: frontend
-        run: npx tsc --noEmit
-
-      - name: Frontend tests
-        working-directory: frontend
-        run: npm test
-
-      - name: Frontend build
-        working-directory: frontend
-        run: npm run build
-
-      - name: Go vet
-        run: go vet . ./internal/...
-
-      - name: Go tests
-        run: go test ./internal/...
+      - uses: ./.github/actions/setup
 
       - name: Install NSIS
         shell: bash
@@ -160,16 +122,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
       - name: Install system packages
         shell: bash
         run: |
@@ -178,19 +130,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev file
 
-      - name: Install Wails CLI
-        run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
-
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: npm ci
-
-      - name: Generate bindings
-        run: wails3 generate bindings -clean=true -ts -i
-
-      - name: Frontend build
-        working-directory: frontend
-        run: npm run build
+      - uses: ./.github/actions/setup
 
       # Only the AppImage and the .deb are published (the scaffold can also make .rpm and Arch packages).
       # Names produced by the tools are matched with globs and renamed to the release asset names.
@@ -235,29 +175,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install Wails CLI
-        run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
-
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: npm ci
-
-      - name: Generate bindings
-        run: wails3 generate bindings -clean=true -ts -i
-
-      - name: Frontend build
-        working-directory: frontend
-        run: npm run build
+      - uses: ./.github/actions/setup
 
       # Signing and notarisation would go here (no Apple certificate is available).
       - name: Package .app
@@ -323,4 +241,9 @@ jobs:
           else
             args+=(--target "$GITHUB_SHA")
           fi
-          gh release create "$TAG" dist/* "${args[@]}"
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "Release $TAG exists: uploading its files again."
+            gh release upload "$TAG" dist/* --clobber
+          else
+            gh release create "$TAG" dist/* "${args[@]}"
+          fi

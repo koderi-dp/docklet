@@ -1,6 +1,8 @@
 name: CI
 
 # Runners: every job runs on a GitHub-hosted machine.
+# The shared setup (Go, Node, Wails CLI, bindings, frontend build) is .github/actions/setup.
+# No binaries are kept: installers come from the Release workflow.
 
 on:
   push:
@@ -17,10 +19,6 @@ concurrency:
 permissions:
   contents: read
 
-env:
-  WAILS_VERSION: v3.1.0
-  NODE_VERSION: "22"
-
 jobs:
   test-and-build:
     name: Test and build (Windows)
@@ -29,39 +27,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install Wails CLI
-        run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
-
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: npm ci
-
-      # The TypeScript types are generated from the Go services and are not committed.
-      - name: Generate bindings
-        run: wails3 generate bindings -clean=true -ts -i
-
-      - name: Frontend typecheck
-        working-directory: frontend
-        run: npx tsc --noEmit
+      - uses: ./.github/actions/setup
 
       - name: Frontend tests
         working-directory: frontend
         run: npm test
-
-      # main.go embeds frontend/dist, so the frontend must be built before any Go step.
-      - name: Frontend build
-        working-directory: frontend
-        run: npm run build
 
       - name: Go vet
         run: go vet . ./internal/...
@@ -77,8 +47,6 @@ jobs:
           reported="$(./bin/docklet.exe --version)"
           echo "$reported"
           echo "$reported" | grep -q "^Docklet "
-          mkdir -p dist
-          mv bin/docklet.exe dist/docklet-windows-amd64.exe
 
       # Go cross-compiles windows/arm64 without cgo. The architecture is selected with GOARCH
       # (this also makes the generated .syso resource file arm64). Build only: it cannot run on this runner.
@@ -86,24 +54,7 @@ jobs:
         shell: bash
         env:
           GOARCH: arm64
-        run: |
-          set -euo pipefail
-          wails3 build
-          mv bin/docklet.exe dist/docklet-windows-arm64.exe
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: docklet-windows-amd64
-          path: dist/docklet-windows-amd64.exe
-          if-no-files-found: error
-          retention-days: 3
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: docklet-windows-arm64
-          path: dist/docklet-windows-arm64.exe
-          if-no-files-found: error
-          retention-days: 3
+        run: wails3 build
 
   # Linux: exercises the non-Windows code paths (unix sockets, proc_other.go, path handling),
   # builds the GTK4 / WebKitGTK 6.0 app and smoke-tests that it starts under a virtual display.
@@ -114,16 +65,6 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
 
       # Wails v3.1 links GTK 4 and WebKitGTK 6.0 (the list `wails3 doctor` checks on apt systems).
       # xvfb, dbus and Mesa are only needed for the smoke test.
@@ -136,19 +77,7 @@ jobs:
             build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev \
             xvfb dbus dbus-x11 libgl1-mesa-dri
 
-      - name: Install Wails CLI
-        run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
-
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: npm ci
-
-      - name: Generate bindings
-        run: wails3 generate bindings -clean=true -ts -i
-
-      - name: Frontend build
-        working-directory: frontend
-        run: npm run build
+      - uses: ./.github/actions/setup
 
       - name: Go vet
         run: go vet . ./internal/...
@@ -217,13 +146,6 @@ jobs:
           DOCKLET_LOG: ${{ runner.temp }}/installed.log
         run: bash .github/scripts/linux-smoke.sh stays-up /usr/bin/docklet
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: docklet-linux-amd64
-          path: bin/docklet
-          if-no-files-found: error
-          retention-days: 3
-
   # macOS (Apple Silicon): vet, tests and a build. Nobody here has a Mac to debug on, so this job
   # may fail without blocking the others; check its log when it does.
   macos:
@@ -234,29 +156,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install Wails CLI
-        run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
-
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: npm ci
-
-      - name: Generate bindings
-        run: wails3 generate bindings -clean=true -ts -i
-
-      - name: Frontend build
-        working-directory: frontend
-        run: npm run build
+      - uses: ./.github/actions/setup
 
       - name: Go vet
         run: go vet . ./internal/...
@@ -268,16 +168,3 @@ jobs:
       # `wails3 setup signing`); no Apple certificate is available.
       - name: Package
         run: wails3 package
-
-      - name: Zip the app
-        shell: bash
-        run: |
-          set -euo pipefail
-          ditto -c -k --keepParent bin/docklet.app bin/docklet-macos-arm64.zip
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: docklet-macos-arm64
-          path: bin/docklet-macos-arm64.zip
-          if-no-files-found: error
-          retention-days: 3
