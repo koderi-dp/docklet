@@ -107,14 +107,14 @@ jobs:
           name: docklet-windows-amd64
           path: dist/docklet-windows-amd64.exe
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 3
 
       - uses: actions/upload-artifact@v4
         with:
           name: docklet-windows-arm64
           path: dist/docklet-windows-arm64.exe
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 3
 
   # Linux: exercises the non-Windows code paths (unix sockets, proc_other.go, path handling),
   # builds the GTK4 / WebKitGTK 6.0 app and smoke-tests that it starts under a virtual display.
@@ -236,7 +236,7 @@ jobs:
           name: docklet-linux-amd64
           path: bin/docklet
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 3
 
   # Linux on the self-hosted Windows runner: the same vet, tests and build inside a Docker container.
   # It cannot run the .deb and AppArmor smoke tests of the job above (those need a real Ubuntu machine).
@@ -320,4 +320,4 @@ jobs:
           name: docklet-macos-arm64
           path: bin/docklet-macos-arm64.zip
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 3
