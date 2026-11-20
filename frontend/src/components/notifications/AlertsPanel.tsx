@@ -51,7 +51,7 @@ function AlertRow({ alert, onOpen, onMute }: { alert: Alert; onOpen: () => void;
   );
 }
 
-/** The "Alerts" tab of the activity center. */
+/** The alerts list shown in the top-bar Alerts popover. */
 export function AlertsPanel() {
   const { alerts, isLoading, error, unreadCount } = useAlerts();
   const { markAllRead, clear } = useAlertActions();

@@ -37,7 +37,7 @@ export function ComposeManagedPanel({ connectionId, info, onCopy, onClose }: Pro
         return;
       }
       await ComposeService.UpService(connectionId, project, service, { build: false, removeOrphans: false, profiles: null });
-      toast.info(`Compose is updating ${service}`, { description: "Follow the progress in the Activity center." });
+      toast.info(`Compose is updating ${service}`, { description: "Follow the progress in Operations." });
       onClose();
     } catch (e) {
       toast.error("Could not update with Compose", { description: errorMessage(e), duration: Infinity, closeButton: true });

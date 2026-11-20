@@ -6,7 +6,6 @@ import { AppService } from "@bindings/services";
 import type { AppSettings, TrayOpen, TraySelectConnection, UpdateStatus } from "@bindings/model";
 import { toastError } from "@/lib/errors";
 import { useSelectConnection } from "@/hooks/useActiveConnection";
-import { useOpsStore } from "@/hooks/useOperations";
 import { useUI } from "@/stores/uiStore";
 
 export const appSettingsKey = ["app-settings"] as const;
@@ -67,8 +66,7 @@ export function useTrayEvents() {
     const offOpen = Events.On("tray:open", (ev: { data?: unknown }) => {
       const d = data<TrayOpen>(ev);
       if (d?.target === "alerts") {
-        useUI.getState().setActivityTab("alerts");
-        useOpsStore.getState().setCenterOpen(true);
+        useUI.getState().setAlertsOpen(true);
       } else if (d?.target === "container" && d.containerId) {
         void (async () => {
           if (useUI.getState().activeConnectionId !== d.connectionId) await select(d.connectionId);

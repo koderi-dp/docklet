@@ -8,7 +8,8 @@ import { isPodmanKind } from "@/lib/engineKind";
 import { EngineBadge } from "@/components/connections/EngineBadge";
 import { stateText } from "@/components/connections/connectionMeta";
 import { Button } from "@/components/ui/button";
-import OperationCenter from "@/components/activity/OperationCenter";
+import OperationsButton from "@/components/activity/OperationsButton";
+import AlertsButton from "@/components/notifications/AlertsButton";
 import { RegistrySignInHost } from "@/components/registries/RegistrySignInDialog";
 import {
   DropdownMenu,
@@ -94,7 +95,8 @@ export default function TopBar() {
         <span className="min-w-0 flex-1 truncate text-sm">Search resources…</span>
         <kbd className="hidden text-xs lg:inline">{shortcutLabel("K")}</kbd>
       </button>
-      <OperationCenter />
+      <OperationsButton />
+      <AlertsButton />
       <RegistrySignInHost />
       <Button variant="ghost" size="icon" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label="Toggle theme">
         {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}

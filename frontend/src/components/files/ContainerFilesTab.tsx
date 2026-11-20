@@ -11,14 +11,14 @@ import { errorMessage } from "@/lib/errors";
 export function ContainerFilesTab({ connectionId, containerId, containerName, state }: { connectionId: string; containerId: string; containerName: string; state: string }) {
   const backend = useContainerFileBackend(connectionId, containerId);
   const caps = useFileCaps(connectionId, containerId, state);
-  const { setCenterOpen } = useOperations();
+  const { openOperations } = useOperations();
 
   const exportFs = async () => {
     try {
       const dest = await DialogService.PickSavePath("Export container filesystem", `${containerName}.tar`);
       if (!dest) return;
       const op = await FileService.ExportFilesystem(connectionId, containerId, dest);
-      toast.info(`Export started: ${op.title}`, { description: "Progress is shown in the Activity center.", action: { label: "View", onClick: () => setCenterOpen(true) } });
+      toast.info(`Export started: ${op.title}`, { description: "Progress is shown in Operations.", action: { label: "View", onClick: () => openOperations(op.id) } });
     } catch (e) {
       toast.error("Could not start the export", { description: errorMessage(e), duration: Infinity, closeButton: true });
     }

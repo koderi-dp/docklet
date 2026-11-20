@@ -35,7 +35,7 @@ async function readGreeting(connectionId: string, id: string): Promise<string | 
 }
 
 /**
- * Pulls hello-world (an operation, also listed in Activity), runs it once and removes the container again.
+ * Pulls hello-world (an operation, also listed in Operations), runs it once and removes the container again.
  * The image stays on the engine. Everything reported here was read from the engine.
  */
 export async function runHelloWorld(connectionId: string, onStep: (s: HelloStep) => void): Promise<HelloResult> {

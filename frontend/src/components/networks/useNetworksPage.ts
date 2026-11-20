@@ -95,7 +95,7 @@ export function useNetworksPage(connectionId: string) {
     setPruneOpen(false);
     try {
       await prune.mutateAsync();
-      toast.info("Network prune started", { description: "Progress is shown in the Activity Center." });
+      toast.info("Network prune started", { description: "Progress is shown in Operations." });
     } catch (e) {
       toast.error("Could not start network prune", { description: errorMessage(e), duration: Infinity, closeButton: true });
     }

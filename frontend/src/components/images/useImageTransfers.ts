@@ -9,7 +9,7 @@ import { toastError } from "@/lib/errors";
 
 /** Native-dialog driven Save / Load. Both run as background operations. */
 export function useImageTransfers(connectionId: string) {
-  const { setCenterOpen } = useOperations();
+  const { openOperations } = useOperations();
   const save = useSaveImages(connectionId);
   const load = useLoadImage(connectionId);
 
@@ -23,14 +23,14 @@ export function useImageTransfers(connectionId: string) {
         if (!dest) return;
         const op = await save.mutateAsync({ refs, destPath: dest });
         toast.success(`Saving ${op.title.replace(/^Save /, "")}`, {
-          description: "Progress is shown in the Activity center.",
-          action: { label: "View", onClick: () => setCenterOpen(true) },
+          description: "Progress is shown in Operations.",
+          action: { label: "View", onClick: () => openOperations(op.id) },
         });
       } catch (e) {
         toastError("Could not start save", e);
       }
     },
-    [save, setCenterOpen],
+    [save, openOperations],
   );
 
   const loadImage = useCallback(async () => {
@@ -39,13 +39,13 @@ export function useImageTransfers(connectionId: string) {
       if (!src) return;
       const op = await load.mutateAsync(src);
       toast.success(`Loading ${op.resource}`, {
-        description: "Progress is shown in the Activity center.",
-        action: { label: "View", onClick: () => setCenterOpen(true) },
+        description: "Progress is shown in Operations.",
+        action: { label: "View", onClick: () => openOperations(op.id) },
       });
     } catch (e) {
       toastError("Could not start load", e);
     }
-  }, [load, setCenterOpen]);
+  }, [load, openOperations]);
 
   return { saveImages, loadImage, busy: save.isPending || load.isPending };
 }

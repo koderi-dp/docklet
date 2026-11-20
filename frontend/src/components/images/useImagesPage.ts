@@ -14,7 +14,7 @@ import { useTableSort } from "@/lib/useTableSort";
 export function useImagesPage(connectionId: string) {
   const inspectorWidth = useUI((s) => s.inspectorWidth);
   const setInspectorWidth = useUI((s) => s.setInspectorWidth);
-  const { setCenterOpen } = useOperations();
+  const { openOperations } = useOperations();
 
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<ImageFilter>("all");
@@ -132,7 +132,7 @@ export function useImagesPage(connectionId: string) {
       const op = await prune.mutateAsync();
       toast.success("Removing dangling images", {
         description: op.title,
-        action: { label: "View", onClick: () => setCenterOpen(true) },
+        action: { label: "View", onClick: () => openOperations(op.id) },
       });
     } catch (e) {
       toast.error("Could not start cleanup", { description: errorMessage(e), duration: Infinity, closeButton: true });

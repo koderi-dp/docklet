@@ -36,7 +36,7 @@ export function BuildImageDialog({ connectionId, engineName, open, onOpenChange,
   const [touched, setTouched] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const build = useBuildImage(connectionId);
-  const { setCenterOpen } = useOperations();
+  const { openOperations } = useOperations();
   const plan = useBuildPlan(connectionId, form, open);
 
   useEffect(() => {
@@ -97,8 +97,8 @@ export function BuildImageDialog({ connectionId, engineName, open, onOpenChange,
       onOpenChange(false);
       onStarted?.(op);
       toast.success(`Build started: ${op.resource}`, {
-        description: "Progress is shown on the Builds tab and in the Activity center.",
-        action: { label: "View", onClick: () => setCenterOpen(true) },
+        description: "Progress is shown on the Builds tab and in Operations.",
+        action: { label: "View", onClick: () => openOperations(op.id) },
       });
     } catch (e) {
       setServerError(errorMessage(e));
@@ -115,7 +115,7 @@ export function BuildImageDialog({ connectionId, engineName, open, onOpenChange,
           <DialogTitle>Build image</DialogTitle>
           <DialogDescription>
             Build on <span className="font-medium text-foreground">{engineName}</span>. Closing this dialog does not cancel the build; progress and cancel are on
-            the Builds tab and in the Activity center.
+            the Builds tab and in Operations.
           </DialogDescription>
         </DialogHeader>
 

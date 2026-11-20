@@ -18,7 +18,7 @@ interface Options {
 /** State and actions of one file browser: navigation, selection, preview and file operations. */
 export function useFileBrowser(backend: FileBackend, { writeDisabledReason, deleteDisabledReason }: Options) {
   const qc = useQueryClient();
-  const { setCenterOpen } = useOperations();
+  const { openOperations } = useOperations();
   const [path, setPath] = useState("/");
   const [pathInput, setPathInput] = useState("/");
   const [selected, setSelected] = useState<FileEntry | null>(null);
@@ -49,7 +49,7 @@ export function useFileBrowser(backend: FileBackend, { writeDisabledReason, dele
   const deleteReason = !backend.remove ? "This view is read-only." : deleteDisabledReason;
 
   const started = (op: Operation, what: string) =>
-    toast.info(`${what} started: ${op.title}`, { description: "Progress is shown in the Activity center.", action: { label: "View", onClick: () => setCenterOpen(true) } });
+    toast.info(`${what} started: ${op.title}`, { description: "Progress is shown in Operations.", action: { label: "View", onClick: () => openOperations(op.id) } });
 
   /** Runs a toolbar action with the busy flag set and a persistent toast on failure. */
   const guarded = async (failure: string, fn: () => Promise<void>) => {

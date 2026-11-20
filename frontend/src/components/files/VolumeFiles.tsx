@@ -26,11 +26,11 @@ import { toastError } from "@/lib/errors";
 export function VolumeFileActions({ connectionId, volume }: { connectionId: string; volume: Volume }) {
   const [browse, setBrowse] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const { setCenterOpen } = useOperations();
+  const { openOperations } = useOperations();
   const running = (volume.inUseBy ?? []).filter((u) => u.state === "running");
 
   const started = (op: Operation, what: string) =>
-    toast.info(`${what} started: ${op.title}`, { description: "Progress is shown in the Activity center.", action: { label: "View", onClick: () => setCenterOpen(true) } });
+    toast.info(`${what} started: ${op.title}`, { description: "Progress is shown in Operations.", action: { label: "View", onClick: () => openOperations(op.id) } });
 
   const exportVolume = async () => {
     try {

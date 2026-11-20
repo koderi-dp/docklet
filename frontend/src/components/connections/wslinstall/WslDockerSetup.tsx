@@ -67,7 +67,7 @@ export function WslDockerSetup({ distro, daemonReachable, successAction, classNa
             </Button>
           }
         >
-          Running in the background. It is also listed in the Activity center.
+          Running in the background. It is also listed in Operations.
         </Panel>
       );
     }

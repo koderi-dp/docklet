@@ -125,7 +125,7 @@ export function CleanupTab({ connectionId }: { connectionId: string }) {
     setActive(null);
     try {
       await prune.mutateAsync(kind);
-      toast.info(`${active.title}: cleanup started`, { description: "Progress and the result are shown in the Activity Center." });
+      toast.info(`${active.title}: cleanup started`, { description: "Progress and the result are shown in Operations." });
     } catch (e) {
       toast.error(`Could not start ${active.title.toLowerCase()} cleanup`, {
         description: errorMessage(e),
@@ -179,7 +179,7 @@ export function CleanupTab({ connectionId }: { connectionId: string }) {
               <div>
                 <p>{active?.description}</p>
                 <p className="mt-2 font-medium text-foreground">{active?.warning}</p>
-                <p className="mt-2">This cannot be undone. The Engine reports what it removed in the Activity Center.</p>
+                <p className="mt-2">This cannot be undone. The Engine reports what it removed in Operations.</p>
                 {(active?.variant || active?.requireAck) && (
                   <label className="mt-3 flex items-start gap-2 text-[13px] text-foreground">
                     <Checkbox className="mt-0.5" checked={checked} onCheckedChange={(c) => setChecked(c === true)} />

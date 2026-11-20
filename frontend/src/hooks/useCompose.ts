@@ -94,7 +94,7 @@ export const DEFAULT_UP: UpOptions = { build: false, removeOrphans: false, profi
 
 /**
  * Starts a Compose CLI operation in the background. Resolves once the backend accepted it;
- * progress and the final result live in the Activity center, data refetches on containers:changed.
+ * progress and the final result live in Operations, data refetches on containers:changed.
  */
 export function useComposeVerb(connectionId: string) {
   const [busy, setBusy] = useState<Set<string>>(new Set());
@@ -127,7 +127,7 @@ export function useComposeVerb(connectionId: string) {
       const target = opts?.service ? `${name} / ${opts.service}` : name;
       try {
         await mutation.mutateAsync({ verb, name, volumes: opts?.volumes, up: opts?.up, service: opts?.service });
-        toast.success(`Compose ${verb} started for ${target}`, { description: "Follow progress in the Activity center." });
+        toast.success(`Compose ${verb} started for ${target}`, { description: "Follow progress in Operations." });
       } catch (e) {
         toastError(`Compose ${verb} could not start for ${target}`, e);
       } finally {
