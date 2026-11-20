@@ -54,15 +54,15 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
   # Required. Runs the same checks as CI, then builds one installer per architecture, one after the other.
-  # Only amd64 is built unless the repository variable WINDOWS_ARCHES lists more, e.g. 'amd64 arm64'.
+  # amd64 and arm64 are built unless the repository variable WINDOWS_ARCHES says otherwise, e.g. 'amd64'.
   windows:
-    name: Windows (${{ vars.WINDOWS_ARCHES || 'amd64' }})
+    name: Windows (${{ vars.WINDOWS_ARCHES || 'amd64 arm64' }})
     needs: prepare
     runs-on: windows-latest
     timeout-minutes: 45
     env:
       VERSION: ${{ needs.prepare.outputs.version }}
-      ARCHES: ${{ vars.WINDOWS_ARCHES || 'amd64' }}
+      ARCHES: ${{ vars.WINDOWS_ARCHES || 'amd64 arm64' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -315,4 +315,12 @@ jobs:
           args=(--title "Docklet $VERSION" --generate-notes)
           if [[ "$PRERELEASE" == "true" ]]; then args+=(--prerelease); fi
           # For a tag push the tag exists; for a manual run it is created on this commit.
-          gh release create "$TAG" dist/* "${args[@]}" --target "$GITHUB_SHA"
+          # --target is passed only when the tag has to be created: GitHub answers 403 to this token for a
+          # target commit whose workflow files differ from the default branch, even when the tag exists.
+          # So a manual run must start from main (or from a commit with the same workflow files).
+          if gh api "repos/$GH_REPO/git/ref/tags/$TAG" > /dev/null 2>&1; then
+            args+=(--verify-tag)
+          else
+            args+=(--target "$GITHUB_SHA")
+          fi
+          gh release create "$TAG" dist/* "${args[@]}"
