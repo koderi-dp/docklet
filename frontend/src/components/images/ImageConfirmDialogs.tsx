@@ -72,7 +72,7 @@ export function ImageConfirmDialogs({ confirmRemove, onCancelRemove, force, onFo
               <div>
                 <p>
                   Deletes untagged images that no container uses. The Engine decides exactly which ones; currently {danglingRows.length} look
-                  eligible ({formatBytes(danglingRows.reduce((n, r) => n + r.size, 0))}). This cannot be undone. Progress appears in the Activity center.
+                  eligible ({formatBytes(danglingRows.reduce((n, r) => n + r.size, 0))}). This cannot be undone. Progress appears in Operations.
                 </p>
                 <ul className="mt-2 max-h-40 list-disc overflow-auto pl-5 font-mono text-xs">
                   {danglingRows.map((r) => (

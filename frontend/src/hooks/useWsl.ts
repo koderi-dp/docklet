@@ -24,7 +24,7 @@ export function useWslInfo(connectionId: string | null) {
   });
 }
 
-/** Starts a maintenance action (an operation with live output in the Activity Center) and refreshes afterwards. */
+/** Starts a maintenance action (an operation with live output in Operations) and refreshes afterwards. */
 export function useWslActions(connectionId: string) {
   const qc = useQueryClient();
   const refresh = () => queueInvalidateKey(qc, wslInfoKey(connectionId));
@@ -36,7 +36,7 @@ export function useWslActions(connectionId: string) {
   });
   return useMutation({
     mutationFn: (action: string) => WSLService.Run(connectionId, action),
-    onSuccess: (op) => toast.info(`${op.title}: started`, { description: "Live output is in the Activity Center." }),
+    onSuccess: (op) => toast.info(`${op.title}: started`, { description: "Live output is in Operations." }),
     onError: (e) => toastError("Could not start the action", e),
     onSettled: refresh,
   });

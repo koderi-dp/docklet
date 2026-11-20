@@ -16,8 +16,12 @@ interface OpsState {
   loadError: string | null;
   /** Logs of operations whose log view was opened (loaded from the backend, then appended from events). */
   logs: Record<string, string[]>;
-  centerOpen: boolean;
-  setCenterOpen: (open: boolean) => void;
+  /** The Operations side panel, and the operation it was opened for or the user picked (null: let the panel choose). */
+  panelOpen: boolean;
+  selectedId: string | null;
+  openPanel: (id?: string) => void;
+  closePanel: () => void;
+  select: (id: string) => void;
   upsert: (op: Operation) => void;
   appendLogs: (id: string, lines: string[]) => void;
   setLogs: (id: string, lines: string[]) => void;
@@ -30,8 +34,11 @@ export const useOpsStore = create<OpsState>((set) => ({
   loaded: false,
   loadError: null,
   logs: {},
-  centerOpen: false,
-  setCenterOpen: (centerOpen) => set({ centerOpen }),
+  panelOpen: false,
+  selectedId: null,
+  openPanel: (id) => set((s) => ({ panelOpen: true, selectedId: id ?? s.selectedId })),
+  closePanel: () => set({ panelOpen: false }),
+  select: (selectedId) => set({ selectedId }),
   upsert: (op) => set((s) => ({ ops: { ...s.ops, [op.id]: op } })),
   appendLogs: (id, lines) =>
     set((s) => {
@@ -57,7 +64,7 @@ export const useOpsStore = create<OpsState>((set) => ({
         delete ops[id];
         delete logs[id];
       }
-      return { ops, logs };
+      return { ops, logs, selectedId: s.selectedId && ids.includes(s.selectedId) ? null : s.selectedId };
     }),
 }));
 
@@ -89,7 +96,7 @@ function ensureStarted() {
         description: op.error || undefined,
         duration: Infinity,
         closeButton: true,
-        action: { label: "View details", onClick: () => useOpsStore.getState().setCenterOpen(true) },
+        action: { label: "View details", onClick: () => useOpsStore.getState().openPanel(op.id) },
       });
     }
     doneListeners.forEach((l) => {
@@ -116,8 +123,8 @@ export interface UseOperations {
   finishedCount: number;
   loaded: boolean;
   loadError: string | null;
-  centerOpen: boolean;
-  setCenterOpen: (open: boolean) => void;
+  /** Opens the Operations panel, on the given operation when an id is passed. */
+  openOperations: (id?: string) => void;
   cancel: (id: string) => Promise<void>;
   clearFinished: () => Promise<void>;
 }
@@ -127,8 +134,7 @@ export function useOperations(): UseOperations {
   const ops = useOpsStore((s) => s.ops);
   const loaded = useOpsStore((s) => s.loaded);
   const loadError = useOpsStore((s) => s.loadError);
-  const centerOpen = useOpsStore((s) => s.centerOpen);
-  const setCenterOpen = useOpsStore((s) => s.setCenterOpen);
+  const openOperations = useOpsStore((s) => s.openPanel);
   const operations = useMemo(() => Object.values(ops).sort((a, b) => b.startedAt - a.startedAt), [ops]);
   const runningCount = operations.filter((o) => o.status === OperationStatus.OpRunning).length;
   return {
@@ -137,8 +143,7 @@ export function useOperations(): UseOperations {
     finishedCount: operations.length - runningCount,
     loaded,
     loadError,
-    centerOpen,
-    setCenterOpen,
+    openOperations,
     cancel: async (id) => {
       try {
         await OperationService.Cancel(id);

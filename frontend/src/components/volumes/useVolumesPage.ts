@@ -91,7 +91,7 @@ export function useVolumesPage(connectionId: string) {
     setPruneOpen(false);
     try {
       await prune.mutateAsync();
-      toast.info("Volume prune started", { description: "Progress is shown in the Activity Center." });
+      toast.info("Volume prune started", { description: "Progress is shown in Operations." });
     } catch (e) {
       toast.error("Could not start volume prune", { description: errorMessage(e), duration: Infinity, closeButton: true });
     }

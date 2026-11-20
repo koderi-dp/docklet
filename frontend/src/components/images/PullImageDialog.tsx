@@ -23,7 +23,7 @@ export function PullImageDialog({ connectionId, engineName, open, onOpenChange }
   const [touched, setTouched] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const pull = usePullImage(connectionId);
-  const { setCenterOpen } = useOperations();
+  const { openOperations } = useOperations();
   const openSignIn = useSignInDialog((s) => s.open);
 
   useEffect(() => {
@@ -51,8 +51,8 @@ export function PullImageDialog({ connectionId, engineName, open, onOpenChange }
       const op = await pull.mutateAsync(ref.trim());
       onOpenChange(false);
       toast.success(`Pull started: ${op.resource}`, {
-        description: "Progress is shown in the Activity center.",
-        action: { label: "View", onClick: () => setCenterOpen(true) },
+        description: "Progress is shown in Operations.",
+        action: { label: "View", onClick: () => openOperations(op.id) },
       });
     } catch (e) {
       setServerError(errorMessage(e));

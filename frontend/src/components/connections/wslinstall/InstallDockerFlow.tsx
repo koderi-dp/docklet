@@ -50,10 +50,10 @@ export function InstallDockerFlow({ distro, opId, onClose, successAction, header
   const description = !op
     ? "Review what Docklet will change in this distribution."
     : op.status === OperationStatus.OpRunning
-      ? inline ? "Leaving this screen does not stop the install." : "Also listed in the Activity center. Closing this window does not stop the install."
+      ? inline ? "Leaving this screen does not stop the install." : "Also listed in Operations. Closing this window does not stop the install."
       : inline
         ? "Copy the log if you need to report a problem."
-        : "The full log is in the Activity center.";
+        : "The full log is in Operations.";
   return (
     <div className={cn("flex flex-col gap-4", className)}>
       {header({ title, description, phase: !op ? "confirm" : op.status === OperationStatus.OpRunning ? "running" : "finished" })}
@@ -140,7 +140,7 @@ function RunView({
   successAction?: SuccessAction;
 }) {
   const { lines } = useOperationLogs(op.id, true);
-  const { cancel, setCenterOpen } = useOperations();
+  const { cancel, openOperations } = useOperations();
   const refresh = useRefreshWslDocker();
   const running = op.status === OperationStatus.OpRunning;
   const succeeded = op.status === OperationStatus.OpSucceeded;
@@ -176,8 +176,8 @@ function RunView({
           )}
           {!running && <CopyLogButton lines={lines} />}
           {!inline && (
-            <Button variant="ghost" onClick={() => setCenterOpen(true)}>
-              Open Activity
+            <Button variant="ghost" onClick={() => openOperations(op.id)}>
+              Open Operations
             </Button>
           )}
         </div>

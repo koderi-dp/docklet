@@ -55,7 +55,7 @@ export function RecreateContainerDialog({ connectionId, containerId, onClose }: 
 
 function Editor({ connectionId, info, onClose }: { connectionId: string; info: ContainerRecreateInfo; onClose: () => void }) {
   const qc = useQueryClient();
-  const { setCenterOpen } = useOperations();
+  const { openOperations } = useOperations();
   const [form, setForm] = useState<FormState>(() => formFromSpec(info.spec));
   const [copy, setCopy] = useState(false);
   const [step, setStep] = useState<"edit" | "confirm">("edit");
@@ -110,8 +110,8 @@ function Editor({ connectionId, info, onClose }: { connectionId: string; info: C
       await ContainerService.Recreate(connectionId, info.id, edited, { pullFirst, keepOriginal: copy });
       void qc.invalidateQueries({ queryKey: containersKey(connectionId) });
       toast.info(copy ? `Copying ${info.name}…` : `Recreating ${info.name}…`, {
-        description: "Progress is shown in the Activity center.",
-        action: { label: "View activity", onClick: () => setCenterOpen(true) },
+        description: "Progress is shown in Operations.",
+        action: { label: "View", onClick: () => openOperations() },
       });
       onClose();
     } catch (e) {

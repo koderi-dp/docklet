@@ -33,7 +33,7 @@ export function PushImageDialog({ connectionId, engineName, image, onClose }: Pr
   const [serverError, setServerError] = useState<string | null>(null);
   const push = usePushImage(connectionId);
   const openSignIn = useSignInDialog((s) => s.open);
-  const { setCenterOpen } = useOperations();
+  const { openOperations } = useOperations();
   const ref = image && !image.dangling ? image.ref : null;
   const status = useRegistryAuthStatus(connectionId, ref);
 
@@ -53,8 +53,8 @@ export function PushImageDialog({ connectionId, engineName, image, onClose }: Pr
       const op = await push.mutateAsync(ref);
       onClose();
       toast.success(`Push started: ${op.resource}`, {
-        description: "Progress is shown in the Activity center.",
-        action: { label: "View", onClick: () => setCenterOpen(true) },
+        description: "Progress is shown in Operations.",
+        action: { label: "View", onClick: () => openOperations(op.id) },
       });
     } catch (e) {
       setServerError(errorMessage(e));

@@ -73,9 +73,9 @@ interface UIState {
   reconnectOnStartup: boolean;
   setReconnectOnStartup: (v: boolean) => void;
 
-  /** Tab shown in the activity center (not persisted); the tray can ask for "alerts". */
-  activityTab: "operations" | "alerts";
-  setActivityTab: (t: "operations" | "alerts") => void;
+  /** The Alerts popover in the top bar (not persisted); the tray can ask for it. */
+  alertsOpen: boolean;
+  setAlertsOpen: (open: boolean) => void;
 
   /** Global command palette (not persisted). */
   paletteOpen: boolean;
@@ -144,8 +144,8 @@ export const useUI = create<UIState>()(
       setLogTail: (logTail) => set({ logTail }),
       reconnectOnStartup: true,
       setReconnectOnStartup: (reconnectOnStartup) => set({ reconnectOnStartup }),
-      activityTab: "operations",
-      setActivityTab: (activityTab) => set({ activityTab }),
+      alertsOpen: false,
+      setAlertsOpen: (alertsOpen) => set({ alertsOpen }),
       paletteOpen: false,
       setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
       connectionDialog: null,
