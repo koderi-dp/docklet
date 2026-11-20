@@ -15,11 +15,11 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: actions/setup-go@v5
+    - uses: actions/setup-go@v7
       with:
         go-version-file: go.mod
 
-    - uses: actions/setup-node@v4
+    - uses: actions/setup-node@v7
       with:
         node-version: ${{ inputs.node-version }}
         cache: npm
@@ -27,7 +27,7 @@ runs:
 
     # Compiling the CLI takes about a minute; the binary is kept per OS, architecture and version.
     - id: wails-cache
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: ~/go/bin/wails3*
         key: wails3-${{ runner.os }}-${{ runner.arch }}-${{ inputs.wails-version }}
