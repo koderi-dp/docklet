@@ -33,7 +33,7 @@ export function ProjectStateBadge({
   }
   const notes = oneShotNotes(countOneShots(containers));
   return (
-    <span className="inline-flex items-center gap-1.5">
+    <span className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
       <Badge variant="outline" className={cn("gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium", TONE[state], className)}>
         {state === "transitioning" && <Loader2 className="size-3 animate-spin" aria-hidden />}
         {LABEL[state]}

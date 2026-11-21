@@ -135,8 +135,8 @@ export function ProjectsTable({
                   {p.source}
                 </Badge>
               </td>
-              <td className="whitespace-nowrap px-3">
-                <div className="flex items-center gap-2">
+              <td className="px-3 py-1">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                   {p.notCreated ? (
                     <ProjectStateBadge containers={[]} notCreated />
                   ) : known ? (
