@@ -76,3 +76,8 @@ export function formatIdleDuration(ms: number): string {
   const m = min % 60;
   return m === 0 ? `${h} h` : `${h} h ${m} min`;
 }
+
+/** Same window start and same chip text: a row showing it would render identically. */
+export function sameIdle(a: IdleInfo, b: IdleInfo): boolean {
+  return a.since === b.since && formatIdleDuration(a.idleForMs) === formatIdleDuration(b.idleForMs);
+}

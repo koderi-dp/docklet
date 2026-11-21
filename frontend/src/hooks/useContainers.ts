@@ -5,6 +5,9 @@ import { ContainerService } from "@bindings/services";
 import type { ActionResult, ContainerStat, ContainerStatsData } from "@bindings/model";
 import type { ContainerAction } from "@/lib/actionEligibility";
 import { queueInvalidateKey, useInvalidateOnEvents, usePageVisible } from "@/hooks/queryUtils";
+import { mergeStats } from "@/lib/statIdentity";
+
+const EMPTY: ReadonlyMap<string, ContainerStat> = new Map();
 
 /** All query keys include connectionId so engines never share cache entries. */
 export const containersKey = (connectionId: string) => ["containers", connectionId] as const;
@@ -85,9 +88,7 @@ export function useContainerStats(connectionId: string | null, runningVisibleIds
           if (d.connectionId !== connectionId) return;
           const wanted = new Set(idsRef.current);
           setRaw((prev) => {
-            const map = new Map<string, ContainerStat>();
-            if (prev.conn === connectionId) for (const [k, v] of prev.map) if (wanted.has(k)) map.set(k, v);
-            for (const st of d.stats ?? []) if (wanted.has(st.id)) map.set(st.id, st);
+            const map = mergeStats(prev.conn === connectionId ? prev.map : EMPTY, d.stats ?? [], wanted);
             return { conn: connectionId, map };
           });
         });

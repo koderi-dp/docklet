@@ -19,6 +19,17 @@ describe("sortGroups", () => {
     expect(shop({ id: "cpu", desc: true })).toEqual(["db", "web", "cache"]);
     expect(shop({ id: "cpu", desc: false })).toEqual(["web", "db", "cache"]);
   });
+  it("keeps a group object when its order is unchanged and reorders it when a stat changes the order", () => {
+    const groups = buildGroups("A", all);
+    const first = sortGroups(groups, { id: "cpu", desc: true }, stats);
+    const sortedShop = first.find((g) => g.project === "shop")!;
+    // Feed the sorted group back in: nothing to reorder, so the same object comes out.
+    expect(sortGroups([sortedShop], { id: "cpu", desc: true }, stats)[0]).toBe(sortedShop);
+    const flipped = new Map(stats).set("web", { id: "web", cpuPercent: 90 } as ContainerStat);
+    const again = sortGroups([sortedShop], { id: "cpu", desc: true }, flipped)[0];
+    expect(again).not.toBe(sortedShop);
+    expect(again.visible.map((x) => x.name)).toEqual(["web", "db", "cache"]);
+  });
   it("keeps groups ordered by name with Standalone last, reversing only for a descending name sort", () => {
     expect(sortGroups(buildGroups("A", all), { id: "cpu", desc: true }, stats).map((g) => g.project)).toEqual(["alpha", "shop", null]);
     expect(sortGroups(buildGroups("A", all), { id: "name", desc: true }, stats).map((g) => g.project)).toEqual(["shop", "alpha", null]);

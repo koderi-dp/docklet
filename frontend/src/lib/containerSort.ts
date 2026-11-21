@@ -24,7 +24,11 @@ export function containerAccessors(stats: ReadonlyMap<string, ContainerStat>): A
 /** Sort containers inside each group; the groups themselves stay ordered by name (Standalone last). */
 export function sortGroups(groups: readonly ComposeGroup[], sort: SortState | undefined, stats: ReadonlyMap<string, ContainerStat>): ComposeGroup[] {
   const acc = containerAccessors(stats);
-  const withSortedChildren = groups.map((g) => ({ ...g, visible: sortItems(g.visible, sort, acc) }));
+  // A group whose order did not change keeps its object, so its row can stay memoised.
+  const withSortedChildren = groups.map((g) => {
+    const sorted = sortItems(g.visible, sort, acc);
+    return sorted.length === g.visible.length && sorted.every((x, i) => x === g.visible[i]) ? g : { ...g, visible: sorted };
+  });
   const nameDir = sort?.id === "name" && sort.desc ? -1 : 1;
   return withSortedChildren.sort((a, b) => {
     if (a.kind !== b.kind) return a.kind === "standalone" ? 1 : -1;
