@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Container, ContainerStat } from "@bindings/model";
-import { aggregateProject, partialNote, totalsByProject } from "./projectTotals";
+import { aggregateProject, partialNote, reuseTotals, sameTotals, totalsByProject, type ProjectTotals } from "./projectTotals";
 
 const c = (id: string, state: string, project = "p"): Container => ({ id, state, composeProject: project }) as Container;
 const stats = (...s: ContainerStat[]) => new Map(s.map((x) => [x.id, x]));
@@ -26,6 +26,46 @@ describe("aggregateProject", () => {
     expect(aggregateProject("p", [c("a", "exited")], stats()).cpu).toBeNull();
     expect(aggregateProject("p", [c("a", "running")], stats()).cpu).toBeNull();
     expect(aggregateProject("p", [c("a", "running")], stats({ id: "a", cpuPercent: 0, memoryBytes: 0 })).cpu?.value).toBe(0);
+  });
+});
+
+const tot = (over: Partial<ProjectTotals> = {}): ProjectTotals => ({
+  project: "p",
+  running: 2,
+  cpu: { value: 1, reporting: 2, running: 2 },
+  memory: { value: 10, reporting: 2, running: 2 },
+  runningKey: "a,b",
+  ...over,
+});
+
+describe("sameTotals", () => {
+  it("is true for equal values in distinct objects", () => {
+    expect(sameTotals(tot(), tot())).toBe(true);
+    expect(sameTotals(tot({ cpu: null, memory: null }), tot({ cpu: null, memory: null }))).toBe(true);
+  });
+  it("is false when any field differs", () => {
+    expect(sameTotals(tot(), tot({ project: "q" }))).toBe(false);
+    expect(sameTotals(tot(), tot({ running: 3 }))).toBe(false);
+    expect(sameTotals(tot(), tot({ runningKey: "a" }))).toBe(false);
+    expect(sameTotals(tot(), tot({ cpu: { value: 2, reporting: 2, running: 2 } }))).toBe(false);
+    expect(sameTotals(tot(), tot({ cpu: { value: 1, reporting: 1, running: 2 } }))).toBe(false);
+    expect(sameTotals(tot(), tot({ memory: null }))).toBe(false);
+  });
+});
+
+describe("reuseTotals", () => {
+  it("replaces equal entries by the previous object and keeps changed ones", () => {
+    const a = tot({ project: "a" });
+    const b = tot({ project: "b" });
+    const next = new Map([["a", tot({ project: "a" })], ["b", tot({ project: "b", running: 9 })]]);
+    const out = reuseTotals(new Map([["a", a], ["b", b]]), next);
+    expect(out.get("a")).toBe(a);
+    expect(out.get("b")).not.toBe(b);
+    expect(out.get("b")?.running).toBe(9);
+  });
+  it("returns next unchanged without a previous map", () => {
+    const next = new Map([["a", tot()]]);
+    expect(reuseTotals(undefined, next)).toBe(next);
   });
 });
 

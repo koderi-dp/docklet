@@ -73,10 +73,13 @@ export function useContainersPage(connectionId: string) {
   const { stats } = useContainerStats(connectionId, runningIds, true);
 
   const { sort } = useTableSort("containers");
-  const groups = useMemo(
-    () => sortGroups(buildGroups(connectionId, containers, filters, inFlight), sort, stats),
-    [connectionId, containers, filters, inFlight, sort, stats],
-  );
+  const built = useMemo(() => buildGroups(connectionId, containers, filters, inFlight), [connectionId, containers, filters, inFlight]);
+  const prevGroups = useRef<ComposeGroup[]>([]);
+  const groups = useMemo(() => {
+    const next = sortGroups(built, sort, stats, prevGroups.current);
+    prevGroups.current = next;
+    return next;
+  }, [built, sort, stats]);
   const rows = useMemo(
     () => (view === "grouped" ? flattenGrouped(groups, isCollapsed) : sortFlatRows(flattenFlat(connectionId, containers, filters), sort, stats)),
     [view, groups, isCollapsed, connectionId, containers, filters, sort, stats],

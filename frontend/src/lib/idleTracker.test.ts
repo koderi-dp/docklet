@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { formatIdleDuration, IdleTracker, type IdleObservation } from "./idleTracker";
+import { formatIdleDuration, IdleTracker, sameIdle, type IdleObservation } from "./idleTracker";
+
+describe("sameIdle", () => {
+  it("is true while since and the minute text are unchanged", () => {
+    expect(sameIdle({ since: 5, idleForMs: 600_000 }, { since: 5, idleForMs: 659_000 })).toBe(true);
+  });
+  it("is false when the minute text or since changes", () => {
+    expect(sameIdle({ since: 5, idleForMs: 659_000 }, { since: 5, idleForMs: 660_000 })).toBe(false);
+    expect(sameIdle({ since: 5, idleForMs: 600_000 }, { since: 6, idleForMs: 600_000 })).toBe(false);
+  });
+});
 
 const cfg = { cpuThreshold: 1, minMs: 10_000, maxGapMs: 3_000 };
 const quiet: IdleObservation = { cpuPercent: 0.4, complete: true, membersKey: "a,b" };

@@ -1,9 +1,6 @@
 import { useMemo } from "react";
-import { Link } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import type { ComposeDiskUsage, ComposeProject, Container } from "@bindings/model";
-import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { SortTh } from "@/components/tables/SortTh";
 import { aggregateState } from "@/lib/composeGrouping";
 import type { ProjectTotals } from "@/lib/projectTotals";
@@ -11,10 +8,7 @@ import { sortItems, type Accessors } from "@/lib/sorting";
 import { useTableSort } from "@/lib/useTableSort";
 import { projectContainers } from "@/hooks/useCompose";
 import type { ProjectLive } from "@/hooks/useProjectTotals";
-import { ProjectActions } from "./ProjectActions";
-import { ProjectDiskCell } from "./ProjectDiskCell";
-import { ProjectHealthText, ProjectStateBadge } from "./ProjectStateBadge";
-import { CpuTotal, IdleChip, MemoryTotal } from "./ProjectTotalCells";
+import { ProjectRow } from "./ProjectRow";
 
 const STATE_RANK = { running: 0, partial: 1, transitioning: 2, stopped: 3 } as const;
 
@@ -42,19 +36,6 @@ const ACCESSORS: Accessors<Entry> = {
   memory: (e) => e.totals?.memory?.value,
 };
 
-/** Keeps the file name visible: the directory part truncates, the last segment never does. */
-function MiddleEllipsisPath({ value }: { value: string }) {
-  const i = Math.max(value.lastIndexOf("/"), value.lastIndexOf("\\"));
-  const dir = i >= 0 ? value.slice(0, i + 1) : "";
-  const file = i >= 0 ? value.slice(i + 1) : value;
-  return (
-    <>
-      <span className="min-w-0 truncate">{dir}</span>
-      <span className="shrink-0">{file}</span>
-    </>
-  );
-}
-
 export function ProjectsTable({
   connectionId,
   projects,
@@ -70,9 +51,10 @@ export function ProjectsTable({
 }) {
   const { sort } = useTableSort("compose");
   const known = !!containers;
+  const byProject = useMemo(() => new Map(projects.map((p) => [p.name, projectContainers(containers, p)])), [projects, containers]);
   const entries = useMemo(
-    () => sortItems(projects.map((p) => ({ p, cs: projectContainers(containers, p), known, totals: live.totals.get(p.name) })), sort, ACCESSORS),
-    [projects, containers, known, sort, live.totals],
+    () => sortItems(projects.map((p) => ({ p, cs: byProject.get(p.name) ?? [], known, totals: live.totals.get(p.name) })), sort, ACCESSORS),
+    [projects, byProject, known, sort, live.totals],
   );
 
   return (
@@ -116,78 +98,20 @@ export function ProjectsTable({
         </tr>
       </thead>
       <tbody>
-        {entries.map(({ p, cs, totals }) => {
-          const cfg = (p.configFiles ?? [])[0];
-          return (
-            <tr key={p.name} className="h-[46px] border-b border-border/60 transition-colors duration-100 last:border-b-0 hover:bg-muted/50">
-              <td className="px-3">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Link to={`/compose/${encodeURIComponent(p.name)}`} className="block truncate rounded font-semibold outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring/60">
-                      {p.name}
-                    </Link>
-                  </TooltipTrigger>
-                  <TooltipContent>{p.name}</TooltipContent>
-                </Tooltip>
-              </td>
-              <td className="hidden whitespace-nowrap px-3 @[1100px]:table-cell">
-                <Badge variant="outline" className="rounded-md font-normal text-muted-foreground">
-                  {p.source}
-                </Badge>
-              </td>
-              <td className="px-3 py-1">
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                  {p.notCreated ? (
-                    <ProjectStateBadge containers={[]} notCreated />
-                  ) : known ? (
-                    <ProjectStateBadge containers={cs} />
-                  ) : (
-                    <span className="text-muted-foreground">—</span>
-                  )}
-                  {known && !p.notCreated && <ProjectHealthText containers={cs} />}
-                </div>
-              </td>
-              <td className="whitespace-nowrap px-3 tabular-nums">{(p.services ?? []).length}</td>
-              <td className="whitespace-nowrap px-3 tabular-nums">
-                {p.running} of {p.total} running
-              </td>
-              <td className="whitespace-nowrap px-3 text-right">
-                <CpuTotal totals={p.notCreated ? undefined : totals} />
-              </td>
-              <td className="whitespace-nowrap px-3">
-                <div className="flex items-center justify-end gap-2">
-                  <IdleChip idle={live.idle.get(p.name)} totals={totals} />
-                  <MemoryTotal totals={p.notCreated ? undefined : totals} />
-                </div>
-              </td>
-              <td className="hidden whitespace-nowrap px-3 text-right @[1300px]:table-cell">
-                <div className="flex justify-end">
-                  <ProjectDiskCell loaded={!!disk.data} loading={disk.loading} disk={disk.data?.projects?.find((d) => d.project === p.name)} />
-                </div>
-              </td>
-              <td className="hidden overflow-hidden px-3 @[1150px]:table-cell">
-                {cfg ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="flex min-w-0 font-mono text-xs text-muted-foreground">
-                        <MiddleEllipsisPath value={cfg} />
-                        {(p.configFiles ?? []).length > 1 && <span className="shrink-0 pl-1">+{(p.configFiles ?? []).length - 1}</span>}
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-lg break-all font-mono text-xs">{(p.configFiles ?? []).join(", ")}</TooltipContent>
-                  </Tooltip>
-                ) : (
-                  <span className="text-muted-foreground">—</span>
-                )}
-              </td>
-              <td className="px-3">
-                <div className="flex justify-end">
-                  <ProjectActions connectionId={connectionId} project={p} containers={cs} />
-                </div>
-              </td>
-            </tr>
-          );
-        })}
+        {entries.map(({ p, cs, totals }) => (
+          <ProjectRow
+            key={p.name}
+            connectionId={connectionId}
+            project={p}
+            containers={cs}
+            known={known}
+            totals={totals}
+            idle={live.idle.get(p.name)}
+            diskLoaded={!!disk.data}
+            diskLoading={disk.loading}
+            disk={disk.data?.projects?.find((d) => d.project === p.name)}
+          />
+        ))}
       </tbody>
     </table>
   );

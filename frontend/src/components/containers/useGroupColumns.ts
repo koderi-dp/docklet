@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import type { ColumnVisibilityState } from "@tanstack/react-table";
 
 /**
- * Minimum table width (px) at which a responsive column is shown. Mirrors RESPONSIVE_COL in ContainerTable
+ * Minimum table width (px) at which a responsive column is shown. Mirrors RESPONSIVE_COL in ContainerRow
  * (CSS container queries); the group row needs the same answer in JS to place its totals in the CPU / Memory columns.
  */
 export const RESPONSIVE_MIN_WIDTH: Record<string, number> = { project: 900, cpu: 900, memory: 820, uptime: 1200 };

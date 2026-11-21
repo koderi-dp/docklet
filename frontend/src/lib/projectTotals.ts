@@ -68,6 +68,25 @@ export function totalsByProject(containers: readonly Container[], stats: Readonl
   return out;
 }
 
+function sameMetric(a: MetricTotal | null, b: MetricTotal | null): boolean {
+  if (!a || !b) return a === b;
+  return a.value === b.value && a.reporting === b.reporting && a.running === b.running;
+}
+
+export function sameTotals(a: ProjectTotals, b: ProjectTotals): boolean {
+  return a.project === b.project && a.running === b.running && a.runningKey === b.runningKey && sameMetric(a.cpu, b.cpu) && sameMetric(a.memory, b.memory);
+}
+
+/** `next` with every entry equal to its previous entry replaced by the previous object. */
+export function reuseTotals(prev: ReadonlyMap<string, ProjectTotals> | undefined, next: Map<string, ProjectTotals>): Map<string, ProjectTotals> {
+  if (!prev) return next;
+  for (const [name, t] of next) {
+    const old = prev.get(name);
+    if (old && sameTotals(old, t)) next.set(name, old);
+  }
+  return next;
+}
+
 /** "3 of 4 containers reporting" when data is partial, otherwise undefined. */
 export function partialNote(m: MetricTotal | null): string | undefined {
   if (!m || m.reporting >= m.running) return undefined;
