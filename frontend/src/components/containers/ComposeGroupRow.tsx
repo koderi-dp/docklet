@@ -1,4 +1,5 @@
-import { Box, ChevronRight, Layers, MoreHorizontal, Play, RotateCw, Square } from "lucide-react";
+import { memo } from "react";
+import { Box,ChevronRight, Layers, MoreHorizontal, Play, RotateCw, Square } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -50,15 +51,19 @@ export interface ComposeGroupRowProps {
   /** Live totals of the project's running containers (Compose groups only). */
   totals?: ProjectTotals;
   idle?: IdleInfo;
-  onToggleCollapsed: () => void;
-  onToggleSelect: () => void;
-  /** Engine batch operation on this group's currently visible children. */
-  onGroupAction: (action: ContainerAction) => void;
-  onExpandAll: () => void;
-  onCollapseAll: () => void;
+  handlers: GroupHandlers;
 }
 
-export function ComposeGroupRow(p: ComposeGroupRowProps) {
+export interface GroupHandlers {
+  onToggleCollapsed(g: ComposeGroup): void;
+  onToggleSelect(g: ComposeGroup): void;
+  /** Engine batch operation on the group's currently visible children. */
+  onGroupAction(a: ContainerAction, g: ComposeGroup): void;
+  onExpandAll(): void;
+  onCollapseAll(): void;
+}
+
+export const ComposeGroupRow = memo(function ComposeGroupRow(p: ComposeGroupRowProps) {
   const { group: g } = p;
   const isCompose = g.kind === "compose";
   const n = g.all.length;
@@ -90,7 +95,7 @@ export function ComposeGroupRow(p: ComposeGroupRowProps) {
               disabled={!!reason}
               onClick={(e) => {
                 e.stopPropagation();
-                p.onGroupAction(action);
+                p.handlers.onGroupAction(action, g);
               }}
             >
               {icon}
@@ -119,7 +124,7 @@ export function ComposeGroupRow(p: ComposeGroupRowProps) {
                 const part = partitionByEligibility(a, g.visible);
                 const c = part.eligible.length;
                 return (
-                  <DropdownMenuItem key={a} disabled={p.busy || c === 0} onSelect={() => p.onGroupAction(a)}>
+                  <DropdownMenuItem key={a} disabled={p.busy || c === 0} onSelect={() => p.handlers.onGroupAction(a, g)}>
                     {a === "start" ? <Play /> : a === "stop" ? <Square /> : <RotateCw />}
                     {VERB[a].label} {c} container{c === 1 ? "" : "s"}
                   </DropdownMenuItem>
@@ -136,16 +141,16 @@ export function ComposeGroupRow(p: ComposeGroupRowProps) {
                 <DropdownMenuSeparator />
               </>
             )}
-            <DropdownMenuItem onSelect={p.onToggleCollapsed}>{p.collapsed ? "Expand" : "Collapse"}</DropdownMenuItem>
-            <DropdownMenuItem onSelect={p.onExpandAll}>Expand all</DropdownMenuItem>
-            <DropdownMenuItem onSelect={p.onCollapseAll}>Collapse all</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => p.handlers.onToggleCollapsed(g)}>{p.collapsed ? "Expand" : "Collapse"}</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => p.handlers.onExpandAll()}>Expand all</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => p.handlers.onCollapseAll()}>Collapse all</DropdownMenuItem>
           
       </DropdownMenuContent>
     </DropdownMenu>
   );
 
   return (
-    <tr className="h-[46px] cursor-pointer border-y border-border bg-primary/[0.07]" onClick={p.onToggleCollapsed}>
+    <tr className="h-[46px] cursor-pointer border-y border-border bg-primary/[0.07]" onClick={() => p.handlers.onToggleCollapsed(g)}>
       <td colSpan={p.cols.before} className="max-w-0 p-0">
         <div
           className="flex h-[46px] items-center gap-3 px-3 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/60"
@@ -156,11 +161,11 @@ export function ComposeGroupRow(p: ComposeGroupRowProps) {
             if (e.target !== e.currentTarget) return;
             if (e.key === " " || e.key === "Enter") {
               e.preventDefault();
-              p.onToggleCollapsed();
+              p.handlers.onToggleCollapsed(g);
             }
           }}
         >
-      <TriCheckbox state={p.checkState} onToggle={p.onToggleSelect} label={`Select visible containers in ${label}`} />
+      <TriCheckbox state={p.checkState} onToggle={() => p.handlers.onToggleSelect(g)} label={`Select visible containers in ${label}`} />
       <ChevronRight
         aria-hidden
         className={cn("size-4 shrink-0 text-muted-foreground transition-transform duration-150", !p.collapsed && "rotate-90")}
@@ -233,4 +238,4 @@ export function ComposeGroupRow(p: ComposeGroupRowProps) {
       </td>
     </tr>
   );
-}
+});

@@ -1,5 +1,4 @@
 import { useMemo, useRef } from "react";
-import { Link } from "react-router-dom";
 import {
   columnVisibilityFeature,
   createColumnHelper,
@@ -9,34 +8,24 @@ import {
   type ColumnVisibilityState,
 } from "@tanstack/react-table";
 import type { Container, ContainerStat } from "@bindings/model";
-import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react";
-import { HealthBadge, StateDot } from "@/components/shared/StatusBadge";
 import type { ContainerAction } from "@/lib/actionEligibility";
 import { checkState, type ComposeGroup, type FlatRow } from "@/lib/composeGrouping";
 import { cn } from "@/lib/utils";
 import { SortTh } from "@/components/tables/SortTh";
 import { useProjectTotals } from "@/hooks/useProjectTotals";
-import { ComposeGroupRow } from "./ComposeGroupRow";
-import { ContainerActionMenu } from "./ContainerActionMenu";
-import { CpuCell, MemoryCell, PortsCell, UptimeCell } from "./ContainerCells";
+import { ComposeGroupRow, type GroupHandlers } from "./ComposeGroupRow";
+import { ContainerRow, RESPONSIVE_COL, type RowHandlers } from "./ContainerRow";
 import { TriCheckbox } from "./TriCheckbox";
 import { useGroupColumns } from "./useGroupColumns";
-import { ContainerStatusBadge } from "./ContainerStatusBadge";
-
-// Secondary columns drop out as the table's own width shrinks (inspector open / narrow window).
-const RESPONSIVE_COL: Record<string, string> = {
-  project: "hidden @[900px]:table-cell",
-  cpu: "hidden text-right @[900px]:table-cell",
-  memory: "hidden text-right @[820px]:table-cell",
-  uptime: "hidden pl-6 @[1200px]:table-cell",
-};
 
 /** Columns the user can sort by (see lib/containerSort). */
 const SORTABLE = new Set(["name", "image", "project", "status", "health", "cpu", "memory", "uptime"]);
 
 const features = tableFeatures({ columnVisibilityFeature });
 const helper = createColumnHelper<typeof features, FlatRow>();
+
+// The tanstack table only drives the header and column visibility; rows are rendered by ContainerRow.
+const NO_ROWS: FlatRow[] = [];
 
 export const TOGGLEABLE_COLUMNS = [
   { id: "image", label: "Image" },
@@ -96,156 +85,58 @@ export function ContainerTable(p: ContainerTableProps) {
               label="Select all visible containers"
             />
           ),
-          cell: (ctx) => {
-            const r = ctx.row.original;
-            if (r.kind !== "container") return null;
-            return (
-              <TriCheckbox
-                state={live.current.p.selected.has(r.container.id) ? "checked" : "unchecked"}
-                onToggle={(shift) => (shift ? live.current.p.onSelectRange(live.current.allIds, r.container.id) : live.current.p.onToggleSelect(r.container.id))}
-                label={`Select ${r.container.name}`}
-              />
-            );
-          },
         }),
-        helper.display({
-          id: "name",
-          header: "Name",
-          cell: (ctx) => {
-            const r = ctx.row.original;
-            if (r.kind !== "container") return null;
-            const c = r.container;
-            return (
-              <div className="flex min-w-0 max-w-[260px] items-center gap-2">
-                {live.current.p.inFlight.has(c.id) ? (
-                  <Loader2 className="size-3.5 shrink-0 animate-spin text-warning" aria-label="Action in progress" />
-                ) : (
-                  <StateDot state={c.state} />
-                )}
-                <span className="truncate font-medium" title={c.name}>
-                  {c.name}
-                </span>
-              </div>
-            );
-          },
-        }),
-        helper.display({
-          id: "image",
-          header: "Image",
-          cell: (ctx) => {
-            const r = ctx.row.original;
-            if (r.kind !== "container") return null;
-            return (
-              <span className="block max-w-[160px] truncate text-muted-foreground" title={r.container.image}>
-                {r.container.image}
-              </span>
-            );
-          },
-        }),
-        helper.display({
-          id: "project",
-          header: "Project",
-          cell: (ctx) => {
-            const r = ctx.row.original;
-            if (r.kind !== "container") return null;
-            const proj = r.container.composeProject;
-            return proj ? (
-              <Link to={`/compose/${encodeURIComponent(proj)}`} onClick={(e) => e.stopPropagation()}>
-                <Badge variant="secondary" className="max-w-[140px] truncate font-normal hover:bg-accent">
-                  {proj}
-                </Badge>
-              </Link>
-            ) : (
-              <span className="text-muted-foreground">Standalone</span>
-            );
-          },
-        }),
-        helper.display({
-          id: "status",
-          header: "Status",
-          cell: (ctx) => {
-            const r = ctx.row.original;
-            return r.kind === "container" ? <ContainerStatusBadge container={r.container} /> : null;
-          },
-        }),
-        helper.display({
-          id: "health",
-          header: "Health",
-          cell: (ctx) => {
-            const r = ctx.row.original;
-            return r.kind === "container" ? <HealthBadge health={r.container.health} /> : null;
-          },
-        }),
-        helper.display({
-          id: "ports",
-          header: "Ports",
-          cell: (ctx) => {
-            const r = ctx.row.original;
-            return r.kind === "container" ? <PortsCell container={r.container} /> : null;
-          },
-        }),
-        helper.display({
-          id: "cpu",
-          header: "CPU",
-          cell: (ctx) => {
-            const r = ctx.row.original;
-            return r.kind === "container" ? <CpuCell container={r.container} stat={live.current.p.stats.get(r.container.id)} /> : null;
-          },
-        }),
-        helper.display({
-          id: "memory",
-          header: "Memory",
-          cell: (ctx) => {
-            const r = ctx.row.original;
-            return r.kind === "container" ? <MemoryCell container={r.container} stat={live.current.p.stats.get(r.container.id)} /> : null;
-          },
-        }),
-        helper.display({
-          id: "uptime",
-          header: "Uptime",
-          cell: (ctx) => {
-            const r = ctx.row.original;
-            return r.kind === "container" ? <UptimeCell container={r.container} /> : null;
-          },
-        }),
-        helper.display({
-          id: "actions",
-          header: () => <span className="sr-only">Actions</span>,
-          cell: (ctx) => {
-            const r = ctx.row.original;
-            if (r.kind !== "container") return null;
-            const c = r.container;
-            return (
-              <div className="flex justify-end">
-                <ContainerActionMenu
-                  id={c.id}
-                  name={c.name}
-                  state={c.state}
-                  busy={live.current.p.inFlight.has(c.id)}
-                  onAction={(a) => live.current.p.onContainerAction(a, c)}
-                  onInspect={() => live.current.p.onInspect(c)}
-                  onOpenDetails={() => live.current.p.onOpenDetails(c)}
-                  onCopyId={() => live.current.p.onCopyId(c)}
-                  projectDir={c.composeWorkingDir}
-                />
-              </div>
-            );
-          },
-        }),
+        helper.display({ id: "name", header: "Name" }),
+        helper.display({ id: "image", header: "Image" }),
+        helper.display({ id: "project", header: "Project" }),
+        helper.display({ id: "status", header: "Status" }),
+        helper.display({ id: "health", header: "Health" }),
+        helper.display({ id: "ports", header: "Ports" }),
+        helper.display({ id: "cpu", header: "CPU" }),
+        helper.display({ id: "memory", header: "Memory" }),
+        helper.display({ id: "uptime", header: "Uptime" }),
+        helper.display({ id: "actions", header: () => <span className="sr-only">Actions</span> }),
       ]),
-    // Cells read the latest props through `live`, so the columns (and with them every cell component) stay
-    // stable: new column functions would remount the cells and close an open row menu on every stats tick.
+    // The header reads the latest props through `live`, so the columns stay stable across renders.
     [],
   );
 
   const table = useTable({
     features,
     columns,
-    data: p.rows,
-    getRowId: (r) => r.id,
+    data: NO_ROWS,
     state: { columnVisibility: p.columnVisibility },
     onColumnVisibilityChange: p.onColumnVisibilityChange,
   });
+
+  const colKey = table
+    .getVisibleLeafColumns()
+    .map((c) => c.id)
+    .join(",");
+  const visibleColumns = useMemo(() => colKey.split(","), [colKey]);
+
+  // Created once, reading the latest props at call time, so memoised rows never see a new handler.
+  const rowHandlers = useMemo<RowHandlers>(
+    () => ({
+      onToggleSelect: (id, shift) =>
+        shift ? live.current.p.onSelectRange(live.current.allIds, id) : live.current.p.onToggleSelect(id),
+      onInspect: (c) => live.current.p.onInspect(c),
+      onOpenDetails: (c) => live.current.p.onOpenDetails(c),
+      onAction: (a, c) => live.current.p.onContainerAction(a, c),
+      onCopyId: (c) => live.current.p.onCopyId(c),
+    }),
+    [],
+  );
+  const groupHandlers = useMemo<GroupHandlers>(
+    () => ({
+      onToggleCollapsed: (g) => live.current.p.onToggleGroup(g),
+      onToggleSelect: (g) => live.current.p.onToggleSelectMany(g.visible.map((c) => c.id)),
+      onGroupAction: (a, g) => live.current.p.onGroupAction(a, g),
+      onExpandAll: () => live.current.p.onExpandAll(),
+      onCollapseAll: () => live.current.p.onCollapseAll(),
+    }),
+    [],
+  );
 
   const { ref: wrapRef, cols: groupCols } = useGroupColumns(p.columnVisibility);
   // Group rows sum the stats that already stream for the rows; memoised on the (cadence-limited) stats object.
@@ -277,66 +168,41 @@ export function ContainerTable(p: ContainerTableProps) {
           ))}
         </thead>
         <tbody>
-          {table.getRowModel().rows.map((row) => {
-            const r = row.original;
+          {p.rows.map((r) => {
             if (r.kind === "group") {
               const g = r.group;
-              const ids = g.visible.map((c) => c.id);
               return (
-                    <ComposeGroupRow
-                      key={row.id}
-                      group={g}
-                      cols={groupCols}
-                      totals={g.project ? projectLive.totals.get(g.project) : undefined}
-                      idle={g.project ? projectLive.idle.get(g.project) : undefined}
-                      collapsed={p.isCollapsed(g)}
-                      checkState={checkState(ids, p.selected)}
-                      busy={g.visible.some((c) => p.inFlight.has(c.id))}
-                      canRunCompose={p.canRunCompose}
-                      composeReason={p.composeReason}
-                      onToggleCollapsed={() => p.onToggleGroup(g)}
-                      onToggleSelect={() => p.onToggleSelectMany(ids)}
-                      onGroupAction={(a) => p.onGroupAction(a, g)}
-                      onExpandAll={p.onExpandAll}
-                      onCollapseAll={p.onCollapseAll}
-                    />
+                <ComposeGroupRow
+                  key={r.id}
+                  group={g}
+                  cols={groupCols}
+                  totals={g.project ? projectLive.totals.get(g.project) : undefined}
+                  idle={g.project ? projectLive.idle.get(g.project) : undefined}
+                  collapsed={p.isCollapsed(g)}
+                  checkState={checkState(
+                    g.visible.map((c) => c.id),
+                    p.selected,
+                  )}
+                  busy={g.visible.some((c) => p.inFlight.has(c.id))}
+                  canRunCompose={p.canRunCompose}
+                  composeReason={p.composeReason}
+                  handlers={groupHandlers}
+                />
               );
             }
             const c = r.container;
-            const isChecked = p.selected.has(c.id);
             return (
-              <tr
-                key={row.id}
-                tabIndex={0}
-                aria-selected={p.inspectedId === c.id}
-                data-state={isChecked ? "selected" : undefined}
-                onClick={() => p.onInspect(c)}
-                onDoubleClick={() => p.onOpenDetails(c)}
-                onKeyDown={(e) => {
-                  if (e.target !== e.currentTarget) return;
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    p.onOpenDetails(c);
-                  } else if (e.key === " ") {
-                    e.preventDefault();
-                    p.onInspect(c);
-                  }
-                }}
-                className={cn(
-                  "h-[42px] cursor-pointer border-b border-border/60 outline-none transition-colors hover:bg-muted/50 focus-visible:bg-muted/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/60",
-                  isChecked && "bg-primary/[0.07] hover:bg-primary/10",
-                  p.inspectedId === c.id && "bg-accent hover:bg-accent [&>td:first-child]:shadow-[inset_2px_0_0_0_var(--primary)]",
-                )}
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <td
-                    key={cell.id}
-                    className={cn("whitespace-nowrap px-3", cell.column.id === "select" && p.mode === "grouped" && "pl-9", RESPONSIVE_COL[cell.column.id])} // ~24px child indent
-                  >
-                    <table.FlexRender cell={cell} />
-                  </td>
-                ))}
-              </tr>
+              <ContainerRow
+                key={r.id}
+                container={c}
+                stat={p.stats.get(c.id)}
+                checked={p.selected.has(c.id)}
+                inspected={p.inspectedId === c.id}
+                busy={p.inFlight.has(c.id)}
+                grouped={p.mode === "grouped"}
+                columns={visibleColumns}
+                handlers={rowHandlers}
+              />
             );
           })}
         </tbody>
