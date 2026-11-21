@@ -30,7 +30,7 @@ export function LogsTab({ connectionId, project, services, active }: { connectio
   }, [lines]);
 
   return (
-    <div className="flex min-h-0 flex-col gap-2">
+    <div className="flex min-h-0 flex-1 flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2">
         <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
           Service
@@ -61,7 +61,7 @@ export function LogsTab({ connectionId, project, services, active }: { connectio
       {q.error ? (
         <p className="text-destructive">Could not load logs: {(q.error as Error).message}</p>
       ) : (
-        <div ref={box} className="h-[460px] overflow-auto rounded-[10px] border border-border bg-card p-3 font-mono text-xs leading-5">
+        <div ref={box} className="min-h-[200px] flex-1 overflow-auto rounded-[10px] border border-border bg-card p-3 font-mono text-xs leading-5">
           {q.isLoading ? (
             <span className="text-muted-foreground">Loading…</span>
           ) : lines.length === 0 ? (

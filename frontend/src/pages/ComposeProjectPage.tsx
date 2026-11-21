@@ -68,7 +68,7 @@ function ProjectView({ connectionId, name }: { connectionId: string; name: strin
   const services = (p.services ?? []).map((s) => s.name).filter(Boolean);
 
   return (
-    <div className="h-full overflow-auto p-5">
+    <div className={cn("h-full overflow-auto p-5", tab === "logs" && "flex flex-col")}>
       <PageHeader
         breadcrumb={back}
         title={p.name}
@@ -84,7 +84,7 @@ function ProjectView({ connectionId, name }: { connectionId: string; name: strin
         actions={<ProjectActions connectionId={connectionId} project={p} containers={containers} labels onForgotten={() => (p.notCreated ? navigate("/compose") : undefined)} />}
       />
       <ProjectTotalsStrip connectionId={connectionId} project={p} containers={containers} totals={live.totals.get(name)} idle={live.idle.get(name)} />
-      <Tabs value={tab} onValueChange={setTab} className="gap-3">
+      <Tabs value={tab} onValueChange={setTab} className={cn("gap-3", tab === "logs" && "min-h-[320px] flex-1")}>
         <TabsList className="w-fit">
           <TabsTrigger value="services">Services</TabsTrigger>
           <TabsTrigger value="logs">Logs</TabsTrigger>
@@ -100,7 +100,7 @@ function ProjectView({ connectionId, name }: { connectionId: string; name: strin
         <TabsContent value="services">
           <ServicesTab connectionId={connectionId} project={p} containers={containers} />
         </TabsContent>
-        <TabsContent value="logs">
+        <TabsContent value="logs" className="min-h-0 data-[state=active]:flex data-[state=active]:flex-col">
           <LogsTab connectionId={connectionId} project={p.name} services={services} active={tab === "logs"} />
         </TabsContent>
         <TabsContent value="configuration">
