@@ -8,8 +8,27 @@ import (
 	"time"
 )
 
-// ProjectLogs returns a snapshot of the last `tail` lines per container, merged by
-// timestamp and trimmed to `tail` lines overall.
+// minPerContainerTail keeps quiet containers visible in a project with many containers.
+const minPerContainerTail = 200
+
+// perContainerTail is how many lines to ask each container for: about twice an even share of
+// tail, never less than minPerContainerTail and never more than tail.
+func perContainerTail(tail, containers int) int {
+	if containers <= 1 {
+		return tail
+	}
+	share := (2*tail + containers - 1) / containers
+	if share < minPerContainerTail {
+		share = minPerContainerTail
+	}
+	if share > tail {
+		share = tail
+	}
+	return share
+}
+
+// ProjectLogs returns a snapshot of the last `tail` lines of the project, read as a share per
+// container (see perContainerTail), merged by timestamp and trimmed to `tail` lines overall.
 func (s *ComposeService) ProjectLogs(ctx context.Context, connectionID, name string, tail int) ([]model.ComposeLogLine, error) {
 	cs, err := s.labelled(ctx, connectionID, name)
 	if err != nil {
@@ -21,6 +40,7 @@ func (s *ComposeService) ProjectLogs(ctx context.Context, connectionID, name str
 	if tail > maxLogTail {
 		tail = maxLogTail
 	}
+	share := perContainerTail(tail, len(cs))
 	cont := &ContainerService{Engines: s.Engines, Events: s.Events}
 	type chunk struct {
 		c     compose.Container
@@ -29,7 +49,7 @@ func (s *ComposeService) ProjectLogs(ctx context.Context, connectionID, name str
 	}
 	chunks := make([]chunk, len(cs))
 	forEachBounded(ctx, len(cs), func(i int) {
-		lines, err := cont.Logs(ctx, connectionID, cs[i].ID, tail)
+		lines, err := cont.Logs(ctx, connectionID, cs[i].ID, share)
 		chunks[i] = chunk{c: cs[i], lines: lines, err: err}
 	}, func(i int) {
 		chunks[i] = chunk{c: cs[i], err: ctx.Err()}

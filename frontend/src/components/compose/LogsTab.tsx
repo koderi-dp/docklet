@@ -46,7 +46,7 @@ export function LogsTab({ connectionId, project, services, active }: { connectio
         <Button size="sm" variant="outline" onClick={() => void q.refetch()} disabled={q.isFetching}>
           <RefreshCw className={cn("size-3.5", q.isFetching && "animate-spin")} /> Refresh
         </Button>
-        <span className="text-xs text-muted-foreground">Snapshot of the last {tail} lines per container; refresh to update.</span>
+        <span className="text-xs text-muted-foreground">Snapshot of the last {tail} lines of the project; refresh to update.</span>
       </div>
       {q.error ? (
         <p className="text-destructive">Could not load logs: {(q.error as Error).message}</p>
