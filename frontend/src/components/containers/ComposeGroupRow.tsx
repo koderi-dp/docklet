@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { Box,ChevronRight, Layers, MoreHorizontal, Play, RotateCw, Square } from "lucide-react";
+import { Box, ChevronRight, Layers, MoreHorizontal, Play, RotateCw, Square } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

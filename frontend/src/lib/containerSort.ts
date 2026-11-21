@@ -21,13 +21,25 @@ export function containerAccessors(stats: ReadonlyMap<string, ContainerStat>): A
   };
 }
 
+const sameItems = (a: readonly Container[], b: readonly Container[]) => a.length === b.length && a.every((x, i) => x === b[i]);
+
+const BASE_KEYS = ["all", "state", "completed", "failed", "health", "filtered", "kind", "project", "collapseKey", "connectionId"] as const;
+const sameBase = (a: ComposeGroup, b: ComposeGroup) => BASE_KEYS.every((k) => a[k] === b[k]);
+
 /** Sort containers inside each group; the groups themselves stay ordered by name (Standalone last). */
-export function sortGroups(groups: readonly ComposeGroup[], sort: SortState | undefined, stats: ReadonlyMap<string, ContainerStat>): ComposeGroup[] {
+export function sortGroups(
+  groups: readonly ComposeGroup[],
+  sort: SortState | undefined,
+  stats: ReadonlyMap<string, ContainerStat>,
+  prev?: readonly ComposeGroup[],
+): ComposeGroup[] {
   const acc = containerAccessors(stats);
-  // A group whose order did not change keeps its object, so its row can stay memoised.
+  // A group whose result did not change keeps its object (the input's or the previous result's), so its row can stay memoised.
   const withSortedChildren = groups.map((g) => {
     const sorted = sortItems(g.visible, sort, acc);
-    return sorted.length === g.visible.length && sorted.every((x, i) => x === g.visible[i]) ? g : { ...g, visible: sorted };
+    if (sameItems(sorted, g.visible)) return g;
+    const old = prev?.find((p) => p.id === g.id);
+    return old && sameBase(old, g) && sameItems(old.visible, sorted) ? old : { ...g, visible: sorted };
   });
   const nameDir = sort?.id === "name" && sort.desc ? -1 : 1;
   return withSortedChildren.sort((a, b) => {
