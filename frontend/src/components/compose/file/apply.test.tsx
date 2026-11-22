@@ -55,6 +55,11 @@ describe("ApplyPanel", () => {
     expect(html).toContain("Up to date");
     expect(html).toContain("Nothing to do");
   });
+  it("says it is checking while the first plan loads", () => {
+    const html = renderToStaticMarkup(<ApplyPanel plan={undefined} loading dirty={false} options={opts} onOptions={() => {}} />);
+    expect(html).toContain("Checking what would change");
+    expect(html).not.toContain("Up to date");
+  });
   it("says the rows describe the saved file while dirty", () => {
     expect(render({ error: "", items: [] }, true)).toContain("Unsaved changes: save to see the effect");
   });

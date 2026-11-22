@@ -35,6 +35,8 @@ type PlanInput struct {
 	ImageIDs map[string][]string
 	// Replicas is the wanted container count per service; a service not in the map wants 1.
 	Replicas map[string]int
+	// OneShots are the services another service waits on with service_completed_successfully.
+	OneShots map[string]bool
 }
 
 // ParseReplicas reads `docker compose config --format json` output for the container count
@@ -101,7 +103,7 @@ func PlanApply(in PlanInput) []model.ComposeApplyItem {
 		default:
 			counts[svc]++
 			a := containerAction(c, want, in.ImageIDs[svc])
-			shot := a == "start" && isOneShot(c)
+			shot := a == "start" && in.OneShots[svc] && finishedOK(c)
 			cur, ok := actions[svc]
 			switch {
 			case !ok || applyRank[a] > applyRank[cur]:
@@ -123,7 +125,11 @@ func PlanApply(in PlanInput) []model.ComposeApplyItem {
 			it := model.ComposeApplyItem{Service: svc, Action: a, Detail: applyDetail[a]}
 			switch {
 			case (a == "unchanged" || a == "start") && counts[svc] != wanted(svc):
-				it.Action, it.Detail = "scale", fmt.Sprintf("%d containers now, %d wanted", counts[svc], wanted(svc))
+				now := fmt.Sprintf("%d containers", counts[svc])
+				if counts[svc] == 1 {
+					now = "1 container"
+				}
+				it.Action, it.Detail = "scale", fmt.Sprintf("%s now, %d wanted", now, wanted(svc))
 			case oneShot[svc]:
 				it.Detail, it.OneShot = oneShotDetail, true
 			}
@@ -139,11 +145,10 @@ func PlanApply(in PlanInput) []model.ComposeApplyItem {
 	return items
 }
 
-// isOneShot is a service container that ran to completion: exited with 0 and no restart
-// policy (the Structure tab's "completed"). `up` runs it again.
-func isOneShot(c Container) bool {
-	return IsCompleted(c.State, c.ExitCode, c.RestartPolicy, false) ||
-		(c.State == "exited" && c.ExitCode != nil && *c.ExitCode == 0 && c.RestartPolicy == "")
+// finishedOK is a container that exited with 0. It is a finished one-shot only when the file
+// declares its service one (PlanInput.OneShots); `up` runs it again.
+func finishedOK(c Container) bool {
+	return c.State == "exited" && c.ExitCode != nil && *c.ExitCode == 0
 }
 
 func containerAction(c Container, wantHash string, imageIDs []string) string {

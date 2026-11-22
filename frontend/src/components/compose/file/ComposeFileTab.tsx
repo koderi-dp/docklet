@@ -123,7 +123,10 @@ function FileEditor({ connectionId, name, files, active, onDirtyChange, panel, p
 
   // While the YAML does not parse, the outline keeps the last services of a text that did.
   const goodOutline = useRef<{ path: string; services: NonNullable<typeof outline.data>["services"] } | null>(null);
-  if (outline.data && !outline.data.error) goodOutline.current = { path, services: outline.data.services };
+  // Only data computed for the editor's current text counts: after a file switch the query still holds the old file's.
+  const outlineIsCurrent = ready && outline.dataText === loaded.text;
+  if (goodOutline.current && goodOutline.current.path !== path) goodOutline.current = null;
+  if (outlineIsCurrent && outline.data && !outline.data.error) goodOutline.current = { path, services: outline.data.services };
   const services = (goodOutline.current?.path === path ? goodOutline.current.services : null) ?? [];
 
   const error = loaded?.error ?? (readOnly ? null : (outline.data?.error ?? null));

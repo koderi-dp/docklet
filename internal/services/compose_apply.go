@@ -54,8 +54,16 @@ func (s *ComposeService) ApplyPlan(ctx context.Context, connectionID, name strin
 	for _, sv := range g.Services {
 		all = append(all, sv.Name)
 	}
+	oneShots := map[string]bool{}
+	for _, sv := range g.Services {
+		for _, d := range sv.DependsOn {
+			if d.Condition == "service_completed_successfully" {
+				oneShots[d.Service] = true
+			}
+		}
+	}
 	return model.ComposeApplyPlan{Items: compose.PlanApply(compose.PlanInput{
-		Hashes: hashes, AllServices: all, Containers: cs,
+		Hashes: hashes, AllServices: all, Containers: cs, OneShots: oneShots,
 		ImageIDs: s.serviceImageIDs(ctx, connectionID, p.Name, g, hashes),
 		Replicas: compose.ParseReplicas(jsonOut),
 	})}, nil
@@ -113,6 +121,13 @@ func (s *ComposeService) serviceImageIDs(ctx context.Context, connectionID, proj
 		return ids
 	}
 	plat := client.ImageInspectWithPlatform(&ocispec.Platform{OS: ver.Os, Architecture: ver.Arch})
+	var classicKnown, classicStore bool
+	classic := func() bool {
+		if !classicKnown {
+			classicKnown, classicStore = true, classicImageStore(ctx, cli)
+		}
+		return classicStore
+	}
 	for _, sv := range g.Services {
 		if _, ok := hashes[sv.Name]; !ok {
 			continue
@@ -130,9 +145,30 @@ func (s *ComposeService) serviceImageIDs(ctx context.Context, connectionID, proj
 		}
 		specific, err := cli.ImageInspect(ctx, ref, plat)
 		if err != nil || specific.ID == "" {
+			// An Engine below API 1.49 refuses the platform; on the classic image store the plain
+			// id is the one Compose stamps.
+			if classic() {
+				ids[sv.Name] = []string{plain.ID}
+			}
 			continue
 		}
 		ids[sv.Name] = []string{plain.ID, specific.ID}
 	}
 	return ids
+}
+
+// classicImageStore reports whether the Engine uses the classic image store (no containerd
+// snapshotter in its driver status). An Engine that cannot say counts as not classic.
+func classicImageStore(ctx context.Context, cli *client.Client) bool {
+	res, err := cli.Info(ctx, client.InfoOptions{})
+	if err != nil {
+		return false
+	}
+	for _, kv := range res.Info.DriverStatus {
+		// Docker reports it as ["driver-type", "io.containerd.snapshotter.v1"].
+		if strings.Contains(kv[0], "io.containerd.snapshotter") || strings.Contains(kv[1], "io.containerd.snapshotter") {
+			return false
+		}
+	}
+	return true
 }

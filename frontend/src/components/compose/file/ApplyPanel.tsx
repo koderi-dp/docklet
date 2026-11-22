@@ -41,6 +41,7 @@ export function ApplyPanel({ plan, loading, dirty, options, onOptions, canRun = 
   if (dirty) state = "Unsaved changes: save to see the effect";
   else if (!canRun) state = "Apply is not available";
   else if (queryError) state = "Could not check what would change";
+  else if (loading && !plan) state = "Checking what would change";
   else if (plan?.error) state = "Saved, with configuration errors";
   else if (pendingChanges(items, options.removeOrphans)) state = "Saved, not applied";
 

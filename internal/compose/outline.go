@@ -72,7 +72,11 @@ func resolveAlias(n *yaml.Node) *yaml.Node {
 // prints the zero-based mark line for those but adds one only to scanner errors, so their
 // printed line is one too low.
 var parserErrorPrefixes = []string{
-	"did not find expected ", "found undefined tag handle", "found duplicate %", "found incompatible YAML",
+	"did not find expected <document start>", "did not find expected node content",
+	"did not find expected key", "did not find expected '-' indicator",
+	"did not find expected ',' or ']'", "did not find expected ',' or '}'",
+	"found undefined tag handle", "found duplicate %YAML directive",
+	"found duplicate %TAG directive", "found incompatible YAML document",
 }
 
 // yamlError turns a yaml.v3 error into a message and the 1-based line of the mistake.

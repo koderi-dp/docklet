@@ -93,22 +93,32 @@ func TestPlanError_DropsPrefixAndWarnings(t *testing.T) {
 
 // newEngineSvc is newVerbSvc with a fake Engine: containers and the image ids by platform.
 func newEngineSvc(t *testing.T, containers string) (*ComposeService, *fakeRunner) {
+	return newEngineSvcAt(t, containers, "1.49", "")
+}
+
+// newEngineSvcAt is newEngineSvc with the client's API version and the Engine's /info answer
+// (empty: no /info route).
+func newEngineSvcAt(t *testing.T, containers, api, info string) (*ComposeService, *fakeRunner) {
 	t.Helper()
 	cli := dockerClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch {
 		case strings.HasSuffix(r.URL.Path, "/version"):
 			_, _ = w.Write([]byte(`{"Os":"linux","Arch":"amd64","ApiVersion":"1.49"}`))
+		case strings.HasSuffix(r.URL.Path, "/info") && info != "":
+			_, _ = w.Write([]byte(info))
 		case strings.HasSuffix(r.URL.Path, "/containers/json"):
 			_, _ = w.Write([]byte(containers))
 		case strings.Contains(r.URL.Path, "/images/") && r.URL.Query().Get("platform") != "":
 			_, _ = w.Write([]byte(`{"Id":"sha256:platform"}`))
+		case strings.Contains(r.URL.Path, "/images/") && api != "1.49":
+			_, _ = w.Write([]byte(`{"Id":"sha256:current"}`))
 		case strings.Contains(r.URL.Path, "/images/"):
 			_, _ = w.Write([]byte(`{"Id":"sha256:index"}`))
 		default:
 			http.NotFound(w, r)
 		}
-	}), "1.49")
+	}), api)
 	runner := &fakeRunner{}
 	cfg := writeFile(t, t.TempDir(), "compose.yml")
 	s := &ComposeService{
@@ -144,6 +154,51 @@ func TestApplyPlan_ImageLabelWithPlatformIdIsNotAChange(t *testing.T) {
 	}
 }
 
+func TestApplyPlan_OldEngineChecksTheImageByPlainId(t *testing.T) {
+	const classic = `{"DriverStatus":[["Backing Filesystem","extfs"]]}`
+	const containerd = `{"DriverStatus":[["driver-type","io.containerd.snapshotter.v1"]]}`
+	for name, c := range map[string]struct{ info, want string }{
+		"classic store":    {classic, "recreateImage"},
+		"containerd store": {containerd, "unchanged"},
+		"info unknown":     {"", "unchanged"},
+	} {
+		s, r := newEngineSvcAt(t, "["+webContainer("1", "sha256:old")+"]", "1.47", c.info)
+		scriptApply(r, "db h1\nweb h2\n", nil)
+		plan, err := s.ApplyPlan(bg, "c1", "shop", nil)
+		if err != nil || len(plan.Items) != 2 || plan.Items[1].Action != c.want {
+			t.Errorf("%s: want %s, got %+v %v", name, c.want, plan, err)
+		}
+	}
+}
+
+func TestApplyPlan_OnlyADeclaredOneShotIsFinished(t *testing.T) {
+	stopped := strings.Replace(webContainer("1", "sha256:platform"), `"State":"running"`, `"State":"exited","Status":"Exited (0) 1 hour ago"`, 1)
+	for name, c := range map[string]struct {
+		cfg  string
+		shot bool
+	}{
+		"ordinary service":  {`{"services":{"web":{"image":"nginx"},"db":{"image":"postgres"}}}`, false},
+		"declared one-shot": {`{"services":{"web":{"image":"nginx"},"db":{"image":"postgres","depends_on":{"web":{"condition":"service_completed_successfully"}}}}}`, true},
+	} {
+		s, r := newEngineSvc(t, "["+stopped+"]")
+		r.out = func(cmd compose.Command) (string, error) {
+			switch {
+			case slices.Contains(cmd.Args, "--short"):
+				return "5.7.1\n", nil
+			case slices.Contains(cmd.Args, "--hash"):
+				return "db h1\nweb h2\n", nil
+			case slices.Contains(cmd.Args, "config"):
+				return c.cfg, nil
+			}
+			return "", nil
+		}
+		plan, err := s.ApplyPlan(bg, "c1", "shop", nil)
+		if err != nil || len(plan.Items) != 2 || plan.Items[1].Action != "start" || plan.Items[1].OneShot != c.shot {
+			t.Errorf("%s: %+v %v", name, plan, err)
+		}
+	}
+}
+
 func TestApplyPlan_ChangedReplicasAreAScale(t *testing.T) {
 	s, r := newEngineSvc(t, "["+webContainer("1", "sha256:platform")+"]")
 	r.out = func(c compose.Command) (string, error) {
@@ -158,7 +213,7 @@ func TestApplyPlan_ChangedReplicasAreAScale(t *testing.T) {
 		return "", nil
 	}
 	plan, err := s.ApplyPlan(bg, "c1", "shop", nil)
-	if err != nil || len(plan.Items) != 1 || plan.Items[0].Action != "scale" || plan.Items[0].Detail != "1 containers now, 3 wanted" {
+	if err != nil || len(plan.Items) != 1 || plan.Items[0].Action != "scale" || plan.Items[0].Detail != "1 container now, 3 wanted" {
 		t.Errorf("%+v %v", plan, err)
 	}
 }

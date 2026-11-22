@@ -95,7 +95,7 @@ func TestPlanApply_PerServiceRules(t *testing.T) {
 			in := webInput(ctr("web", "h1", "img1", "exited"))
 			in.Replicas = map[string]int{"web": 2}
 			return in
-		}(), "scale", "1 containers now, 2 wanted"},
+		}(), "scale", "1 container now, 2 wanted"},
 		{"recreate beats scale", func() PlanInput {
 			in := webInput(ctr("web", "h0", "img1", "running"))
 			in.Replicas = map[string]int{"web": 2}
@@ -140,16 +140,20 @@ func TestPlanApply_FinishedOneShotRunsAgain(t *testing.T) {
 		c.ExitCode, c.RestartPolicy = code, policy
 		return c
 	}
+	declared := func(in PlanInput) PlanInput {
+		in.OneShots = map[string]bool{"web": true}
+		return in
+	}
 	for name, c := range map[string]struct {
 		in   PlanInput
 		shot bool
 		det  string
 	}{
-		"completed, policy no":     {webInput(exited(&zero, "no")), true, "completed, runs again"},
-		"completed, policy empty":  {webInput(exited(&zero, "")), true, "completed, runs again"},
-		"failed":                   {webInput(exited(&nonzero, "no")), false, "stopped"},
-		"restarting policy":        {webInput(exited(&zero, "always")), false, "stopped"},
-		"stopped next to finished": {wanting(2, webInput(exited(&zero, "no"), exited(&nonzero, "no"))), false, "stopped"},
+		"ordinary service stopped, policy no": {webInput(exited(&zero, "no")), false, "stopped"},
+		"ordinary service stopped, no policy": {webInput(exited(&zero, "")), false, "stopped"},
+		"declared, completed":                 {declared(webInput(exited(&zero, "no"))), true, "completed, runs again"},
+		"declared, failed":                    {declared(webInput(exited(&nonzero, "no"))), false, "stopped"},
+		"declared, stopped next to finished":  {declared(wanting(2, webInput(exited(&zero, "no"), exited(&nonzero, "no")))), false, "stopped"},
 	} {
 		got := one(t, c.in)
 		if got.Action != "start" || got.OneShot != c.shot || got.Detail != c.det {

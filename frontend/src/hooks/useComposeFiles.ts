@@ -68,7 +68,7 @@ export function useFileOutline(text: string, enabled: boolean) {
     const t = setTimeout(() => setSettled(text), OUTLINE_DELAY_MS);
     return () => clearTimeout(t);
   }, [text]);
-  return useQuery({
+  const query = useQuery({
     queryKey: ["compose", "outline", settled],
     queryFn: () => ComposeService.FileOutline(settled),
     enabled,
@@ -77,6 +77,8 @@ export function useFileOutline(text: string, enabled: boolean) {
     gcTime: 60_000,
     retry: false,
   });
+  // The kept data of an earlier text is a placeholder: it belongs to no text we can name.
+  return { data: query.data, dataText: query.isPlaceholderData ? null : settled };
 }
 
 /**
