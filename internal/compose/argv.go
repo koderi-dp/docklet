@@ -49,6 +49,7 @@ type Command struct {
 	Args     []string
 	EnvSet   []string
 	EnvUnset []string
+	Stdin    []byte
 }
 
 // Argv returns the arguments after `docker`: compose -p <project> ... <verb> [flags].

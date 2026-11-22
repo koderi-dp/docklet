@@ -29,6 +29,9 @@ func newCmd(ctx context.Context, c Command) *exec.Cmd {
 	if len(c.EnvSet) > 0 || len(c.EnvUnset) > 0 {
 		cmd.Env = MergeEnv(os.Environ(), c.EnvSet, c.EnvUnset)
 	}
+	if len(c.Stdin) > 0 {
+		cmd.Stdin = bytes.NewReader(c.Stdin)
+	}
 	cmd.WaitDelay = 3 * time.Second
 	hideWindow(cmd)
 	killTree(cmd)

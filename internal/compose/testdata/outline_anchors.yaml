@@ -1,0 +1,14 @@
+x-base: &base
+  image: alpine
+  restart: always
+
+services:
+  db:
+    image: postgres
+  web:
+    <<: *base
+    ports: ["80:80"]
+  worker:
+    extends:
+      service: db
+  alias: *base

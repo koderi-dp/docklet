@@ -1,0 +1,10 @@
+services:
+  a:
+    image: a
+---
+name: second
+services:
+  b:
+    image: b
+  c:
+    image: c
