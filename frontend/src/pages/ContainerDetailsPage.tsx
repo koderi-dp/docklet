@@ -22,7 +22,6 @@ import {
 import { ConnectionGate } from "@/components/shared/ConnectionGate";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { LogViewer } from "@/components/containers/LogViewer";
-import { StatsPanel } from "@/components/containers/StatsPanel";
 import { InspectPanel } from "@/components/containers/InspectPanel";
 import { ProcessesPanel } from "@/components/containers/ProcessesPanel";
 import { OverviewPanel } from "@/components/containers/OverviewPanel";
@@ -38,7 +37,7 @@ import { errorMessage } from "@/lib/errors";
 // xterm is large: load it only when a terminal is actually opened.
 const TerminalPanel = lazy(() => import("@/components/containers/TerminalPanel"));
 
-const TABS = ["overview", "logs", "terminal", "stats", "files", "inspect", "processes"] as const;
+const TABS = ["overview", "logs", "terminal", "files", "inspect", "processes"] as const;
 type TabId = (typeof TABS)[number];
 const isTab = (v: string | null): v is TabId => !!v && (TABS as readonly string[]).includes(v);
 
@@ -136,7 +135,6 @@ function Detail({ connectionId, param }: { connectionId: string; param: string }
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="logs">Logs</TabsTrigger>
           <TabsTrigger value="terminal">Terminal</TabsTrigger>
-          <TabsTrigger value="stats">Stats</TabsTrigger>
           <TabsTrigger value="files">Files</TabsTrigger>
           <TabsTrigger value="inspect">Inspect</TabsTrigger>
           <TabsTrigger value="processes">Processes</TabsTrigger>
@@ -145,7 +143,7 @@ function Detail({ connectionId, param }: { connectionId: string; param: string }
         <TabsContent value="overview" className="min-h-0 flex-1 overflow-auto">
           {detail.isLoading && <Skeleton className="h-64 w-full" />}
           {detail.error && <p className="text-sm text-destructive">Could not load details: {String(detail.error)}</p>}
-          {detail.data && <OverviewPanel c={c} d={detail.data} />}
+          {detail.data && <OverviewPanel c={c} d={detail.data} connectionId={connectionId} />}
         </TabsContent>
 
         <TabsContent value="logs" className="flex min-h-0 flex-1 flex-col">
@@ -175,10 +173,6 @@ function Detail({ connectionId, param }: { connectionId: string; param: string }
               )}
             </EmptyState>
           )}
-        </TabsContent>
-
-        <TabsContent value="stats" className="min-h-0 flex-1 overflow-auto">
-          <StatsPanel connectionId={connectionId} containerId={c.id} running={running} />
         </TabsContent>
 
         <TabsContent value="files" className="flex min-h-0 flex-1 flex-col">
