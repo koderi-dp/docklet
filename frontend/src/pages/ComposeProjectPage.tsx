@@ -24,7 +24,7 @@ import { WatchTab } from "@/components/compose/watch/WatchTab";
 import { projectContainers, useComposeProject } from "@/hooks/useCompose";
 import { useContainersQuery, useContainerStats } from "@/hooks/useContainers";
 import { useProjectTotals } from "@/hooks/useProjectTotals";
-import { useApplyPlan } from "@/hooks/useComposeFiles";
+import { useApplyPlan, useComposeFiles } from "@/hooks/useComposeFiles";
 import { useWatchState } from "@/hooks/useComposeWatch";
 import { errorMessage } from "@/lib/errors";
 import { pendingChanges, type ApplyOptions } from "@/lib/applyPlanView";
@@ -45,8 +45,10 @@ function ProjectView({ connectionId, name }: { connectionId: string; name: strin
   const [fileDirty, setFileDirty] = useState(false);
   const [pendingTab, setPendingTab] = useState<string | null>(null);
   const [applyOpts, setApplyOpts] = useState<ApplyOptions>({ removeOrphans: false, profiles: [] });
+  const [reveal, setReveal] = useState<{ service: string; nonce: number }>();
   const navigate = useNavigate();
   const q = useComposeProject(connectionId, name);
+  const canShowInFile = useComposeFiles(connectionId, name, tab === "structure").data?.canEdit === true;
   const cap = q.data?.capability;
   const plan = useApplyPlan(connectionId, name, applyOpts.profiles, tab === "file" && !!q.data && !!cap?.canRun);
   const all = useContainersQuery(connectionId, true);
@@ -150,6 +152,11 @@ function ProjectView({ connectionId, name }: { connectionId: string; name: strin
               setServiceFocus(service);
               setTab("services");
             }}
+            canShowInFile={canShowInFile}
+            onShowInFile={(service) => {
+              setReveal((r) => ({ service, nonce: (r?.nonce ?? 0) + 1 }));
+              setTab("file");
+            }}
           />
         </TabsContent>
         <TabsContent value="services">
@@ -164,6 +171,7 @@ function ProjectView({ connectionId, name }: { connectionId: string; name: strin
               active={tab === "file"}
               onDirtyChange={setFileDirty}
               pendingApply={pendingApply}
+              reveal={reveal}
               panel={
                 <ApplyPanel
                   plan={plan.data}

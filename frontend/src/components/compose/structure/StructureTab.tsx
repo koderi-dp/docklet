@@ -19,6 +19,8 @@ interface Props {
   active: boolean;
   onShowService: (service: string) => void;
   onShowInFile?: (service: string) => void;
+  /** The graph is read from the files and they can be edited. */
+  canShowInFile: boolean;
 }
 
 function names(list: string[] | null | undefined): string {
@@ -38,7 +40,7 @@ function FooterItem({ label, list }: { label: string; list: string[] | null | un
   );
 }
 
-export function StructureTab({ connectionId, project, containers, active, onShowService, onShowInFile }: Props) {
+export function StructureTab({ connectionId, project, containers, active, onShowService, onShowInFile, canShowInFile }: Props) {
   const q = useComposeGraph(connectionId, project.name, active);
   const graph = q.data;
   const [find, setFind] = useState("");
@@ -122,7 +124,7 @@ export function StructureTab({ connectionId, project, containers, active, onShow
         onClear={clear}
         onOpenContainer={() => toolbarSelection && navigate(`/containers/${toolbarSelection.containerId}`)}
         onShowInServices={() => toolbarSelection && onShowService(toolbarSelection.name)}
-        onShowInFile={onShowInFile && toolbarSelection ? () => onShowInFile(toolbarSelection.name) : undefined}
+        onShowInFile={canShowInFile && graph.source !== "containers" && onShowInFile && toolbarSelection ? () => onShowInFile(toolbarSelection.name) : undefined}
       />
       {graph.source === "containers" && <FallbackNote note={graph.note ?? ""} />}
       {layout.cyclic.length > 0 && (
