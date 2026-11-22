@@ -11,6 +11,8 @@ on:
     paths-ignore: ["**/*.md", "docs/**", "LICENSE"]
   pull_request:
     paths-ignore: ["**/*.md", "docs/**", "LICENSE"]
+  # The Release workflow calls this before it builds anything.
+  workflow_call:
 
 concurrency:
   group: ci-${{ github.ref }}

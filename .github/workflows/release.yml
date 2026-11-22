@@ -51,11 +51,16 @@ jobs:
             echo "prerelease=$prerelease"
           } >> "$GITHUB_OUTPUT"
 
-  # Required. The tagged commit has already been through CI, so this only builds: one installer per architecture, one after the other.
+  # The gate: the whole CI workflow runs on the commit being released. Nothing is built unless it passes.
+  ci:
+    name: CI
+    uses: ./.github/workflows/ci.yml
+
+  # Required. One installer per architecture, one after the other.
   # amd64 and arm64 are built unless the repository variable WINDOWS_ARCHES says otherwise, e.g. 'amd64'.
   windows:
     name: Windows (${{ vars.WINDOWS_ARCHES || 'amd64 arm64' }})
-    needs: prepare
+    needs: [prepare, ci]
     runs-on: windows-latest
     timeout-minutes: 45
     env:
@@ -107,7 +112,7 @@ jobs:
   # Required. Linux packages: AppImage and .deb. arm64 runs on GitHub's ubuntu-24.04-arm runner and is optional.
   linux:
     name: Linux (${{ matrix.arch }})
-    needs: prepare
+    needs: [prepare, ci]
     runs-on: ${{ matrix.runner }}
     continue-on-error: ${{ matrix.optional }}
     timeout-minutes: 45
@@ -166,7 +171,7 @@ jobs:
   # Optional: if the macOS build fails, the release goes out without it.
   macos:
     name: macOS (arm64)
-    needs: prepare
+    needs: [prepare, ci]
     runs-on: macos-latest
     continue-on-error: true
     timeout-minutes: 45
