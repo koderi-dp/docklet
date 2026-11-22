@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Container } from "@bindings/model";
-import { buildRows, countRows, filterRows, imageSizeFor } from "./serviceRows";
+import { buildRows, countRows, filterHides, filterRows, imageSizeFor } from "./serviceRows";
 
 const c = (name: string, service: string | undefined, over: Partial<Container> = {}): Container =>
   ({ id: `id-${name}`, name, image: "img", state: "running", status: "Up", health: "none", created: 1, ports: null, composeService: service, ...over }) as Container;
@@ -43,6 +43,26 @@ describe("imageSizeFor", () => {
     expect(imageSizeFor({ image: "docker.io/library/nginx:1.27-alpine", imageId: "sha256:aaa" }, imgs)).toBe(1);
     expect(imageSizeFor({ image: "nginx@sha256:deadbeef", imageId: "aaa" }, imgs)).toBe(1);
     expect(imageSizeFor({ image: "nginx:1.27-alpine", imageId: "sha256:other" }, imgs)).toBeUndefined();
+  });
+});
+
+describe("filterHides", () => {
+  const rows = buildRows(["web", "db"], [c("web-1", "web"), c("web-2", "web", { state: "exited" }), c("db-1", "db")]);
+
+  it("is false when every row of the service is visible", () => {
+    expect(filterHides(rows, "db", "running")).toBe(false);
+  });
+  it("is true when one of two replicas is hidden", () => {
+    expect(filterHides(rows, "web", "running")).toBe(true);
+  });
+  it("is true when all rows of the service are hidden", () => {
+    expect(filterHides(rows, "db", "stopped")).toBe(true);
+  });
+  it("is false for an unknown service", () => {
+    expect(filterHides(rows, "nope", "stopped")).toBe(false);
+  });
+  it("is false for the all filter", () => {
+    expect(filterHides(rows, "web", "all")).toBe(false);
   });
 });
 

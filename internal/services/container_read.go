@@ -26,7 +26,7 @@ func mapSummary(connectionID string, it container.Summary) model.Container {
 		Name:               name,
 		Image:              it.Image,
 		ImageID:            it.ImageID,
-		State:             string(it.State),
+		State:              string(it.State),
 		Status:             it.Status,
 		Health:             summaryHealth(it),
 		Created:            it.Created,

@@ -53,9 +53,16 @@ describe("ServicesTab", () => {
 
   it("keeps Up disabled and offers Start when Compose cannot run", () => {
     const html = wrap(<ServicesTab connectionId="c1" project={project(false, ["web", "job"])} containers={[ctr("web-1", "web", { state: "exited" })]} {...F} />);
-    expect(html).toMatch(/<button[^>]*disabled[^>]*aria-label="Compose Up service job"/);
+    expect(html).toMatch(/<button[^>]* disabled=""[^>]*aria-label="Compose Up service job"/);
     expect(html).not.toContain("Compose Up service web");
     expect(html).toContain('aria-label="Start web-1"');
+  });
+
+  it("enables Up when Compose can run", () => {
+    const html = wrap(<ServicesTab connectionId="c1" project={project(true, ["web", "job"])} containers={[ctr("web-1", "web")]} {...F} />);
+    const tag = html.match(/<button[^>]*aria-label="Compose Up service job"[^>]*>/)?.[0] ?? "";
+    expect(tag).not.toBe("");
+    expect(tag).not.toContain(' disabled=""');
   });
 
   it("offers the container's own Start beside Up when Compose can run", () => {
@@ -108,7 +115,15 @@ describe("ServicesView filter", () => {
   it("disables the service-wide menu while busy", () => {
     const two = buildRows(["web"], [ctr("web-1", "web"), ctr("web-2", "web")]);
     const html = wrap(<ServicesView rows={two} filter="all" onFilter={() => {}} images={[]} busy canRun upReason={undefined} onAct={() => {}} onUp={() => {}} />);
-    expect(html).toMatch(/<button[^>]*disabled[^>]*aria-label="All containers of service web"/);
+    expect(html).toMatch(/<button[^>]* disabled=""[^>]*aria-label="All containers of service web"/);
+  });
+
+  it("enables the service-wide menu when not busy", () => {
+    const two = buildRows(["web"], [ctr("web-1", "web"), ctr("web-2", "web")]);
+    const html = view("all", two);
+    const tag = html.match(/<button[^>]*aria-label="All containers of service web"[^>]*>/)?.[0] ?? "";
+    expect(tag).not.toBe("");
+    expect(tag).not.toContain(' disabled=""');
   });
 
   it("says so in one line when a filter has no rows", () => {

@@ -79,6 +79,12 @@ export function countRows(rows: readonly ServiceRow[]): RowCounts {
   return { all: rows.length, running, stopped: rows.length - running };
 }
 
+/** True when the filter hides at least one row of the service (false for an unknown service). */
+export function filterHides(rows: readonly ServiceRow[], service: string, filter: ServiceFilter): boolean {
+  const own = rows.filter((r) => r.service === service);
+  return filterRows(own, filter).length < own.length;
+}
+
 export function filterRows(rows: readonly ServiceRow[], filter: ServiceFilter): ServiceRow[] {
   if (filter === "all") return [...rows];
   return rows.filter((r) => r.running === (filter === "running"));

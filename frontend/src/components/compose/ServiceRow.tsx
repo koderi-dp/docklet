@@ -174,7 +174,7 @@ export function ServiceRow({ row, firstVisible, siblings, imageSize, busy, upRea
           <IconSlot act="start" container={c} busy={busy} onAct={onAct} />
           <IconSlot act="stop" container={c} busy={busy} onAct={onAct} />
           <IconSlot act="restart" container={c} busy={busy} onAct={onAct} />
-          {row.replicas > 1 && firstVisible ?<ServiceMenu service={row.service} siblings={siblings} busy={busy} onAct={onAct} /> : <span className="size-7" aria-hidden />}
+          {row.replicas > 1 && firstVisible ? <ServiceMenu service={row.service} siblings={siblings} busy={busy} onAct={onAct} /> : <span className="size-7" aria-hidden />}
         </div>
       </td>
     </tr>

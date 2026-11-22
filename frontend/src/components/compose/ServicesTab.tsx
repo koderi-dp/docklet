@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useImagesQuery } from "@/hooks/useImages";
 import { useComposeVerb, useProjectEngineBatch } from "@/hooks/useCompose";
-import { buildRows, countRows, filterRows, imageSizeFor, type ServiceFilter, type ServiceRow as Row } from "@/lib/serviceRows";
+import { buildRows, countRows, filterHides, filterRows, imageSizeFor, type ServiceFilter, type ServiceRow as Row } from "@/lib/serviceRows";
 import type { ComposeProject, Container, ImageRow } from "@bindings/model";
 import { ServiceFilterChips } from "./ServiceFilterChips";
 import { ServiceRow, type Act } from "./ServiceRow";
@@ -26,38 +26,30 @@ export function ServicesTab({ connectionId, project, containers, focusService, f
   const rows = useMemo(() => buildRows((project.services ?? []).map((s) => s.name), containers), [containers, project.services]);
 
   const wrapRef = useRef<HTMLDivElement>(null);
-  // The ring is keyed on focusService only; the latest rows and filter are read through refs so a
-  // container refetch does not cut the two seconds short.
-  const latest = useRef({ rows, filter });
-  latest.current = { rows, filter };
+  // Rows are read through a ref so a container refetch does not re-run the effect and cut the ring
+  // short; `applied` remembers the focused service so a later filter change does not ring again.
+  const latestRows = useRef(rows);
+  latestRows.current = rows;
+  const applied = useRef<string | undefined>(undefined);
   useEffect(() => {
-    if (!focusService) return;
-    const ring = ["ring-2", "ring-inset", "ring-primary"];
-    let els: HTMLElement[] = [];
-    let timer: number | undefined;
-    let frame: number | undefined;
-    const apply = () => {
-      els = Array.from(wrapRef.current?.querySelectorAll<HTMLElement>("[data-service]") ?? []).filter((r) => r.dataset.service === focusService);
-      els[0]?.scrollIntoView({ block: "center", behavior: "smooth" });
-      els.forEach((el) => el.classList.add(...ring));
-      timer = window.setTimeout(() => els.forEach((el) => el.classList.remove(...ring)), 2000);
-    };
-    const { rows: rs, filter: f } = latest.current;
-    const visible = filterRows(rs, f).filter((r) => r.service === focusService).length;
-    if (visible < rs.filter((r) => r.service === focusService).length) {
-      // A filter that hides any row of the service gives way first; the ring waits for the new render.
+    if (!focusService || applied.current === focusService) return;
+    if (filterHides(latestRows.current, focusService, filter)) {
+      // The filter gives way first; this effect runs again once the rows of the new filter are rendered.
       onFilterChange("all");
-      frame = window.requestAnimationFrame(apply);
-    } else {
-      apply();
+      return;
     }
+    applied.current = focusService;
+    const ring = ["ring-2", "ring-inset", "ring-primary"];
+    const els = Array.from(wrapRef.current?.querySelectorAll<HTMLElement>("[data-service]") ?? []).filter((r) => r.dataset.service === focusService);
+    els[0]?.scrollIntoView({ block: "center", behavior: "smooth" });
+    els.forEach((el) => el.classList.add(...ring));
+    const timer = window.setTimeout(() => els.forEach((el) => el.classList.remove(...ring)), 2000);
     return () => {
-      if (frame !== undefined) window.cancelAnimationFrame(frame);
       window.clearTimeout(timer);
       els.forEach((el) => el.classList.remove(...ring));
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusService]);
+  }, [focusService, filter]);
 
   if (rows.length === 0) return <p className="p-4 text-muted-foreground">No containers carry this project label{project.managed ? " and the Compose files define no services we could read" : ""}.</p>;
 
