@@ -51,21 +51,24 @@ export const ServiceCard = memo(function ServiceCard(p: ServiceCardProps) {
   const tone = TONE[p.state];
   const label = stateLabel(p.state);
   const image = p.image || (p.build ? "built from source" : "");
+  // No container means no row on the Services tab to show: the card is not a control.
+  const clickable = p.state !== "notCreated";
   const open = () => (p.containerId ? navigate(`/containers/${p.containerId}`) : p.onShowService(p.name));
+  const Root = clickable ? "button" : "div";
   return (
-    <button
-      type="button"
+    <Root
+      {...(clickable ? { type: "button" as const, onClick: open } : {})}
       data-graph-card
       aria-label={`${p.name}, ${label}`}
-      onClick={open}
       onMouseEnter={() => p.onHover(p.name)}
       onMouseLeave={() => p.onHover(null)}
       onFocus={() => p.onHover(p.name)}
       onBlur={() => p.onHover(null)}
       style={{ width: CARD_WIDTH, height: CARD_HEIGHT }}
       className={cn(
-        "relative flex cursor-pointer flex-col justify-between overflow-hidden rounded-[10px] border border-border bg-background py-2.5 pl-4 pr-3 text-left transition-opacity",
+        "relative flex flex-col justify-between overflow-hidden rounded-[10px] border border-border bg-background py-2.5 pl-4 pr-3 text-left transition-opacity",
         "outline-none hover:border-primary/50 focus-visible:ring-2 focus-visible:ring-ring",
+        clickable ? "cursor-pointer" : "cursor-default",
         idle && "border-dashed opacity-60",
         p.dimmed && "opacity-30",
       )}
@@ -100,6 +103,6 @@ export const ServiceCard = memo(function ServiceCard(p: ServiceCardProps) {
           </span>
         )}
       </span>
-    </button>
+    </Root>
   );
 });

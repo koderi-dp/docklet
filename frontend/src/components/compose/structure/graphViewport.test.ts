@@ -1,5 +1,37 @@
 import { describe, expect, it } from "vitest";
-import { fitView, zoomAt } from "./graphViewport";
+import { createPan, fitView, zoomAt } from "./graphViewport";
+
+describe("createPan", () => {
+  const target = { closest: () => null };
+  const node = { setPointerCapture: () => {}, hasPointerCapture: () => false, releasePointerCapture: () => {} };
+  const down = { button: 0, clientX: 0, clientY: 0, pointerId: 1, target, currentTarget: node };
+
+  function setup() {
+    const drag = { current: null as { x: number; y: number } | null };
+    const moves: number[] = [];
+    const pan = createPan(drag, () => moves.push(1));
+    return { drag, moves, pan };
+  }
+
+  it("pans while dragging", () => {
+    const { drag, moves, pan } = setup();
+    pan.onPointerDown(down);
+    pan.onPointerMove({ clientX: 5, clientY: 5 });
+    expect(drag.current).toEqual({ x: 5, y: 5 });
+    expect(moves).toHaveLength(1);
+  });
+
+  it("stops panning when the pointer is cancelled or capture is lost", () => {
+    for (const end of ["onPointerCancel", "onLostPointerCapture"] as const) {
+      const { drag, moves, pan } = setup();
+      pan.onPointerDown(down);
+      pan[end](down);
+      pan.onPointerMove({ clientX: 9, clientY: 9 });
+      expect(drag.current).toBeNull();
+      expect(moves).toHaveLength(0);
+    }
+  });
+});
 
 describe("fitView", () => {
   it("centres content that is smaller than the box at scale 1", () => {

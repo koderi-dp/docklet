@@ -1,13 +1,13 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Network } from "lucide-react";
 import type { ComposeProject, Container } from "@bindings/model";
-import { EmptyState } from "@/components/shared/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useComposeGraph } from "@/hooks/useCompose";
 import { layoutGraph } from "@/lib/composeGraphLayout";
 import { serviceState } from "@/lib/composeGraphView";
 import { GraphCanvas, type ServiceLive } from "./GraphCanvas";
+import { EmptyGraph, FallbackNote } from "./GraphNotices";
 import { GraphToolbar } from "./GraphToolbar";
+import { CARD_HEIGHT, CARD_WIDTH } from "./ServiceCard";
 import { useGraphViewport } from "./useGraphViewport";
 
 interface Props {
@@ -42,7 +42,13 @@ export function StructureTab({ connectionId, project, containers, active, onShow
 
   // The layout depends on the graph only: container state changes must not move anything.
   const layout = useMemo(
-    () => (graph ? layoutGraph((graph.services ?? []).map((s) => ({ name: s.name, dependsOn: (s.dependsOn ?? []).map((d) => d.service) }))) : null),
+    () =>
+      graph
+        ? layoutGraph(
+            (graph.services ?? []).map((s) => ({ name: s.name, dependsOn: (s.dependsOn ?? []).map((d) => d.service) })),
+            { nodeWidth: CARD_WIDTH, nodeHeight: CARD_HEIGHT },
+          )
+        : null,
     [graph],
   );
   const viewport = useGraphViewport(layout && layout.width > 0 ? { width: layout.width, height: layout.height } : null);
@@ -66,11 +72,7 @@ export function StructureTab({ connectionId, project, containers, active, onShow
   if (q.error || !graph || !layout)
     return <p className="p-4 text-destructive">{q.error ? (q.error as Error).message : "The service structure could not be read."}</p>;
   if ((graph.services ?? []).length === 0)
-    return (
-      <EmptyState icon={<Network />} title="No services to draw">
-        <p>This project defines no services.</p>
-      </EmptyState>
-    );
+    return <EmptyGraph graph={graph} />;
 
   return (
     <div className="flex h-full min-h-[420px] flex-col overflow-hidden rounded-[10px] border border-border bg-card">
@@ -83,11 +85,7 @@ export function StructureTab({ connectionId, project, containers, active, onShow
         onZoomIn={viewport.zoomIn}
         onZoomOut={viewport.zoomOut}
       />
-      {graph.source === "containers" && (
-        <p className="border-b border-border px-3 py-1.5 text-xs text-warning">
-          Drawn from the running containers: {graph.note}. Dependencies may be incomplete.
-        </p>
-      )}
+      {graph.source === "containers" && <FallbackNote note={graph.note ?? ""} />}
       {layout.cyclic.length > 0 && (
         <p className="border-b border-border px-3 py-1.5 text-xs text-destructive">Dependency cycle: {layout.cyclic.join(", ")}</p>
       )}

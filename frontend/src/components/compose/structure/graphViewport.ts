@@ -24,3 +24,41 @@ export function zoomAt(view: View, factor: number, point: { x: number; y: number
   const k = scale / view.scale;
   return { scale, x: point.x - (point.x - view.x) * k, y: point.y - (point.y - view.y) * k };
 }
+
+interface PanEvent {
+  button: number;
+  clientX: number;
+  clientY: number;
+  pointerId: number;
+  target: unknown;
+  currentTarget: { setPointerCapture(id: number): void; hasPointerCapture(id: number): boolean; releasePointerCapture(id: number): void };
+}
+type DragRef = { current: { x: number; y: number } | null };
+
+/** Pointer handlers that pan the view; a cancelled or lost pointer ends the drag like a release. */
+export function createPan(drag: DragRef, setView: (update: (v: View) => View) => void) {
+  const end = (e: Pick<PanEvent, "pointerId" | "currentTarget">) => {
+    drag.current = null;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+  };
+  return {
+    onPointerDown: (e: PanEvent) => {
+      if (e.button !== 0 || (e.target as HTMLElement).closest("[data-graph-card]")) return;
+      e.currentTarget.setPointerCapture(e.pointerId);
+      drag.current = { x: e.clientX, y: e.clientY };
+    },
+    onPointerMove: (e: Pick<PanEvent, "clientX" | "clientY">) => {
+      const d = drag.current;
+      if (!d) return;
+      const dx = e.clientX - d.x;
+      const dy = e.clientY - d.y;
+      drag.current = { x: e.clientX, y: e.clientY };
+      setView((v) => ({ ...v, x: v.x + dx, y: v.y + dy }));
+    },
+    onPointerUp: end,
+    onPointerCancel: end,
+    onLostPointerCapture: () => {
+      drag.current = null;
+    },
+  };
+}

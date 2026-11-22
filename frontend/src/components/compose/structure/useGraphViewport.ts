@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { fitView, zoomAt, type View } from "./graphViewport";
+import { createPan, fitView, zoomAt, type View } from "./graphViewport";
 
 const STEP = 1.2;
 const EMPTY: View = { scale: 1, x: 0, y: 0 };
@@ -74,25 +74,7 @@ export function useGraphViewport(content: { width: number; height: number } | nu
   }, [el]);
 
   const drag = useRef<{ x: number; y: number } | null>(null);
-  const pan = {
-    onPointerDown: (e: React.PointerEvent<HTMLDivElement>) => {
-      if (e.button !== 0 || (e.target as HTMLElement).closest("[data-graph-card]")) return;
-      e.currentTarget.setPointerCapture(e.pointerId);
-      drag.current = { x: e.clientX, y: e.clientY };
-    },
-    onPointerMove: (e: React.PointerEvent<HTMLDivElement>) => {
-      const d = drag.current;
-      if (!d) return;
-      const dx = e.clientX - d.x;
-      const dy = e.clientY - d.y;
-      drag.current = { x: e.clientX, y: e.clientY };
-      setView((v) => ({ ...v, x: v.x + dx, y: v.y + dy }));
-    },
-    onPointerUp: (e: React.PointerEvent<HTMLDivElement>) => {
-      drag.current = null;
-      if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
-    },
-  };
+  const pan = createPan(drag, setView);
 
   return {
     boxRef,
