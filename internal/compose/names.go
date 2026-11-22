@@ -60,6 +60,9 @@ func ValidateServiceName(name string) error {
 
 // ValidateProfile validates a Compose profile name used with --profile.
 func ValidateProfile(name string) error {
+	if name == "*" { // all profiles
+		return nil
+	}
 	if len(name) > 255 || !tokenRe.MatchString(name) {
 		return fmt.Errorf("invalid Compose profile name %q", name)
 	}
