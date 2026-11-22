@@ -4,7 +4,7 @@ import type { ComposeFileRef, ComposeProject, Container } from "@bindings/model"
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useComposeFile, useComposeFiles, useFileOutline, useInvalidateAfterSave, useSaveComposeFile } from "@/hooks/useComposeFiles";
-import { afterSave, isDirty, pickFile, type EditState } from "@/lib/composeFileState";
+import { afterSave, barState, isDirty, pickFile, type EditState } from "@/lib/composeFileState";
 import { errorMessage, toastError } from "@/lib/errors";
 import { DiscardChangesDialog } from "./DiscardChangesDialog";
 import { FileSwitcher } from "./FileSwitcher";
@@ -20,15 +20,17 @@ interface Props {
   active: boolean;
   onDirtyChange: (dirty: boolean) => void;
   panel?: ReactNode;
+  /** The saved file has changes that Apply would make. */
+  pendingApply?: boolean;
 }
 
 /** The Compose file editor, or the reason the project's files cannot be edited. */
-export function ComposeFileTab({ connectionId, project, active, onDirtyChange, panel }: Props) {
+export function ComposeFileTab({ connectionId, project, active, onDirtyChange, panel, pendingApply = false }: Props) {
   const files = useComposeFiles(connectionId, project.name, active);
   if (files.isLoading) return <Skeleton className="h-full min-h-64 w-full" />;
   if (files.error || !files.data) return <p className="text-destructive">{errorMessage(files.error ?? "The files could not be listed.")}</p>;
   if (!files.data.canEdit) return <p className="text-muted-foreground">{files.data.reason || "The Compose file cannot be edited here."}</p>;
-  return <FileEditor connectionId={connectionId} name={project.name} files={files.data.files ?? []} active={active} onDirtyChange={onDirtyChange} panel={panel} />;
+  return <FileEditor connectionId={connectionId} name={project.name} files={files.data.files ?? []} active={active} onDirtyChange={onDirtyChange} panel={panel} pendingApply={pendingApply} />;
 }
 
 /** The open file: its saved text, the text in the editor, and the file it belongs to. */
@@ -41,9 +43,10 @@ interface EditorProps {
   active: boolean;
   onDirtyChange: (dirty: boolean) => void;
   panel?: ReactNode;
+  pendingApply: boolean;
 }
 
-function FileEditor({ connectionId, name, files, active, onDirtyChange, panel }: EditorProps) {
+function FileEditor({ connectionId, name, files, active, onDirtyChange, panel, pendingApply }: EditorProps) {
   const [path, setPath] = useState(() => pickFile(files, ""));
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [ask, setAsk] = useState<null | { kind: "reload" } | { kind: "file"; path: string }>(null);
@@ -87,7 +90,7 @@ function FileEditor({ connectionId, name, files, active, onDirtyChange, panel }:
         onSuccess: (r) => {
           setLoaded((cur) => (cur && cur.path === path ? afterSave(r, cur, sent) : cur));
           if (r.saved) {
-            invalidate(path);
+            invalidate(path, sent, r.version);
             toast.success("Saved");
           }
         },
@@ -116,6 +119,11 @@ function FileEditor({ connectionId, name, files, active, onDirtyChange, panel }:
     }
   };
 
+  // While the YAML does not parse, the outline keeps the last services of a text that did.
+  const goodOutline = useRef<{ path: string; services: NonNullable<typeof outline.data>["services"] } | null>(null);
+  if (outline.data && !outline.data.error) goodOutline.current = { path, services: outline.data.services };
+  const services = (goodOutline.current?.path === path ? goodOutline.current.services : null) ?? [];
+
   const error = loaded?.error ?? (readOnly ? null : (outline.data?.error ?? null));
   const showOutline = ready && !readOnly;
 
@@ -123,18 +131,17 @@ function FileEditor({ connectionId, name, files, active, onDirtyChange, panel }:
     <div className="flex h-full min-h-0 gap-3">
       {showOutline && (
         <div className="w-[200px] shrink-0">
-          <ServiceOutline services={outline.data?.services ?? []} onJump={jumpTo} />
+          <ServiceOutline services={services} onJump={jumpTo} />
         </div>
       )}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-[10px] border border-border bg-card">
         <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
           {files.length > 1 && <FileSwitcher files={files} value={path} onChange={switchFile} />}
-          <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground" title={path}>
-            {path}
+          {/* direction: rtl cuts the path at its start so the file name stays visible; the inner span keeps it reading left to right. */}
+          <span className="min-w-0 flex-1 truncate text-left font-mono text-xs text-muted-foreground" style={{ direction: "rtl" }} title={path}>
+            <bdi dir="ltr">{path}</bdi>
           </span>
-          <span className={dirty ? "text-xs text-warning" : "text-xs text-muted-foreground"}>
-            {readOnly && ready ? "Read-only" : dirty ? "Unsaved changes" : "Saved"}
-          </span>
+          <span className={dirty ? "text-xs text-warning" : "text-xs text-muted-foreground"}>{barState(ready && readOnly, dirty, pendingApply)}</span>
           <Button size="sm" variant="outline" disabled={!ready} onClick={() => (dirty ? setAsk({ kind: "reload" }) : void reload())}>
             Reload
           </Button>

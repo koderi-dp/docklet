@@ -25,6 +25,7 @@ import { useContainersQuery, useContainerStats } from "@/hooks/useContainers";
 import { useProjectTotals } from "@/hooks/useProjectTotals";
 import { useApplyPlan } from "@/hooks/useComposeFiles";
 import { useWatchState } from "@/hooks/useComposeWatch";
+import { errorMessage } from "@/lib/errors";
 import { pendingChanges, type ApplyOptions } from "@/lib/applyPlanView";
 
 // CodeMirror stays out of the page's own chunk until the file tab is opened.
@@ -81,6 +82,7 @@ function ProjectView({ connectionId, name }: { connectionId: string; name: strin
 
   const p = q.data;
   const services = (p.services ?? []).map((s) => s.name).filter(Boolean);
+  const pendingApply = !plan.data?.error && pendingChanges(plan.data?.items ?? [], applyOpts.removeOrphans);
 
   return (
     <div className={cn("h-full overflow-auto p-5", (tab === "logs" || tab === "structure" || tab === "file") && "flex flex-col")}>
@@ -104,10 +106,11 @@ function ProjectView({ connectionId, name }: { connectionId: string; name: strin
                 name={name}
                 options={applyOpts}
                 dirty={fileDirty}
-                planError={!!plan.data?.error}
+                planError={!!plan.data?.error || !!plan.error}
+                planLoading={plan.isFetching}
                 canRun={p.capability.canRun}
                 capReason={p.capability.reason ?? ""}
-                pending={pendingChanges(plan.data?.items ?? [], applyOpts.removeOrphans)}
+                pending={pendingApply}
               />
             )}
             <ProjectActions connectionId={connectionId} project={p} containers={containers} labels onForgotten={() => (p.notCreated ? navigate("/compose") : undefined)} />
@@ -157,7 +160,19 @@ function ProjectView({ connectionId, name }: { connectionId: string; name: strin
               containers={containers}
               active={tab === "file"}
               onDirtyChange={setFileDirty}
-              panel={<ApplyPanel plan={plan.data} loading={plan.isLoading} dirty={fileDirty} options={applyOpts} onOptions={setApplyOpts} />}
+              pendingApply={pendingApply}
+              panel={
+                <ApplyPanel
+                  plan={plan.data}
+                  loading={plan.isLoading}
+                  dirty={fileDirty}
+                  options={applyOpts}
+                  onOptions={setApplyOpts}
+                  canRun={p.capability.canRun}
+                  capReason={p.capability.reason ?? ""}
+                  queryError={plan.error ? errorMessage(plan.error) : undefined}
+                />
+              }
             />
           </Suspense>
         </TabsContent>

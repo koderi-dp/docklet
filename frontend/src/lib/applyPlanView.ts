@@ -2,6 +2,8 @@ export interface PlanItem {
   service: string;
   action: string;
   detail: string;
+  /** A completed one-shot service: it runs again on Apply, but that is not a change to the project. */
+  oneShot?: boolean;
 }
 
 export interface ApplyOptions {
@@ -18,12 +20,19 @@ const LABELS: Record<string, string> = {
   start: "Start",
   recreate: "Recreate",
   recreateImage: "Recreate (new image)",
+  scale: "Scale",
   new: "New",
   remove: "Remove",
   unchanged: "Unchanged",
 };
 
 export const actionLabel = (action: string): string => LABELS[action] ?? action;
+
+/** The row label: a one-shot that only runs again says so. */
+export const itemLabel = (i: PlanItem): string => (i.oneShot ? "Runs again" : actionLabel(i.action));
+
+/** True when the row is not a pending change: unchanged, a finished one-shot, or a skipped remove. */
+const quiet = (i: ViewItem): boolean => i.action === "unchanged" || i.skipped || i.oneShot === true;
 
 export const SKIPPED_DETAIL = "Left running: not in the file";
 
@@ -34,19 +43,17 @@ export function visibleItems(items: readonly PlanItem[], removeOrphans: boolean)
   });
 }
 
-const changes = (items: readonly PlanItem[], removeOrphans: boolean) =>
-  visibleItems(items, removeOrphans).filter((i) => i.action !== "unchanged" && !i.skipped);
+export const pendingChanges = (items: readonly PlanItem[], removeOrphans: boolean): boolean =>
+  visibleItems(items, removeOrphans).some((i) => !quiet(i));
 
-export const pendingChanges = (items: readonly PlanItem[], removeOrphans: boolean): boolean => changes(items, removeOrphans).length > 0;
-
-const ORDER = ["start", "recreate", "new", "remove", "unchanged"];
+const ORDER = ["start", "recreate", "scale", "new", "remove", "unchanged"];
 
 export function summary(items: readonly PlanItem[], removeOrphans: boolean): string {
   if (!pendingChanges(items, removeOrphans)) return "Nothing to do";
   const counts = new Map<string, number>();
   for (const i of visibleItems(items, removeOrphans)) {
     if (i.skipped) continue;
-    const key = i.action === "recreateImage" ? "recreate" : i.action;
+    const key = i.oneShot ? "unchanged" : i.action === "recreateImage" ? "recreate" : i.action;
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
   return ORDER.filter((k) => counts.has(k))
@@ -54,9 +61,18 @@ export function summary(items: readonly PlanItem[], removeOrphans: boolean): str
     .join(" · ");
 }
 
-export function applyDisabledReason(s: { dirty: boolean; planError: boolean; canRun: boolean; capReason: string; busy: boolean; pending: boolean }): string | undefined {
+export function applyDisabledReason(s: {
+  dirty: boolean;
+  planError: boolean;
+  planLoading: boolean;
+  canRun: boolean;
+  capReason: string;
+  busy: boolean;
+  pending: boolean;
+}): string | undefined {
   if (s.dirty) return "Save the file first";
   if (!s.canRun) return s.capReason || "Compose CLI is not available for this project";
+  if (s.planLoading) return "Checking what would change";
   if (s.planError) return "Fix the configuration errors first";
   if (s.busy) return "A Compose command is being submitted";
   if (!s.pending) return "Nothing to apply";

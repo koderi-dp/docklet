@@ -9,15 +9,16 @@ interface Props {
   options: ApplyOptions;
   dirty: boolean;
   planError: boolean;
+  planLoading: boolean;
   canRun: boolean;
   capReason: string;
   pending: boolean;
 }
 
 /** Runs docker compose up -d for the saved file. Off while anything makes that unsafe or pointless. */
-export function ApplyButton({ connectionId, name, options, dirty, planError, canRun, capReason, pending }: Props) {
+export function ApplyButton({ connectionId, name, options, dirty, planError, planLoading, canRun, capReason, pending }: Props) {
   const verbs = useComposeVerb(connectionId);
-  const reason = applyDisabledReason({ dirty, planError, canRun, capReason, busy: verbs.isBusy(name), pending });
+  const reason = applyDisabledReason({ dirty, planError, planLoading, canRun, capReason, busy: verbs.isBusy(name), pending });
   return (
     <Tooltip>
       <TooltipTrigger asChild>

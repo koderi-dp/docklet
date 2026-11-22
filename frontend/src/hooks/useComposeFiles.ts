@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ComposeService } from "@bindings/services";
+import { savedContent } from "@/lib/composeFileState";
 import { composeConfigKey, composeGraphKey, composeProjectKey } from "@/hooks/useCompose";
 
 export const composeFilesKey = (c: string, n: string) => ["compose", c, "files", n] as const;
@@ -78,12 +79,15 @@ export function useFileOutline(text: string, enabled: boolean) {
   });
 }
 
-/** Marks everything the saved file may have changed as stale. */
+/**
+ * After a save: the file's own cache is set from the result (a refetch would hand the editor a new
+ * object for text it already shows), and everything else the file may have changed is marked stale.
+ */
 export function useInvalidateAfterSave(connectionId: string, name: string) {
   const qc = useQueryClient();
-  return (path: string) => {
+  return (path: string, sentText: string, version: string) => {
+    qc.setQueryData(composeFileKey(connectionId, name, path), savedContent(path, sentText, version));
     for (const queryKey of [
-      composeFileKey(connectionId, name, path),
       composeProjectKey(connectionId, name),
       composeConfigKey(connectionId, name),
       composeGraphKey(connectionId, name),

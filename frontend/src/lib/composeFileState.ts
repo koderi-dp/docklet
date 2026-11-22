@@ -1,4 +1,4 @@
-import type { ComposeFileRef, ComposeSaveResult } from "@bindings/model";
+import type { ComposeFileContent, ComposeFileRef, ComposeSaveResult } from "@bindings/model";
 
 export interface YamlError {
   line: number;
@@ -26,6 +26,16 @@ export function afterSave<S extends EditState>(result: ComposeSaveResult, state:
   if (result.error) return { ...state, conflict: false, error: { line: result.error.line, message: result.error.message } };
   return state;
 }
+
+/** The state text next to the file name. */
+export function barState(readOnly: boolean, dirty: boolean, pendingApply: boolean): string {
+  if (readOnly) return "Read-only";
+  if (dirty) return "Unsaved changes";
+  return pendingApply ? "Saved, not applied" : "Saved";
+}
+
+/** The file as a read would now return it after a save of `sentText`: what the file's query cache is set to. */
+export const savedContent = (path: string, sentText: string, version: string): ComposeFileContent => ({ path, text: sentText, version, readOnly: false });
 
 /** The wanted path while it is still listed, else the first config file ("" when there is none). */
 export function pickFile(files: readonly Pick<ComposeFileRef, "path" | "kind">[], wanted: string): string {

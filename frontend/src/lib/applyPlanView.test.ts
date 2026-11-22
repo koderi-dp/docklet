@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { actionLabel, applyDisabledReason, pendingChanges, summary, visibleItems } from "./applyPlanView";
+import { actionLabel, applyDisabledReason, itemLabel, pendingChanges, summary, visibleItems } from "./applyPlanView";
 
 const item = (service: string, action: string, detail = "") => ({ service, action, detail });
-const base = { dirty: false, planError: false, canRun: true, capReason: "", busy: false, pending: true };
+const base = { dirty: false, planError: false, planLoading: false, canRun: true, capReason: "", busy: false, pending: true };
 
 describe("actionLabel", () => {
   it("names every action", () => {
@@ -43,6 +43,26 @@ describe("summary and pendingChanges", () => {
   });
 });
 
+describe("scale and one-shot items", () => {
+  const job = { service: "migrate", action: "start", detail: "", oneShot: true };
+  it("labels and counts scale after recreate", () => {
+    expect(actionLabel("scale")).toBe("Scale");
+    const items = [item("a", "scale"), item("b", "recreate"), item("c", "new")];
+    expect(summary(items, false)).toBe("1 recreate · 1 scale · 1 new");
+    expect(pendingChanges(items, false)).toBe(true);
+  });
+  it("keeps a finished one-shot as a quiet row", () => {
+    const items = [item("web", "unchanged"), job];
+    expect(itemLabel(job)).toBe("Runs again");
+    expect(visibleItems(items, false)).toHaveLength(2);
+    expect(pendingChanges(items, false)).toBe(false);
+    expect(summary(items, false)).toBe("Nothing to do");
+  });
+  it("counts a one-shot as unchanged next to a real change", () => {
+    expect(summary([job, item("web", "new")], false)).toBe("1 new · 1 unchanged");
+  });
+});
+
 describe("applyDisabledReason", () => {
   it("is undefined when Apply can run", () => {
     expect(applyDisabledReason(base)).toBeUndefined();
@@ -50,6 +70,7 @@ describe("applyDisabledReason", () => {
   it("picks the first that applies", () => {
     expect(applyDisabledReason({ ...base, dirty: true, planError: true, busy: true })).toBe("Save the file first");
     expect(applyDisabledReason({ ...base, canRun: false, capReason: "No CLI", planError: true })).toBe("No CLI");
+    expect(applyDisabledReason({ ...base, planLoading: true, planError: true })).toBe("Checking what would change");
     expect(applyDisabledReason({ ...base, planError: true, busy: true })).toBe("Fix the configuration errors first");
     expect(applyDisabledReason({ ...base, busy: true, pending: false })).toBe("A Compose command is being submitted");
     expect(applyDisabledReason({ ...base, pending: false })).toBe("Nothing to apply");

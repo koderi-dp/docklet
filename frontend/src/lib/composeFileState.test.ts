@@ -1,8 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { afterSave, fileLabel, isDirty, pickFile, type EditState } from "./composeFileState";
+import { afterSave, barState, fileLabel, isDirty, pickFile, savedContent, type EditState } from "./composeFileState";
 
 const state: EditState = { loadedText: "a: 1\n", text: "a: 2\n", version: "v1", conflict: false, error: null };
 const res = (r: object) => r as Parameters<typeof afterSave>[0];
+
+describe("savedContent", () => {
+  it("is the text that was sent with the new version", () => {
+    expect(savedContent("/p/c.yml", "a: 2\n", "v2")).toEqual({ path: "/p/c.yml", text: "a: 2\n", version: "v2", readOnly: false });
+  });
+});
+
+describe("barState", () => {
+  it("picks read-only, unsaved, saved-not-applied, saved in that order", () => {
+    expect(barState(true, true, true)).toBe("Read-only");
+    expect(barState(false, true, true)).toBe("Unsaved changes");
+    expect(barState(false, false, true)).toBe("Saved, not applied");
+    expect(barState(false, false, false)).toBe("Saved");
+  });
+});
 
 describe("isDirty", () => {
   it("is false only when the texts are identical", () => {
