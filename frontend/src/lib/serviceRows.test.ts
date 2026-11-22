@@ -37,6 +37,13 @@ describe("imageSizeFor", () => {
     expect(imageSizeFor({ image: "sha256:222222222222" }, images)).toBe(7);
     expect(imageSizeFor({ image: "nginx:1.26" }, images)).toBeUndefined();
   });
+
+  it("matches on the image id first, whatever the reference looks like", () => {
+    const imgs = [{ id: "sha256:aaa", repository: "nginx", tag: "1.27-alpine", size: 1 }];
+    expect(imageSizeFor({ image: "docker.io/library/nginx:1.27-alpine", imageId: "sha256:aaa" }, imgs)).toBe(1);
+    expect(imageSizeFor({ image: "nginx@sha256:deadbeef", imageId: "aaa" }, imgs)).toBe(1);
+    expect(imageSizeFor({ image: "nginx:1.27-alpine", imageId: "sha256:other" }, imgs)).toBeUndefined();
+  });
 });
 
 describe("countRows and filterRows", () => {

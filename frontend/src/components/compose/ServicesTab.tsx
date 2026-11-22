@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useImagesQuery } from "@/hooks/useImages";
 import { useComposeVerb, useProjectEngineBatch } from "@/hooks/useCompose";
 import { buildRows, countRows, filterRows, imageSizeFor, type ServiceFilter, type ServiceRow as Row } from "@/lib/serviceRows";
@@ -9,7 +9,15 @@ import { ServiceRow, type Act } from "./ServiceRow";
 const HEADERS = ["Service", "Image", "Status", "Health", "Ports", "Image size", "Created"];
 
 /** Service table: one row per container, filterable by running / stopped. Actions are Engine operations. */
-export function ServicesTab({ connectionId, project, containers, focusService }: { connectionId: string; project: ComposeProject; containers: Container[]; focusService?: string }) {
+export function ServicesTab({ connectionId, project, containers, focusService, filter, onFilterChange }: {
+  connectionId: string;
+  project: ComposeProject;
+  containers: Container[];
+  focusService?: string;
+  /** The filter lives in the page so it survives a switch to another tab. */
+  filter: ServiceFilter;
+  onFilterChange: (f: ServiceFilter) => void;
+}) {
   const engine = useProjectEngineBatch(connectionId);
   const verbs = useComposeVerb(connectionId);
   const images = useImagesQuery(connectionId, true).data;
@@ -17,33 +25,39 @@ export function ServicesTab({ connectionId, project, containers, focusService }:
   const upReason = !cap.canRun ? cap.reason || "Compose CLI is not available for this project" : verbs.isBusy(project.name) ? "A Compose command is being submitted" : undefined;
   const rows = useMemo(() => buildRows((project.services ?? []).map((s) => s.name), containers), [containers, project.services]);
 
-  const [filter, setFilter] = useState<ServiceFilter>("all");
-  useEffect(() => setFilter("all"), [project.name]);
-
   const wrapRef = useRef<HTMLDivElement>(null);
-  const focused = useRef<string | undefined>(undefined);
+  // The ring is keyed on focusService only; the latest rows and filter are read through refs so a
+  // container refetch does not cut the two seconds short.
+  const latest = useRef({ rows, filter });
+  latest.current = { rows, filter };
   useEffect(() => {
-    if (!focusService) {
-      focused.current = undefined;
-      return;
-    }
-    if (focused.current === focusService) return;
-    // A filter that would hide the service gives way first; the effect runs again with the new filter.
-    if (!filterRows(rows, filter).some((r) => r.service === focusService)) {
-      if (filter !== "all") setFilter("all");
-      return;
-    }
-    focused.current = focusService;
-    const els = Array.from(wrapRef.current?.querySelectorAll<HTMLElement>("[data-service]") ?? []).filter((r) => r.dataset.service === focusService);
-    els[0]?.scrollIntoView({ block: "center", behavior: "smooth" });
+    if (!focusService) return;
     const ring = ["ring-2", "ring-inset", "ring-primary"];
-    els.forEach((el) => el.classList.add(...ring));
-    const t = window.setTimeout(() => els.forEach((el) => el.classList.remove(...ring)), 2000);
+    let els: HTMLElement[] = [];
+    let timer: number | undefined;
+    let frame: number | undefined;
+    const apply = () => {
+      els = Array.from(wrapRef.current?.querySelectorAll<HTMLElement>("[data-service]") ?? []).filter((r) => r.dataset.service === focusService);
+      els[0]?.scrollIntoView({ block: "center", behavior: "smooth" });
+      els.forEach((el) => el.classList.add(...ring));
+      timer = window.setTimeout(() => els.forEach((el) => el.classList.remove(...ring)), 2000);
+    };
+    const { rows: rs, filter: f } = latest.current;
+    const visible = filterRows(rs, f).filter((r) => r.service === focusService).length;
+    if (visible < rs.filter((r) => r.service === focusService).length) {
+      // A filter that hides any row of the service gives way first; the ring waits for the new render.
+      onFilterChange("all");
+      frame = window.requestAnimationFrame(apply);
+    } else {
+      apply();
+    }
     return () => {
-      window.clearTimeout(t);
+      if (frame !== undefined) window.cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
       els.forEach((el) => el.classList.remove(...ring));
     };
-  }, [focusService, filter, rows]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusService]);
 
   if (rows.length === 0) return <p className="p-4 text-muted-foreground">No containers carry this project label{project.managed ? " and the Compose files define no services we could read" : ""}.</p>;
 
@@ -51,7 +65,7 @@ export function ServicesTab({ connectionId, project, containers, focusService }:
     <ServicesView
       rows={rows}
       filter={filter}
-      onFilter={setFilter}
+      onFilter={onFilterChange}
       images={images ?? []}
       busy={engine.pending}
       canRun={cap.canRun}
@@ -103,10 +117,11 @@ export function ServicesView({ rows, filter, onFilter, images, busy, canRun, upR
                 </td>
               </tr>
             )}
-            {shown.map((r) => (
+            {shown.map((r, i) => (
               <ServiceRow
                 key={r.key}
                 row={r}
+                firstVisible={shown.findIndex((x) => x.service === r.service) === i}
                 siblings={rows.filter((x) => x.service === r.service && x.container).map((x) => x.container as Container)}
                 imageSize={r.container ? imageSizeFor(r.container, images) : undefined}
                 busy={busy}

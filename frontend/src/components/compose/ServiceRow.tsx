@@ -18,6 +18,8 @@ const LABEL: Record<Act, string> = { start: "Start", stop: "Stop", restart: "Res
 
 export interface ServiceRowProps {
   row: Row;
+  /** First row of its service among the rows shown: it carries the service-wide menu. */
+  firstVisible: boolean;
   /** All containers of the row's service, for the service-wide menu on the first replica. */
   siblings: Container[];
   /** Image size in bytes; undefined when the image list has no match. */
@@ -25,7 +27,7 @@ export interface ServiceRowProps {
   busy: boolean;
   /** Why Compose Up is disabled, if it is. */
   upReason?: string;
-  /** False when Compose cannot run for this service: a stopped container then gets plain Start instead of Up. */
+  /** False when Compose cannot run for this service: Up then shows only for a service without container, disabled. */
   composeAvailable: boolean;
   onAct: (a: Act, targets: Container[]) => void;
   onUp: () => void;
@@ -45,7 +47,7 @@ function IconSlot({ act, container, busy, onAct }: { act: Act; container?: Conta
           </Button>
         </span>
       </TooltipTrigger>
-      <TooltipContent>{reason ?? LABEL[act]}</TooltipContent>
+      <TooltipContent>{reason ?? (act === "start" ? "Start this container" : LABEL[act])}</TooltipContent>
     </Tooltip>
   );
 }
@@ -56,10 +58,24 @@ function ServiceMenu({ service, siblings, busy, onAct }: { service: string; sibl
     .map((a) => ({ a, n: partitionByEligibility(a, siblings).eligible.length }))
     .filter((i) => i.n > 0);
   if (items.length === 0) return <span className="size-7" aria-hidden />;
+  if (busy) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-flex">
+            <Button variant="ghost" size="icon" className="size-7" disabled aria-label={`All containers of service ${service}`}>
+              <MoreHorizontal className="size-3.5" />
+            </Button>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>Another action is in progress</TooltipContent>
+      </Tooltip>
+    );
+  }
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="size-7" disabled={busy} aria-label={`All containers of service ${service}`}>
+        <Button variant="ghost" size="icon" className="size-7" aria-label={`All containers of service ${service}`}>
           <MoreHorizontal className="size-3.5" />
         </Button>
       </DropdownMenuTrigger>
@@ -90,7 +106,7 @@ function UpButton({ service, reason, onUp }: { service: string; reason?: string;
 }
 
 /** One table row per container (or per service that has none yet). */
-export function ServiceRow({ row, siblings, imageSize, busy, upReason, composeAvailable, onAct, onUp }: ServiceRowProps) {
+export function ServiceRow({ row, firstVisible, siblings, imageSize, busy, upReason, composeAvailable, onAct, onUp }: ServiceRowProps) {
   const c = row.container;
   const ports = publishedPorts(c?.ports ?? []);
   // Up is shown when it would do something. Without Compose it stays only for a service that has no
@@ -153,12 +169,12 @@ export function ServiceRow({ row, siblings, imageSize, busy, upReason, composeAv
       <td className="px-3">
         <div className="flex items-center justify-end gap-1">
           <div className="flex w-14 justify-end">{needsUp && <UpButton service={row.service} reason={upReason} onUp={onUp} />}</div>
-          {/* Fixed slots keep the buttons of every row in the same columns. Up already starts stopped
-              containers, so plain Start is only offered when Compose cannot run. */}
-          <IconSlot act="start" container={composeAvailable ? undefined : c} busy={busy} onAct={onAct} />
+          {/* Fixed slots keep the buttons of every row in the same columns: Up, Start, Stop, Restart, menu.
+              Start, Stop and Restart are the container's own Engine actions, Compose or not. */}
+          <IconSlot act="start" container={c} busy={busy} onAct={onAct} />
           <IconSlot act="stop" container={c} busy={busy} onAct={onAct} />
           <IconSlot act="restart" container={c} busy={busy} onAct={onAct} />
-          {row.replicas > 1 && row.replica === 1 ? <ServiceMenu service={row.service} siblings={siblings} busy={busy} onAct={onAct} /> : <span className="size-7" aria-hidden />}
+          {row.replicas > 1 && firstVisible ?<ServiceMenu service={row.service} siblings={siblings} busy={busy} onAct={onAct} /> : <span className="size-7" aria-hidden />}
         </div>
       </td>
     </tr>

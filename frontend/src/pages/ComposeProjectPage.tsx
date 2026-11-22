@@ -18,6 +18,7 @@ import { ProjectHealthText, ProjectStateBadge } from "@/components/compose/Proje
 import { ProjectTotalsStrip } from "@/components/compose/ProjectTotalsStrip";
 import { ResourcesTab } from "@/components/compose/ResourcesTab";
 import { ServicesTab } from "@/components/compose/ServicesTab";
+import type { ServiceFilter } from "@/lib/serviceRows";
 import { StructureTab } from "@/components/compose/structure/StructureTab";
 import { WatchTab } from "@/components/compose/watch/WatchTab";
 import { projectContainers, useComposeProject } from "@/hooks/useCompose";
@@ -39,6 +40,8 @@ export default function ComposeProjectPage() {
 function ProjectView({ connectionId, name }: { connectionId: string; name: string }) {
   const [tab, setTab] = useState("structure");
   const [serviceFocus, setServiceFocus] = useState<string | undefined>();
+  const [serviceFilter, setServiceFilter] = useState<ServiceFilter>("all");
+  useEffect(() => setServiceFilter("all"), [name]);
   const [fileDirty, setFileDirty] = useState(false);
   const [pendingTab, setPendingTab] = useState<string | null>(null);
   const [applyOpts, setApplyOpts] = useState<ApplyOptions>({ removeOrphans: false, profiles: [] });
@@ -150,7 +153,7 @@ function ProjectView({ connectionId, name }: { connectionId: string; name: strin
           />
         </TabsContent>
         <TabsContent value="services">
-          <ServicesTab connectionId={connectionId} project={p} containers={containers} focusService={serviceFocus} />
+          <ServicesTab connectionId={connectionId} project={p} containers={containers} focusService={serviceFocus} filter={serviceFilter} onFilterChange={setServiceFilter} />
         </TabsContent>
         <TabsContent value="file" className="min-h-0 data-[state=active]:flex data-[state=active]:flex-col">
           <Suspense fallback={<Skeleton className="h-full min-h-64 w-full" />}>

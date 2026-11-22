@@ -53,11 +53,16 @@ export function buildRows(serviceNames: readonly string[], containers: readonly 
  * Size in bytes of the image a container runs. The container list carries only the image
  * reference the Engine reports: an image ID (when the tag moved or never existed) or a name.
  */
-export function imageSizeFor(container: Pick<Container, "image">, images: readonly Pick<ImageRow, "id" | "repository" | "tag" | "size">[]): number | undefined {
+export function imageSizeFor(container: Pick<Container, "image"> & { imageId?: string }, images: readonly Pick<ImageRow, "id" | "repository" | "tag" | "size">[]): number | undefined {
+  const strip = (s: string) => s.replace(/^sha256:/, "");
+  if (container.imageId) {
+    const id = strip(container.imageId);
+    return images.find((i) => strip(i.id) === id)?.size;
+  }
   const ref = container.image;
   if (!ref) return undefined;
-  const bare = ref.replace(/^sha256:/, "");
-  const byId = /^[0-9a-f]{12,64}$/.test(bare) ? images.find((i) => i.id.replace(/^sha256:/, "").startsWith(bare)) : undefined;
+  const bare = strip(ref);
+  const byId = /^[0-9a-f]{12,64}$/.test(bare) ? images.find((i) => strip(i.id).startsWith(bare)) : undefined;
   const byTag = images.find((i) => i.repository && (`${i.repository}:${i.tag}` === ref || (i.tag === "latest" && i.repository === ref)));
   return (byId ?? byTag)?.size;
 }
