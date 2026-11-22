@@ -13,40 +13,46 @@ import (
 // (all profiles) when the CLI can run, and falls back to the container labels
 // otherwise; the fallback carries a Note saying why.
 func (s *ComposeService) Graph(ctx context.Context, connectionID, name string) (model.ComposeGraph, error) {
-	p, env, err := s.project(ctx, connectionID, name)
+	p, env, cs, err := s.projectWithContainers(ctx, connectionID, name)
 	if err != nil {
 		return model.ComposeGraph{}, err
 	}
-	note := p.Capability.Reason
+	var out string
+	var cerr error
 	if p.Capability.CanRun {
-		g, gerr := s.graphFromConfig(ctx, env, p)
-		if gerr == nil {
-			return g, nil
-		}
-		note = "docker compose config failed: " + strings.TrimSpace(firstLine(strings.TrimSpace(gerr.Error())))
+		out, cerr = s.configJSON(ctx, env, p)
 	}
-	cs, err := s.labelled(ctx, connectionID, name)
-	if err != nil {
-		return model.ComposeGraph{}, err
+	return graphOrFallback(out, cerr, p.Capability.CanRun, p.Capability.Reason, cs), nil
+}
+
+// graphOrFallback parses the config output, or falls back to the containers with a Note saying why.
+func graphOrFallback(configOut string, configErr error, canRun bool, reason string, cs []compose.Container) model.ComposeGraph {
+	note := reason
+	if canRun {
+		err := configErr
+		if err == nil {
+			g, perr := compose.ParseGraph(configOut)
+			if perr == nil {
+				return g
+			}
+			err = perr
+		}
+		note = "docker compose config failed: " + strings.TrimSpace(firstLine(strings.TrimSpace(err.Error())))
 	}
 	g := compose.GraphFromContainers(cs)
 	g.Note = note
-	return g, nil
+	return g
 }
 
-func (s *ComposeService) graphFromConfig(ctx context.Context, env compose.ExecEnv, p model.ComposeProject) (model.ComposeGraph, error) {
+func (s *ComposeService) configJSON(ctx context.Context, env compose.ExecEnv, p model.ComposeProject) (string, error) {
 	req := requestFor(p, compose.VerbConfig)
 	req.ConfigMode = "json"
 	req.Profiles = []string{"*"}
 	cmd, err := compose.BuildCommand(env, req)
 	if err != nil {
-		return model.ComposeGraph{}, err
+		return "", err
 	}
 	cctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	out, err := s.run().Output(cctx, cmd)
-	if err != nil {
-		return model.ComposeGraph{}, err
-	}
-	return compose.ParseGraph(string(out))
+	return s.run().Output(cctx, cmd)
 }

@@ -43,7 +43,19 @@ describe("serviceState", () => {
     expect(serviceState([{ state: "exited", exitCode: 0, restartPolicy: "always" }])).toBe("stopped");
     expect(serviceState([{ state: "created" }])).toBe("stopped");
   });
+  it("shows restarting and paused containers", () => {
+    const restarting = { state: "restarting" };
+    const paused = { state: "paused" };
+    expect(serviceState([restarting])).toBe("failed");
+    expect(serviceState([restarting, restarting])).toBe("failed");
+    expect(serviceState([up, restarting])).toBe("partial");
+    expect(serviceState([paused])).toBe("paused");
+    expect(serviceState([paused, paused])).toBe("paused");
+    expect(serviceState([paused, { state: "created" }])).toBe("stopped");
+    expect(serviceState([up, paused])).toBe("partial");
+  });
   it("labels", () => {
+    expect(stateLabel("paused")).toBe("Paused");
     expect(stateLabel("notCreated")).toBe("Not created");
   });
 });

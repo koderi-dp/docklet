@@ -41,7 +41,7 @@ export function kindLabel(k: GraphKind): string {
 
 export type GraphState =
   | "running" | "unhealthy" | "starting" | "stopped"
-  | "failed" | "completed" | "partial" | "notCreated";
+  | "failed" | "completed" | "partial" | "paused" | "notCreated";
 
 export interface StateContainer {
   state: string;
@@ -60,9 +60,11 @@ export function serviceState(containers: StateContainer[]): GraphState {
   if (containers.length === 0) return "notCreated";
   const cs = containers as { state: string; exitCode?: number | null; restartPolicy?: string }[];
   const running = cs.filter((c) => isRunning(c)).length;
+  const restarting = cs.some((c) => c.state === "restarting");
   if (running === 0) {
     if (cs.every((c) => isCompleted(c as Parameters<typeof isCompleted>[0]))) return "completed";
-    if (cs.some((c) => isFailed(c as Parameters<typeof isFailed>[0]))) return "failed";
+    if (restarting || cs.some((c) => isFailed(c as Parameters<typeof isFailed>[0]))) return "failed";
+    if (cs.every((c) => c.state === "paused")) return "paused";
     return "stopped";
   }
   if (running < cs.length) return "partial";
@@ -80,6 +82,7 @@ const STATE_LABELS: Record<GraphState, string> = {
   failed: "Failed",
   completed: "Completed",
   partial: "Partial",
+  paused: "Paused",
   notCreated: "Not created",
 };
 export function stateLabel(s: GraphState): string {

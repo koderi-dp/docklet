@@ -14,6 +14,7 @@ const TONE: Record<GraphState, Tone> = {
   failed: "destructive",
   starting: "warning",
   partial: "warning",
+  paused: "warning",
   stopped: "muted",
   completed: "muted",
   notCreated: "muted",
