@@ -71,6 +71,19 @@ export function useComposeConfig(connectionId: string | null, name: string, enab
   });
 }
 
+export const composeGraphKey = (c: string, n: string) => ["compose", c, "graph", n] as const;
+
+/** The service structure changes with the file, not with container events, so it is not a live segment. */
+export function useComposeGraph(connectionId: string | null, name: string, enabled: boolean) {
+  return useQuery({
+    queryKey: composeGraphKey(connectionId ?? "none", name),
+    queryFn: () => ComposeService.Graph(connectionId as string, name),
+    enabled: !!connectionId && !!name && enabled,
+    staleTime: 60_000,
+    retry: false,
+  });
+}
+
 /** Snapshot only: fetched when enabled and on explicit refresh, never polled. */
 export function useComposeLogs(connectionId: string | null, name: string, tail: number, enabled: boolean) {
   return useQuery({
