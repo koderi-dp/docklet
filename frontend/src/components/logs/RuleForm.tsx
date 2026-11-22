@@ -1,14 +1,13 @@
-import { useId, useRef, useState, type FormEvent, type RefObject } from "react";
+import { useId, useRef, type FormEvent, type RefObject } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { LOG_LEVELS } from "@/lib/logLevel";
 import { HIGHLIGHT_COLOURS, ruleError, type HighlightColour, type Rule, type RuleKind, type RuleTarget } from "@/lib/logFilter/rules";
 import { HIGHLIGHT_LABEL, HIGHLIGHT_SWATCH, LEVEL_LABEL } from "./logColours";
+import { levelOptions, useRuleDraft, type RuleDraftState } from "./ruleDraft";
 import { KIND_LABEL, TARGET_LABEL } from "./ruleLabels";
 
-const LEVELS = LOG_LEVELS.filter((l) => l !== "other");
 const HINT: Record<RuleTarget, string> = {
   message: "text, GET /api/*, /timeout|refused/",
   container: "name, web-*, db-?",
@@ -54,6 +53,8 @@ export interface RuleDraft {
 
 interface Props {
   initial?: RuleDraft;
+  /** State owned by the caller, so it outlives the form (+ Filter keeps its draft across closes). Default: fresh from `initial` on each mount. */
+  draft?: RuleDraftState;
   rules: readonly Rule[];
   /** The rule being edited: it does not count as its own duplicate. */
   ignoreId?: string;
@@ -69,12 +70,9 @@ interface Props {
 }
 
 /** The kind / applies-to / pattern / colour form shared by "+ Filter" and the chip's edit popover. */
-export function RuleForm({ initial, rules, ignoreId, containerNames = [], submitLabel, onSubmit, keepOpen, note, selectOnFocus, inputRef }: Props) {
-  const [kind, setKind] = useState<RuleKind>(initial?.kind ?? "include");
-  const [target, setTarget] = useState<RuleTarget>(initial?.target ?? "message");
-  const [colour, setColour] = useState<HighlightColour>(initial?.colour ?? "warning");
-  const [pattern, setPattern] = useState(initial && initial.target !== "level" ? initial.pattern : "");
-  const [level, setLevel] = useState(initial?.target === "level" ? initial.pattern : "error");
+export function RuleForm({ initial, draft, rules, ignoreId, containerNames = [], submitLabel, onSubmit, keepOpen, note, selectOnFocus, inputRef }: Props) {
+  const own = useRuleDraft(initial);
+  const { kind, setKind, target, setTarget, colour, setColour, pattern, setPattern, level, setLevel } = draft ?? own;
   const ownRef = useRef<HTMLInputElement>(null);
   const input = inputRef ?? ownRef;
   const id = useId();
@@ -117,9 +115,9 @@ export function RuleForm({ initial, rules, ignoreId, containerNames = [], submit
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {LEVELS.map((l) => (
+              {levelOptions(level).map((l) => (
                 <SelectItem key={l} value={l}>
-                  {LEVEL_LABEL[l]}
+                  {LEVEL_LABEL[l as keyof typeof LEVEL_LABEL] ?? l}
                 </SelectItem>
               ))}
             </SelectContent>

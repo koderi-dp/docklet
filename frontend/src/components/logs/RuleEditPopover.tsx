@@ -30,21 +30,19 @@ export function RuleEditPopover({ rule, rules, containerNames, onSave, children 
           input.current.focus();
         }}
       >
-        {open && (
-          <RuleForm
-            selectOnFocus
-            submitLabel="Save"
-            initial={{ kind: rule.kind, target: rule.target, pattern: rule.pattern, colour: rule.colour }}
-            rules={rules}
-            ignoreId={rule.id}
-            containerNames={containerNames}
-            inputRef={input}
-            onSubmit={(r) => {
-              onSave({ kind: r.kind, target: r.target, pattern: r.pattern, colour: r.colour });
-              setOpen(false);
-            }}
-          />
-        )}
+        <RuleForm
+          selectOnFocus
+          submitLabel="Save"
+          initial={{ kind: rule.kind, target: rule.target, pattern: rule.pattern, colour: rule.colour }}
+          rules={rules}
+          ignoreId={rule.id}
+          containerNames={containerNames}
+          inputRef={input}
+          onSubmit={(r) => {
+            onSave({ kind: r.kind, target: r.target, pattern: r.pattern, colour: r.colour });
+            setOpen(false);
+          }}
+        />
       </PopoverContent>
     </Popover>
   );

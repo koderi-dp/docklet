@@ -28,7 +28,7 @@ interface Props {
   onRemove: () => void;
 }
 
-/** One filter rule: click toggles it, the arrow edits kind / target / colour, x removes it. */
+/** One filter rule: click toggles it, the arrow edits kind / target / pattern / colour, x removes it. */
 export function RuleChip({ rule, count, rules, containerNames, onChange, onRemove }: Props) {
   const error = ruleError(rule);
   const label = `${KIND_LABEL[rule.kind]} ${TARGET_LABEL[rule.target].toLowerCase()} ${rule.pattern}`;

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { Rule } from "@/lib/logFilter/rules";
 import { RuleForm } from "./RuleForm";
+import { useRuleDraft } from "./ruleDraft";
 import { KIND_LABEL, TARGET_LABEL } from "./ruleLabels";
 
 interface Props {
@@ -18,6 +19,7 @@ export function AddFilterPopover({ rules, addRule, containerNames = [] }: Props)
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
+  const draft = useRuleDraft();
 
   return (
     <Popover
@@ -42,6 +44,7 @@ export function AddFilterPopover({ rules, addRule, containerNames = [] }: Props)
       >
         <RuleForm
           keepOpen
+          draft={draft}
           submitLabel="Add filter"
           rules={rules}
           containerNames={containerNames}
