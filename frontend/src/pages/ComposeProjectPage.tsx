@@ -46,6 +46,10 @@ function ProjectView({ connectionId, name }: { connectionId: string; name: strin
   const [pendingTab, setPendingTab] = useState<string | null>(null);
   const [applyOpts, setApplyOpts] = useState<ApplyOptions>({ removeOrphans: false, profiles: [] });
   const [reveal, setReveal] = useState<{ service: string; nonce: number }>();
+  // A request is for one visit of the file tab; coming back later must not jump again.
+  useEffect(() => {
+    if (tab !== "file") setReveal(undefined);
+  }, [tab]);
   const navigate = useNavigate();
   const q = useComposeProject(connectionId, name);
   const canShowInFile = useComposeFiles(connectionId, name, tab === "structure").data?.canEdit === true;
