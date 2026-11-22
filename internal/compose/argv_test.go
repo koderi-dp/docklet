@@ -112,6 +112,17 @@ func TestArgv_RejectsInvalidRequests(t *testing.T) {
 	}
 }
 
+func TestArgv_ConfigHashMode(t *testing.T) {
+	r := req(VerbConfig)
+	r.ConfigMode = "hash"
+	r.Profiles = []string{"debug"}
+	got, err := Argv(r)
+	want := []string{"compose", "-p", "catalo", "--profile", "debug", "--project-directory", "/srv", "-f", "/srv/a.yml", "-f", "/srv/b.yml", "--env-file", "/srv/.env", "config", "--hash", "*"}
+	if err != nil || !reflect.DeepEqual(got, want) {
+		t.Errorf("got %v %v\nwant %v", got, err, want)
+	}
+}
+
 func TestArgv_ProfilesServicesAndConfigModes(t *testing.T) {
 	r := req(VerbUp)
 	r.Profiles = []string{"debug", "web-2"}

@@ -16,7 +16,7 @@ export const composeResourcesKey = (c: string, n: string) => ["compose", c, "res
 export const composeConfigKey = (c: string, n: string) => ["compose", c, "config", n] as const;
 export const composeLogsKey = (c: string, n: string, tail: number) => ["compose", c, "logs", n, tail] as const;
 
-const LIVE_SEGMENTS = new Set(["projects", "project", "resources"]);
+const LIVE_SEGMENTS = new Set(["projects", "project", "resources", "applyplan"]);
 
 /** Refetch project data when the Engine reports container changes (this connection only). */
 function useComposeEvents(connectionId: string | null) {

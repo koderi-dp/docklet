@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,9 @@ import { ConnectionGate } from "@/components/shared/ConnectionGate";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ConfigTab } from "@/components/compose/ConfigTab";
+import { ApplyButton } from "@/components/compose/file/ApplyButton";
+import { ApplyPanel } from "@/components/compose/file/ApplyPanel";
+import { DiscardChangesDialog } from "@/components/compose/file/DiscardChangesDialog";
 import { LogsTab } from "@/components/compose/LogsTab";
 import { ProjectActions } from "@/components/compose/ProjectActions";
 import { ProjectHealthText, ProjectStateBadge } from "@/components/compose/ProjectStateBadge";
@@ -20,7 +23,13 @@ import { WatchTab } from "@/components/compose/watch/WatchTab";
 import { projectContainers, useComposeProject } from "@/hooks/useCompose";
 import { useContainersQuery, useContainerStats } from "@/hooks/useContainers";
 import { useProjectTotals } from "@/hooks/useProjectTotals";
+import { useApplyPlan } from "@/hooks/useComposeFiles";
 import { useWatchState } from "@/hooks/useComposeWatch";
+import { errorMessage } from "@/lib/errors";
+import { pendingChanges, type ApplyOptions } from "@/lib/applyPlanView";
+
+// CodeMirror stays out of the page's own chunk until the file tab is opened.
+const ComposeFileTab = lazy(() => import("@/components/compose/file/ComposeFileTab").then((m) => ({ default: m.ComposeFileTab })));
 
 export default function ComposeProjectPage() {
   const { projectName = "" } = useParams();
@@ -30,8 +39,13 @@ export default function ComposeProjectPage() {
 function ProjectView({ connectionId, name }: { connectionId: string; name: string }) {
   const [tab, setTab] = useState("structure");
   const [serviceFocus, setServiceFocus] = useState<string | undefined>();
+  const [fileDirty, setFileDirty] = useState(false);
+  const [pendingTab, setPendingTab] = useState<string | null>(null);
+  const [applyOpts, setApplyOpts] = useState<ApplyOptions>({ removeOrphans: false, profiles: [] });
   const navigate = useNavigate();
   const q = useComposeProject(connectionId, name);
+  const cap = q.data?.capability;
+  const plan = useApplyPlan(connectionId, name, applyOpts.profiles, tab === "file" && !!q.data && !!cap?.canRun);
   const all = useContainersQuery(connectionId, true);
   const containers = useMemo(() => projectContainers(all.data, { name }), [all.data, name]);
   const runningIds = useMemo(() => containers.filter((c) => c.state === "running").map((c) => c.id), [containers]);
@@ -68,9 +82,10 @@ function ProjectView({ connectionId, name }: { connectionId: string; name: strin
 
   const p = q.data;
   const services = (p.services ?? []).map((s) => s.name).filter(Boolean);
+  const pendingApply = !plan.data?.error && pendingChanges(plan.data?.items ?? [], applyOpts.removeOrphans);
 
   return (
-    <div className={cn("h-full overflow-auto p-5", (tab === "logs" || tab === "structure") && "flex flex-col")}>
+    <div className={cn("h-full overflow-auto p-5", (tab === "logs" || tab === "structure" || tab === "file") && "flex flex-col")}>
       <PageHeader
         breadcrumb={back}
         title={p.name}
@@ -83,16 +98,35 @@ function ProjectView({ connectionId, name }: { connectionId: string; name: strin
             </span>
           </span>
         }
-        actions={<ProjectActions connectionId={connectionId} project={p} containers={containers} labels onForgotten={() => (p.notCreated ? navigate("/compose") : undefined)} />}
+        actions={
+          <div className="flex items-center gap-2">
+            {tab === "file" && (
+              <ApplyButton
+                connectionId={connectionId}
+                name={name}
+                options={applyOpts}
+                dirty={fileDirty}
+                planError={!!plan.data?.error || !!plan.error}
+                planLoading={plan.isFetching}
+                canRun={p.capability.canRun}
+                capReason={p.capability.reason ?? ""}
+                pending={pendingApply}
+              />
+            )}
+            <ProjectActions connectionId={connectionId} project={p} containers={containers} labels onForgotten={() => (p.notCreated ? navigate("/compose") : undefined)} />
+          </div>
+        }
       />
       <ProjectTotalsStrip connectionId={connectionId} project={p} containers={containers} totals={live.totals.get(name)} idle={live.idle.get(name)} />
       <Tabs value={tab} onValueChange={(v) => {
+          if (tab === "file" && v !== "file" && fileDirty) return setPendingTab(v);
           setTab(v);
           setServiceFocus(undefined);
-        }} className={cn("gap-3", tab === "logs" && "min-h-[320px] flex-1", tab === "structure" && "min-h-[420px] flex-1")}>
+        }} className={cn("gap-3", tab === "logs" && "min-h-[320px] flex-1", (tab === "structure" || tab === "file") && "min-h-[420px] flex-1")}>
         <TabsList className="w-fit">
           <TabsTrigger value="structure">Structure</TabsTrigger>
           <TabsTrigger value="services">Services</TabsTrigger>
+          <TabsTrigger value="file">Compose file</TabsTrigger>
           <TabsTrigger value="logs">Logs</TabsTrigger>
           <TabsTrigger value="configuration">Configuration</TabsTrigger>
           <TabsTrigger value="resources">Resources</TabsTrigger>
@@ -118,6 +152,30 @@ function ProjectView({ connectionId, name }: { connectionId: string; name: strin
         <TabsContent value="services">
           <ServicesTab connectionId={connectionId} project={p} containers={containers} focusService={serviceFocus} />
         </TabsContent>
+        <TabsContent value="file" className="min-h-0 data-[state=active]:flex data-[state=active]:flex-col">
+          <Suspense fallback={<Skeleton className="h-full min-h-64 w-full" />}>
+            <ComposeFileTab
+              connectionId={connectionId}
+              project={p}
+              containers={containers}
+              active={tab === "file"}
+              onDirtyChange={setFileDirty}
+              pendingApply={pendingApply}
+              panel={
+                <ApplyPanel
+                  plan={plan.data}
+                  loading={plan.isLoading}
+                  dirty={fileDirty}
+                  options={applyOpts}
+                  onOptions={setApplyOpts}
+                  canRun={p.capability.canRun}
+                  capReason={p.capability.reason ?? ""}
+                  queryError={plan.error ? errorMessage(plan.error) : undefined}
+                />
+              }
+            />
+          </Suspense>
+        </TabsContent>
         <TabsContent value="logs" className="min-h-0 data-[state=active]:flex data-[state=active]:flex-col">
           <LogsTab connectionId={connectionId} project={p.name} services={services} active={tab === "logs"} />
         </TabsContent>
@@ -131,6 +189,16 @@ function ProjectView({ connectionId, name }: { connectionId: string; name: strin
           <ResourcesTab connectionId={connectionId} project={p.name} />
         </TabsContent>
       </Tabs>
+      <DiscardChangesDialog
+        open={pendingTab !== null}
+        onKeep={() => setPendingTab(null)}
+        onDiscard={() => {
+          setFileDirty(false);
+          setTab(pendingTab ?? "structure");
+          setServiceFocus(undefined);
+          setPendingTab(null);
+        }}
+      />
     </div>
   );
 }

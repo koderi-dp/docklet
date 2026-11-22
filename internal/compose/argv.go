@@ -39,7 +39,7 @@ type Request struct {
 	// Services restricts start/stop/restart/pull/build/up to these services.
 	Services []string
 	// ConfigMode selects the `config` flavour: "" (plain), "quiet" (-q), "json"
-	// (--format json) or "services" (--services). Only valid for VerbConfig.
+	// (--format json), "services" (--services) or "hash" (--hash *). Only valid for VerbConfig.
 	ConfigMode string
 }
 
@@ -49,6 +49,7 @@ type Command struct {
 	Args     []string
 	EnvSet   []string
 	EnvUnset []string
+	Stdin    []byte
 }
 
 // Argv returns the arguments after `docker`: compose -p <project> ... <verb> [flags].
@@ -150,6 +151,8 @@ func Argv(r Request) ([]string, error) {
 			args = append(args, "--format", "json")
 		case "services":
 			args = append(args, "--services")
+		case "hash":
+			args = append(args, "--hash", "*")
 		default:
 			return nil, fmt.Errorf("unknown config mode %q", r.ConfigMode)
 		}
