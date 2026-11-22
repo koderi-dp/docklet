@@ -21,7 +21,7 @@ describe("visibleItems", () => {
   const items = [item("a", "remove", "x"), item("b", "new")];
   it("marks a remove skipped when orphans are kept", () => {
     const v = visibleItems(items, false);
-    expect(v[0]).toMatchObject({ service: "a", skipped: true, detail: "Left running: not in the file" });
+    expect(v[0]).toMatchObject({ service: "a", skipped: true, detail: "Not in the file; stays until Remove orphans is on" });
     expect(v[1].skipped).toBe(false);
   });
   it("keeps the remove when orphans are removed", () => {
@@ -74,5 +74,13 @@ describe("applyDisabledReason", () => {
     expect(applyDisabledReason({ ...base, planError: true, busy: true })).toBe("Fix the configuration errors first");
     expect(applyDisabledReason({ ...base, busy: true, pending: false })).toBe("A Compose command is being submitted");
     expect(applyDisabledReason({ ...base, pending: false })).toBe("Nothing to apply");
+  });
+});
+
+describe("itemLabel for an orphan", () => {
+  it("says Orphan while Remove orphans is off and Remove when it is on", () => {
+    const items = [{ service: "old", action: "remove", detail: "no longer in the file", oneShot: false }];
+    expect(itemLabel(visibleItems(items, false)[0])).toBe("Orphan");
+    expect(itemLabel(visibleItems(items, true)[0])).toBe("Remove");
   });
 });

@@ -76,10 +76,12 @@ function FileEditor({ connectionId, name, files, active, onDirtyChange, panel, p
 
   const reload = useCallback(async () => {
     const r = await read.refetch();
-    if (r.data && r.data.path === path)
+    if (r.data && r.data.path === path) {
       setLoaded({ path: r.data.path, loadedText: r.data.text, text: r.data.text, version: r.data.version, conflict: false, error: null, readOnly: r.data.readOnly });
-    else if (r.error) toastError("Could not reload the file", r.error);
-  }, [read, path]);
+      // The file on disk may differ from what the panel was worked out from.
+      invalidate(path, r.data.text, r.data.version);
+    } else if (r.error) toastError("Could not reload the file", r.error);
+  }, [read, path, invalidate]);
 
   const doSave = (overwrite: boolean) => {
     if (!ready || readOnly || save.isPending || (!dirty && !overwrite)) return;

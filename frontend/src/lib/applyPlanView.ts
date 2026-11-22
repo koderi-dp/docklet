@@ -28,13 +28,13 @@ const LABELS: Record<string, string> = {
 
 export const actionLabel = (action: string): string => LABELS[action] ?? action;
 
-/** The row label: a one-shot that only runs again says so. */
-export const itemLabel = (i: PlanItem): string => (i.oneShot ? "Runs again" : actionLabel(i.action));
+/** The row label: a one-shot that only runs again says so, and a remove that is off is an orphan. */
+export const itemLabel = (i: PlanItem & { skipped?: boolean }): string => (i.oneShot ? "Runs again" : i.skipped ? "Orphan" : actionLabel(i.action));
 
 /** True when the row is not a pending change: unchanged, a finished one-shot, or a skipped remove. */
 const quiet = (i: ViewItem): boolean => i.action === "unchanged" || i.skipped || i.oneShot === true;
 
-export const SKIPPED_DETAIL = "Left running: not in the file";
+export const SKIPPED_DETAIL = "Not in the file; stays until Remove orphans is on";
 
 export function visibleItems(items: readonly PlanItem[], removeOrphans: boolean): ViewItem[] {
   return items.map((i) => {
