@@ -1,5 +1,4 @@
 import { memo } from "react";
-import { useNavigate } from "react-router-dom";
 import { HardDrive } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { kindLabel, stateLabel, type GraphKind, type GraphState } from "@/lib/composeGraphView";
@@ -39,27 +38,26 @@ export interface ServiceCardProps {
   moreVolumes: number;
   /** First profile when the service has profiles; "" otherwise. */
   profile: string;
-  /** Set when exactly one container belongs to the service. */
-  containerId: string;
   dimmed: boolean;
-  onShowService: (service: string) => void;
+  selected: boolean;
+  onSelect: (service: string) => void;
   onHover: (service: string | null) => void;
 }
 
 export const ServiceCard = memo(function ServiceCard(p: ServiceCardProps) {
-  const navigate = useNavigate();
   const idle = p.profile !== "" && p.state === "notCreated";
   const tone = TONE[p.state];
   const label = stateLabel(p.state);
   const image = p.image || (p.build ? "built from source" : "");
-  // No container means no row on the Services tab to show: the card is not a control.
-  const clickable = p.state !== "notCreated";
-  const open = () => (p.containerId ? navigate(`/containers/${p.containerId}`) : p.onShowService(p.name));
-  const Root = clickable ? "button" : "div";
   return (
-    <Root
-      {...(clickable ? { type: "button" as const, onClick: open } : {})}
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        p.onSelect(p.name);
+      }}
       data-graph-card
+      aria-pressed={p.selected}
       aria-label={`${p.name}, ${label}`}
       onMouseEnter={() => p.onHover(p.name)}
       onMouseLeave={() => p.onHover(null)}
@@ -69,8 +67,9 @@ export const ServiceCard = memo(function ServiceCard(p: ServiceCardProps) {
       className={cn(
         "relative flex flex-col justify-between overflow-hidden rounded-[10px] border border-border bg-background py-2.5 pl-4 pr-3 text-left transition-opacity",
         "outline-none hover:border-primary/50 focus-visible:ring-2 focus-visible:ring-ring",
-        clickable ? "cursor-pointer" : "cursor-default",
+        "cursor-pointer",
         idle && "border-dashed opacity-60",
+        p.selected && "ring-2 ring-primary",
         p.dimmed && "opacity-30",
       )}
     >
@@ -104,6 +103,6 @@ export const ServiceCard = memo(function ServiceCard(p: ServiceCardProps) {
           </span>
         )}
       </span>
-    </Root>
+    </button>
   );
 });

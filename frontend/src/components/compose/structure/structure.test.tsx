@@ -4,10 +4,11 @@ import { MemoryRouter } from "react-router-dom";
 import type { ComposeGraph } from "@bindings/model";
 import { EmptyGraph, FallbackNote } from "./GraphNotices";
 import { ServiceCard, type ServiceCardProps } from "./ServiceCard";
+import { GraphToolbar } from "./GraphToolbar";
 
 const base: ServiceCardProps = {
   name: "web", image: "nginx", build: false, kind: "app" as ServiceCardProps["kind"], state: "running", ports: "", volume: "",
-  moreVolumes: 0, profile: "", containerId: "", dimmed: false, onShowService: () => {}, onHover: () => {},
+  moreVolumes: 0, profile: "", dimmed: false, selected: false, onSelect: () => {}, onHover: () => {},
 };
 const card = (p: Partial<ServiceCardProps>) =>
   renderToStaticMarkup(
@@ -17,14 +18,51 @@ const card = (p: Partial<ServiceCardProps>) =>
   );
 
 describe("ServiceCard", () => {
-  it("is a button when it has containers", () => {
-    expect(card({ state: "running", containerId: "c1" })).toMatch(/^<button/);
+  it("is a button that reflects whether it is selected", () => {
+    expect(card({})).toMatch(/^<button/);
+    expect(card({})).toContain('aria-pressed="false"');
+    const html = card({ selected: true });
+    expect(html).toContain('aria-pressed="true"');
+    expect(html).toContain("ring-primary");
   });
-  it("is an inert div when the service has no container", () => {
+  it("stays a button for a service with no container", () => {
     const html = card({ state: "notCreated", profile: "debug" });
-    expect(html).toMatch(/^<div/);
-    expect(html).toContain("cursor-default");
+    expect(html).toMatch(/^<button/);
     expect(html).toContain('aria-label="web, Not created"');
+    expect(html).toContain("profile: debug");
+  });
+});
+
+describe("GraphToolbar selection", () => {
+  const toolbar = (selection: { containerId: string; hasContainers: boolean } | null, onShowInFile?: () => void) =>
+    renderToStaticMarkup(
+      <GraphToolbar
+        find="" onFind={() => {}} count={3} scale={1} onFit={() => {}} onZoomIn={() => {}} onZoomOut={() => {}}
+        selection={selection && { name: "web", needs: 2, neededBy: 1, ...selection }}
+        onClear={() => {}} onOpenContainer={() => {}} onShowInServices={() => {}} onShowInFile={onShowInFile}
+      />,
+    );
+  it("shows the service count when nothing is selected", () => {
+    expect(toolbar(null)).toContain("3");
+    expect(toolbar(null)).not.toContain("Clear");
+  });
+  it("offers Open container for a single container", () => {
+    const html = toolbar({ containerId: "c1", hasContainers: true });
+    expect(html).toContain("needs 2 · 1 needs it");
+    expect(html).toContain("Open container");
+    expect(html).not.toContain("Show in Services");
+  });
+  it("offers Show in Services for several containers", () => {
+    const html = toolbar({ containerId: "", hasContainers: true });
+    expect(html).toContain("Show in Services");
+    expect(html).not.toContain("Open container");
+  });
+  it("offers neither without containers, and Show in file only when supplied", () => {
+    const html = toolbar({ containerId: "", hasContainers: false });
+    expect(html).not.toContain("Open container");
+    expect(html).not.toContain("Show in Services");
+    expect(html).not.toContain("Show in file");
+    expect(toolbar({ containerId: "", hasContainers: false }, () => {})).toContain("Show in file");
   });
 });
 

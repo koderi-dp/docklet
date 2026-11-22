@@ -1,6 +1,7 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import type { ComposeGraph } from "@bindings/model";
 import type { GraphLayout } from "@/lib/composeGraphLayout";
+import type { GraphSelection } from "@/lib/graphSelection";
 import { matchesFind, portLabel, related, serviceKind, volumeLabel, type GraphState } from "@/lib/composeGraphView";
 import { cn } from "@/lib/utils";
 import { CARD_HEIGHT, CARD_WIDTH, ServiceCard } from "./ServiceCard";
@@ -10,6 +11,7 @@ export interface ServiceLive {
   state: GraphState;
   /** The container id when the service has exactly one container. */
   containerId: string;
+  containerCount: number;
 }
 
 interface Props {
@@ -18,8 +20,13 @@ interface Props {
   live: Map<string, ServiceLive>;
   find: string;
   viewport: ReturnType<typeof useGraphViewport>;
-  onShowService: (service: string) => void;
+  selection: GraphSelection | null;
+  selected: string | null;
+  onSelect: (service: string) => void;
+  onClearSelection: () => void;
 }
+
+const CLICK_SLOP = 4;
 
 const CONDITION_NOTE: Record<string, string> = {
   service_healthy: " (waits until healthy)",
@@ -33,8 +40,11 @@ const MARK_FILL: Record<Mark, string> = {
   cycle: "var(--destructive)",
 };
 
-export function GraphCanvas({ graph, layout, live, find, viewport, onShowService }: Props) {
+export function GraphCanvas({ graph, layout, live, find, viewport, selection, selected, onSelect, onClearSelection }: Props) {
   const [hover, setHover] = useState<string | null>(null);
+  // Where the pointer went down, and whether it has travelled far enough to count as a pan, not a click.
+  const down = useRef<{ x: number; y: number } | null>(null);
+  const moved = useRef(false);
   const onHover = useCallback((name: string | null) => setHover(name), []);
   const { boxRef, view, ready, pan } = viewport;
 
@@ -44,12 +54,31 @@ export function GraphCanvas({ graph, layout, live, find, viewport, onShowService
     for (const s of graph.services ?? []) for (const d of s.dependsOn ?? []) m.set(`${s.name}\0${d.service}`, d.condition ?? "");
     return m;
   }, [graph]);
-  const relatedSet = useMemo(() => (hover ? related(hover, layout.edges) : null), [hover, layout.edges]);
+  // A selection fixes what is lit; hover only matters while nothing is selected.
+  const relatedSet = useMemo(
+    () => (hover && !selection ? related(hover, layout.edges) : null),
+    [hover, selection, layout.edges],
+  );
 
   return (
     <div
       ref={boxRef}
       {...pan}
+      onPointerDown={(e) => {
+        down.current = { x: e.clientX, y: e.clientY };
+        moved.current = false;
+        pan.onPointerDown(e);
+      }}
+      onPointerMove={(e) => {
+        const d = down.current;
+        if (d && !moved.current && Math.hypot(e.clientX - d.x, e.clientY - d.y) >= CLICK_SLOP) moved.current = true;
+        pan.onPointerMove(e);
+      }}
+      onClick={(e) => {
+        if ((e.target as HTMLElement).closest("[data-graph-card]")) return;
+        if (!moved.current) onClearSelection();
+        moved.current = false;
+      }}
       className="relative min-h-0 flex-1 touch-none select-none overflow-hidden"
       style={{ backgroundImage: "radial-gradient(var(--border) 1px, transparent 1px)", backgroundSize: "20px 20px" }}
     >
@@ -72,9 +101,11 @@ export function GraphCanvas({ graph, layout, live, find, viewport, onShowService
             ))}
           </defs>
           {layout.edges.map((e) => {
-            const active = !!relatedSet && relatedSet.has(e.from) && relatedSet.has(e.to);
+            const active = selection
+              ? selection.isLitEdge(e.from, e.to)
+              : !!relatedSet && relatedSet.has(e.from) && relatedSet.has(e.to);
             const mark: Mark = e.inCycle ? "cycle" : active ? "active" : "default";
-            const dim = !!relatedSet && !active;
+            const dim = (!!relatedSet || !!selection) && !active;
             const cond = conditions.get(`${e.from}\0${e.to}`) ?? "";
             return (
               <g key={`${e.from}\0${e.to}`} className={cn("transition-opacity", dim && "opacity-30")}>
@@ -99,7 +130,7 @@ export function GraphCanvas({ graph, layout, live, find, viewport, onShowService
           if (!s) return null;
           const l = live.get(n.name);
           const matches = matchesFind(s, find);
-          const dimmed = relatedSet ? !relatedSet.has(n.name) : !matches;
+          const dimmed = selection ? !selection.litNodes.has(n.name) : relatedSet ? !relatedSet.has(n.name) : !matches;
           const vols = s.volumes ?? [];
           return (
             <div key={n.name} className="absolute" style={{ left: n.x, top: n.y, width: CARD_WIDTH, height: CARD_HEIGHT }}>
@@ -113,9 +144,9 @@ export function GraphCanvas({ graph, layout, live, find, viewport, onShowService
                 volume={vols.length ? volumeLabel(vols[0]) : ""}
                 moreVolumes={Math.max(0, vols.length - 1)}
                 profile={(s.profiles ?? [])[0] ?? ""}
-                containerId={l?.containerId ?? ""}
                 dimmed={dimmed}
-                onShowService={onShowService}
+                selected={selected === n.name}
+                onSelect={onSelect}
                 onHover={onHover}
               />
             </div>

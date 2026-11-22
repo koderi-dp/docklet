@@ -10,6 +10,7 @@ import { DiscardChangesDialog } from "./DiscardChangesDialog";
 import { FileSwitcher } from "./FileSwitcher";
 import { SaveConflictDialog } from "./SaveConflictDialog";
 import { ServiceOutline } from "./ServiceOutline";
+import { useRevealService, type RevealRequest } from "./useRevealService";
 import { useUnsavedGuard } from "./useUnsavedGuard";
 import { YamlEditor } from "./YamlEditor";
 
@@ -22,15 +23,17 @@ interface Props {
   panel?: ReactNode;
   /** The saved file has changes that Apply would make. */
   pendingApply?: boolean;
+  /** Show this service's line; a new nonce asks again. */
+  reveal?: { service: string; nonce: number };
 }
 
 /** The Compose file editor, or the reason the project's files cannot be edited. */
-export function ComposeFileTab({ connectionId, project, active, onDirtyChange, panel, pendingApply = false }: Props) {
+export function ComposeFileTab({ connectionId, project, active, onDirtyChange, panel, pendingApply = false, reveal }: Props) {
   const files = useComposeFiles(connectionId, project.name, active);
   if (files.isLoading) return <Skeleton className="h-full min-h-64 w-full" />;
   if (files.error || !files.data) return <p className="text-destructive">{errorMessage(files.error ?? "The files could not be listed.")}</p>;
   if (!files.data.canEdit) return <p className="text-muted-foreground">{files.data.reason || "The Compose file cannot be edited here."}</p>;
-  return <FileEditor connectionId={connectionId} name={project.name} files={files.data.files ?? []} active={active} onDirtyChange={onDirtyChange} panel={panel} pendingApply={pendingApply} />;
+  return <FileEditor connectionId={connectionId} name={project.name} files={files.data.files ?? []} active={active} onDirtyChange={onDirtyChange} panel={panel} pendingApply={pendingApply} reveal={reveal} />;
 }
 
 /** The open file: its saved text, the text in the editor, and the file it belongs to. */
@@ -44,9 +47,10 @@ interface EditorProps {
   onDirtyChange: (dirty: boolean) => void;
   panel?: ReactNode;
   pendingApply: boolean;
+  reveal?: RevealRequest;
 }
 
-function FileEditor({ connectionId, name, files, active, onDirtyChange, panel, pendingApply }: EditorProps) {
+function FileEditor({ connectionId, name, files, active, onDirtyChange, panel, pendingApply, reveal }: EditorProps) {
   const [path, setPath] = useState(() => pickFile(files, ""));
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [ask, setAsk] = useState<null | { kind: "reload" } | { kind: "file"; path: string }>(null);
@@ -131,6 +135,22 @@ function FileEditor({ connectionId, name, files, active, onDirtyChange, panel, p
 
   const error = loaded?.error ?? (readOnly ? null : (outline.data?.error ?? null));
   const showOutline = ready && !readOnly;
+
+  useRevealService({
+    reveal,
+    outlineServices: outlineIsCurrent && !readOnly && outline.data && !outline.data.error ? outline.data.services : null,
+    path,
+    files,
+    connectionId,
+    name,
+    switchFile: (p) => {
+      if (dirty) return false;
+      setLoaded(null);
+      setPath(p);
+      return true;
+    },
+    jumpTo,
+  });
 
   return (
     <div className="flex h-full min-h-0 gap-3">
