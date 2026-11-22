@@ -68,11 +68,18 @@ type recRunner struct {
 	cmds   []Command
 	failOn string // Args element that makes the command fail
 	out    string
+	link   string // what readlink prints; the path itself when empty
 }
 
 func (r *recRunner) Run(context.Context, Command, func(string)) error { return nil }
 func (r *recRunner) Output(_ context.Context, c Command) (string, error) {
 	r.cmds = append(r.cmds, c)
+	if contains(c.Args, "readlink") {
+		if r.link != "" {
+			return r.link + "\n", nil
+		}
+		return c.Args[len(c.Args)-1] + "\n", nil
+	}
 	for _, a := range c.Args {
 		if r.failOn != "" && a == r.failOn {
 			return "", errors.New("boom")
@@ -101,9 +108,13 @@ func TestWSLWrite(t *testing.T) {
 	if err := (WSLFS{Distro: "Ubuntu", Runner: r}).WriteFile(context.Background(), "/home/u/compose.yaml", data); err != nil {
 		t.Fatal(err)
 	}
-	if len(r.cmds) != 3 {
+	if len(r.cmds) != 4 {
 		t.Fatalf("got %v", r.cmds)
 	}
+	if want := []string{"wsl.exe", "-d", "Ubuntu", "--exec", "readlink", "-f", "--", "/home/u/compose.yaml"}; !reflect.DeepEqual(wslArgs(r.cmds[0]), want) {
+		t.Fatalf("readlink: %v", wslArgs(r.cmds[0]))
+	}
+	r.cmds = r.cmds[1:]
 	dd := wslArgs(r.cmds[0])
 	tmp := strings.TrimPrefix(dd[len(dd)-2], "of=")
 	if !reflect.DeepEqual(dd[:5], []string{"wsl.exe", "-d", "Ubuntu", "--exec", "dd"}) || dd[len(dd)-1] != "status=none" || !bytes.Equal(r.cmds[0].Stdin, data) {
@@ -118,6 +129,27 @@ func TestWSLWrite(t *testing.T) {
 	}
 	if want := append(append([]string{}, pre...), "mv", "-f", "--", tmp, "/home/u/compose.yaml"); !reflect.DeepEqual(wslArgs(r.cmds[2]), want) {
 		t.Fatalf("mv: %v", wslArgs(r.cmds[2]))
+	}
+}
+
+func TestWSLWriteFollowsSymlink(t *testing.T) {
+	r := &recRunner{link: "/srv/real/compose.yaml"}
+	if err := (WSLFS{Distro: "Ubuntu", Runner: r}).WriteFile(context.Background(), "/home/u/compose.yaml", []byte("x")); err != nil {
+		t.Fatal(err)
+	}
+	if len(r.cmds) != 4 {
+		t.Fatalf("got %v", r.cmds)
+	}
+	dd := wslArgs(r.cmds[1])
+	tmp := strings.TrimPrefix(dd[len(dd)-2], "of=")
+	if !strings.HasPrefix(tmp, "/srv/real/.") {
+		t.Errorf("temp file %q is not next to the link target", tmp)
+	}
+	if got := wslArgs(r.cmds[2]); !contains(got, "--reference=/srv/real/compose.yaml") {
+		t.Errorf("chmod: %v", got)
+	}
+	if got := wslArgs(r.cmds[3]); got[len(got)-1] != "/srv/real/compose.yaml" {
+		t.Errorf("mv: %v", got)
 	}
 }
 
@@ -145,10 +177,10 @@ func TestWSLWriteDdFailureCleansUp(t *testing.T) {
 	if err := (WSLFS{Distro: "Ubuntu", Runner: r}).WriteFile(context.Background(), "/a/b.yaml", []byte("x")); err == nil {
 		t.Fatal("want an error")
 	}
-	if len(r.cmds) != 2 {
+	if len(r.cmds) != 3 {
 		t.Fatalf("got %v", r.cmds)
 	}
-	rm := r.cmds[1].Args
+	rm := r.cmds[2].Args
 	if !contains(rm, "rm") || !contains(rm, "-f") || contains(rm, "mv") {
 		t.Fatalf("rm: %v", rm)
 	}

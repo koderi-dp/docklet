@@ -2,10 +2,16 @@ package services
 
 import (
 	"errors"
+	"net/http"
+	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
+	"docklet/internal/appdb"
 	"docklet/internal/compose"
+	"docklet/internal/model"
+	"docklet/internal/ops"
 )
 
 const applyConfigJSON = `{"services":{"web":{"image":"nginx"},"db":{"image":"postgres"},"debug":{"image":"busybox","profiles":["debug"]}}}`
@@ -61,8 +67,99 @@ func TestApplyPlan_FailingConfigIsAnErrorFieldNotAGoError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Go error: %v", err)
 	}
-	if plan.Error != `service "web" refers to undefined volume` || len(plan.Items) != 0 {
+	if plan.Error != "service \"web\" refers to undefined volume\nsecond line" || len(plan.Items) != 0 {
 		t.Errorf("%+v", plan)
+	}
+}
+
+func TestPlanError_DropsPrefixAndWarnings(t *testing.T) {
+	err := errors.New("exit status 1: time=\"2026-01-01T10:00:00Z\" level=warning msg=\"the attribute `version` is obsolete\"\n" +
+		"WARN[0000] The \"X\" variable is not set\n" +
+		"service \"web\" refers to undefined volume data: invalid compose project\n")
+	if got := planError(err); got != `service "web" refers to undefined volume data: invalid compose project` {
+		t.Errorf("got %q", got)
+	}
+	var lines []string
+	for i := 0; i < 20; i++ {
+		lines = append(lines, "line")
+	}
+	if got := planError(errors.New("exit status 2: " + strings.Join(lines, "\n"))); strings.Count(got, "\n") != 11 {
+		t.Errorf("not capped at 12 lines: %q", got)
+	}
+	if got := planError(errors.New("level=warning only")); got != "level=warning only" {
+		t.Errorf("got %q", got)
+	}
+}
+
+// newEngineSvc is newVerbSvc with a fake Engine: containers and the image ids by platform.
+func newEngineSvc(t *testing.T, containers string) (*ComposeService, *fakeRunner) {
+	t.Helper()
+	cli := dockerClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/version"):
+			_, _ = w.Write([]byte(`{"Os":"linux","Arch":"amd64","ApiVersion":"1.49"}`))
+		case strings.HasSuffix(r.URL.Path, "/containers/json"):
+			_, _ = w.Write([]byte(containers))
+		case strings.Contains(r.URL.Path, "/images/") && r.URL.Query().Get("platform") != "":
+			_, _ = w.Write([]byte(`{"Id":"sha256:platform"}`))
+		case strings.Contains(r.URL.Path, "/images/"):
+			_, _ = w.Write([]byte(`{"Id":"sha256:index"}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}), "1.49")
+	runner := &fakeRunner{}
+	cfg := writeFile(t, t.TempDir(), "compose.yml")
+	s := &ComposeService{
+		Engines: fakeProvider{cli}, Events: &recEmitter{}, Ops: ops.New(nil), runner: runner,
+		Projects: &fakeStore{recs: []appdb.ComposeProjectRecord{{ConnectionID: "c1", Name: "shop", WorkingDir: filepath.Dir(cfg), ConfigFiles: []string{cfg}}}},
+		Profiles: fakeProfiles{"c1": {ID: "c1", Type: model.ConnTCP, Endpoint: "tcp://127.0.0.1:2375"}},
+	}
+	return s, runner
+}
+
+func webContainer(id, image string) string {
+	return `{"Id":"` + id + `","Names":["/shop-web-` + id + `"],"Image":"nginx","State":"running","Labels":{` +
+		`"com.docker.compose.project":"shop","com.docker.compose.service":"web",` +
+		`"com.docker.compose.config-hash":"h2","com.docker.compose.image":"` + image + `"}}`
+}
+
+func TestApplyPlan_ImageLabelWithPlatformIdIsNotAChange(t *testing.T) {
+	s, r := newEngineSvc(t, "["+webContainer("1", "sha256:platform")+"]")
+	scriptApply(r, "db h1\nweb h2\n", nil)
+	plan, err := s.ApplyPlan(bg, "c1", "shop", nil)
+	if err != nil || plan.Error != "" || len(plan.Items) != 2 {
+		t.Fatalf("%+v %v", plan, err)
+	}
+	if it := plan.Items[1]; it.Service != "web" || it.Action != "unchanged" {
+		t.Errorf("web: %+v", it)
+	}
+
+	s, r = newEngineSvc(t, "["+webContainer("1", "sha256:old")+"]")
+	scriptApply(r, "db h1\nweb h2\n", nil)
+	plan, _ = s.ApplyPlan(bg, "c1", "shop", nil)
+	if it := plan.Items[1]; it.Action != "recreateImage" {
+		t.Errorf("old image: %+v", it)
+	}
+}
+
+func TestApplyPlan_ChangedReplicasAreAScale(t *testing.T) {
+	s, r := newEngineSvc(t, "["+webContainer("1", "sha256:platform")+"]")
+	r.out = func(c compose.Command) (string, error) {
+		switch {
+		case slices.Contains(c.Args, "--short"):
+			return "5.7.1\n", nil
+		case slices.Contains(c.Args, "--hash"):
+			return "web h2\n", nil
+		case slices.Contains(c.Args, "config"):
+			return `{"services":{"web":{"image":"nginx","deploy":{"replicas":3}}}}`, nil
+		}
+		return "", nil
+	}
+	plan, err := s.ApplyPlan(bg, "c1", "shop", nil)
+	if err != nil || len(plan.Items) != 1 || plan.Items[0].Action != "scale" || plan.Items[0].Detail != "1 containers now, 3 wanted" {
+		t.Errorf("%+v %v", plan, err)
 	}
 }
 

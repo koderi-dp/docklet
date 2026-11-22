@@ -125,6 +125,15 @@ func (w WSLFS) WriteFile(ctx context.Context, p string, data []byte) error {
 	if err := w.check(p); err != nil {
 		return err
 	}
+	// A symlink is followed so the linked file is written, not replaced by a regular file.
+	link, err := w.run(ctx, nil, "readlink", "-f", "--", p)
+	if err != nil {
+		return err
+	}
+	p = strings.TrimSpace(link)
+	if err := w.check(p); err != nil {
+		return err
+	}
 	var rnd [4]byte
 	if _, err := rand.Read(rnd[:]); err != nil {
 		return err

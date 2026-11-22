@@ -40,11 +40,13 @@ type ComposeFileOutline struct {
 }
 
 // ComposeApplyItem is what `compose up` would do to one service. Action is one of
-// "start", "recreate", "recreateImage", "new", "remove", "unchanged".
+// "start", "recreate", "recreateImage", "scale", "new", "remove", "unchanged". OneShot marks
+// a service that ran to completion and runs again on `up`.
 type ComposeApplyItem struct {
 	Service string `json:"service"`
 	Action  string `json:"action"`
 	Detail  string `json:"detail"`
+	OneShot bool   `json:"oneShot"`
 }
 
 // ComposeApplyPlan is the list of changes Apply would make, or the reason it could not be worked out.

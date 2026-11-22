@@ -1,6 +1,9 @@
 package compose
 
 import (
+	"encoding/json"
+	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -27,12 +30,42 @@ type PlanInput struct {
 	// AllServices are all services of the file, whatever their profile.
 	AllServices []string
 	Containers  []Container
-	// ImageIDs are the Engine image ids of the services' images; a missing entry means unknown.
-	ImageIDs map[string]string
+	// ImageIDs are the Engine image ids that count as a service's current image (the plain
+	// id and the platform-specific one); a missing or empty entry means unknown.
+	ImageIDs map[string][]string
+	// Replicas is the wanted container count per service; a service not in the map wants 1.
+	Replicas map[string]int
+}
+
+// ParseReplicas reads `docker compose config --format json` output for the container count
+// each service states: services.<name>.scale wins over services.<name>.deploy.replicas.
+// Only services that state one are in the map. Unreadable input gives an empty map.
+func ParseReplicas(jsonText string) map[string]int {
+	out := map[string]int{}
+	var doc struct {
+		Services map[string]struct {
+			Scale  *int `json:"scale"`
+			Deploy *struct {
+				Replicas *int `json:"replicas"`
+			} `json:"deploy"`
+		} `json:"services"`
+	}
+	if json.Unmarshal([]byte(jsonText), &doc) != nil {
+		return out
+	}
+	for name, sv := range doc.Services {
+		switch {
+		case sv.Scale != nil:
+			out[name] = *sv.Scale
+		case sv.Deploy != nil && sv.Deploy.Replicas != nil:
+			out[name] = *sv.Deploy.Replicas
+		}
+	}
+	return out
 }
 
 // Strongest first: a service with several containers gets the strongest action.
-var applyRank = map[string]int{"recreate": 3, "recreateImage": 2, "start": 1, "unchanged": 0}
+var applyRank = map[string]int{"recreate": 4, "recreateImage": 3, "scale": 2, "start": 1, "unchanged": 0}
 
 var applyDetail = map[string]string{
 	"recreate":      "configuration changed",
@@ -40,6 +73,8 @@ var applyDetail = map[string]string{
 	"start":         "stopped",
 	"unchanged":     "",
 }
+
+const oneShotDetail = "completed, runs again"
 
 // PlanApply works out what `docker compose up -d` would change, from the config hashes,
 // the containers' labels and the images' ids. One-off containers are ignored.
@@ -49,6 +84,8 @@ func PlanApply(in PlanInput) []model.ComposeApplyItem {
 		all[s] = true
 	}
 	actions := map[string]string{}
+	oneShot := map[string]bool{}
+	counts := map[string]int{}
 	orphans := map[string]bool{}
 	for _, c := range in.Containers {
 		if isOneOff(c.Labels) {
@@ -62,16 +99,35 @@ func PlanApply(in PlanInput) []model.ComposeApplyItem {
 		case !selected:
 			// The service is in the file but behind a profile that is not selected.
 		default:
+			counts[svc]++
 			a := containerAction(c, want, in.ImageIDs[svc])
-			if cur, ok := actions[svc]; !ok || applyRank[a] > applyRank[cur] {
-				actions[svc] = a
+			shot := a == "start" && isOneShot(c)
+			cur, ok := actions[svc]
+			switch {
+			case !ok || applyRank[a] > applyRank[cur]:
+				actions[svc], oneShot[svc] = a, shot
+			case a == "start" && cur == "start" && !shot:
+				oneShot[svc] = false // a plainly stopped container among the finished ones
 			}
 		}
+	}
+	wanted := func(svc string) int {
+		if n, ok := in.Replicas[svc]; ok {
+			return n
+		}
+		return 1
 	}
 	items := []model.ComposeApplyItem{}
 	for svc := range in.Hashes {
 		if a, ok := actions[svc]; ok {
-			items = append(items, model.ComposeApplyItem{Service: svc, Action: a, Detail: applyDetail[a]})
+			it := model.ComposeApplyItem{Service: svc, Action: a, Detail: applyDetail[a]}
+			switch {
+			case (a == "unchanged" || a == "start") && counts[svc] != wanted(svc):
+				it.Action, it.Detail = "scale", fmt.Sprintf("%d containers now, %d wanted", counts[svc], wanted(svc))
+			case oneShot[svc]:
+				it.Detail, it.OneShot = oneShotDetail, true
+			}
+			items = append(items, it)
 		} else {
 			items = append(items, model.ComposeApplyItem{Service: svc, Action: "new", Detail: "not created yet"})
 		}
@@ -83,11 +139,19 @@ func PlanApply(in PlanInput) []model.ComposeApplyItem {
 	return items
 }
 
-func containerAction(c Container, wantHash, imageID string) string {
+// isOneShot is a service container that ran to completion: exited with 0 and no restart
+// policy (the Structure tab's "completed"). `up` runs it again.
+func isOneShot(c Container) bool {
+	return IsCompleted(c.State, c.ExitCode, c.RestartPolicy, false) ||
+		(c.State == "exited" && c.ExitCode != nil && *c.ExitCode == 0 && c.RestartPolicy == "")
+}
+
+func containerAction(c Container, wantHash string, imageIDs []string) string {
+	label := c.Labels[LabelImage]
 	switch {
 	case c.Labels[LabelConfigHash] != wantHash:
 		return "recreate"
-	case imageID != "" && c.Labels[LabelImage] != "" && c.Labels[LabelImage] != imageID:
+	case label != "" && len(imageIDs) > 0 && !slices.Contains(imageIDs, label):
 		return "recreateImage"
 	case c.State == "exited" || c.State == "created":
 		return "start"

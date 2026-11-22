@@ -62,8 +62,12 @@ func TestOutlineBrokenYAML(t *testing.T) {
 		text string
 		line int
 	}{
-		"tab indent":     {"services:\n\tweb:\n    image: a\n", 2},
-		"unclosed quote": {"a: 1\nb: 2\nc: \"open\n", 3},
+		"tab indent":          {"services:\n\tweb:\n    image: a\n", 2},
+		"unclosed quote":      {"a: 1\nb: 2\nc: \"open\n", 3},
+		"tab indent late":     {"services:\n  web:\n    image: a\n    ports:\n      - 1\n  db:\n    image: b\n    env:\n      A: 1\n  api:\n    image: c\n    x:\n      y: 1\n    z: 2\n\tbad: 3\n  more: 1\n", 15},
+		"unclosed quote late": {"services:\n  web:\n    image: a\n    cmd: x\n    env:\n      A: 1\n      B: \"open\n      C: 2\n", 7},
+		"unclosed bracket":    {"services:\n  web:\n    image: a\n    ports: [1, 2\n    env: x\n  db:\n    image: b\n", 4},
+		"bad mapping":         {"a: 1\nb: 2\nc: 3\nd: 4\ne: 5\nf: 6\ng: x: y\n", 7},
 	}
 	for name, c := range cases {
 		o := Outline(c.text)

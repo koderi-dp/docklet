@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 
 	"docklet/internal/compose"
 	"docklet/internal/model"
@@ -57,7 +58,21 @@ func (s *ComposeService) ProjectFiles(ctx context.Context, connectionID, name st
 	case len(p.ConfigFiles) == 0:
 		out.Reason = noConfigFilesReason
 	default:
-		out.CanEdit = true
+		fs := s.fsFor(env)
+		var missing []string
+		for _, f := range p.ConfigFiles {
+			if !fs.FileExists(ctx, f) {
+				missing = append(missing, f)
+			}
+		}
+		switch {
+		case len(missing) == 0:
+			out.CanEdit = true
+		case env.Kind == compose.KindWSL:
+			out.Reason = fmt.Sprintf("Compose file(s) not found inside %s: %s", env.Location, strings.Join(missing, ", "))
+		default:
+			out.Reason = fmt.Sprintf("Compose file(s) not found on this machine: %s", strings.Join(missing, ", "))
+		}
 	}
 	return out, nil
 }

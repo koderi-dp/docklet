@@ -2,11 +2,16 @@ package services
 
 import (
 	"context"
+	"regexp"
+	"strings"
 	"sync"
 	"time"
 
 	"docklet/internal/compose"
 	"docklet/internal/model"
+
+	"github.com/moby/moby/client"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ApplyPlan works out what `docker compose up -d` would change for the project with the given
@@ -35,14 +40,14 @@ func (s *ComposeService) ApplyPlan(ctx context.Context, connectionID, name strin
 	go func() { defer wg.Done(); jsonOut, jsonErr = s.configOutput(ctx, env, jsonReq) }()
 	wg.Wait()
 	if hashErr != nil {
-		return fail(errFirstLine(hashErr))
+		return fail(planError(hashErr))
 	}
 	if jsonErr != nil {
-		return fail(errFirstLine(jsonErr))
+		return fail(planError(jsonErr))
 	}
 	g, err := compose.ParseGraph(jsonOut)
 	if err != nil {
-		return fail(errFirstLine(err))
+		return fail(planError(err))
 	}
 	hashes := compose.ParseHashes(hashOut)
 	all := make([]string, 0, len(g.Services))
@@ -52,6 +57,7 @@ func (s *ComposeService) ApplyPlan(ctx context.Context, connectionID, name strin
 	return model.ComposeApplyPlan{Items: compose.PlanApply(compose.PlanInput{
 		Hashes: hashes, AllServices: all, Containers: cs,
 		ImageIDs: s.serviceImageIDs(ctx, connectionID, p.Name, g, hashes),
+		Replicas: compose.ParseReplicas(jsonOut),
 	})}, nil
 }
 
@@ -65,14 +71,48 @@ func (s *ComposeService) configOutput(ctx context.Context, env compose.ExecEnv, 
 	return s.run().Output(cctx, cmd)
 }
 
-// serviceImageIDs asks the Engine for the id of each selected service's image. A service whose
-// image is not present (or that cannot be named) is left out.
-func (s *ComposeService) serviceImageIDs(ctx context.Context, connectionID, project string, g model.ComposeGraph, hashes map[string]string) map[string]string {
-	ids := map[string]string{}
+const maxPlanErrLines = 12
+
+var (
+	exitPrefixRe  = regexp.MustCompile(`^exit status \d+: `)
+	warnLogLineRe = regexp.MustCompile(`^(time=.*level=warning|WARN\[)`)
+)
+
+// planError is a failed config run as the user should read it: no "exit status N: " prefix and
+// no warning log lines (obsolete `version:`, unset variables) that would hide the real error.
+func planError(err error) string {
+	text := exitPrefixRe.ReplaceAllString(strings.TrimSpace(err.Error()), "")
+	var keep []string
+	for _, l := range strings.Split(text, "\n") {
+		if l = strings.TrimSpace(l); l != "" && !warnLogLineRe.MatchString(l) {
+			keep = append(keep, l)
+		}
+	}
+	if len(keep) == 0 {
+		return strings.TrimSpace(text)
+	}
+	if len(keep) > maxPlanErrLines {
+		keep = keep[:maxPlanErrLines]
+	}
+	return strings.Join(keep, "\n")
+}
+
+// serviceImageIDs asks the Engine which image ids count as each selected service's current
+// image: the id of the reference and the id of its variant for the Engine's own platform
+// (Compose stamps the latter, while the containerd image store answers the former with the
+// index id). A service whose image is not present, cannot be named or has no platform id is
+// left out.
+func (s *ComposeService) serviceImageIDs(ctx context.Context, connectionID, project string, g model.ComposeGraph, hashes map[string]string) map[string][]string {
+	ids := map[string][]string{}
 	cli, err := s.client(ctx, connectionID)
 	if err != nil {
 		return ids
 	}
+	ver, err := cli.ServerVersion(ctx, client.ServerVersionOptions{})
+	if err != nil || ver.Os == "" || ver.Arch == "" {
+		return ids
+	}
+	plat := client.ImageInspectWithPlatform(&ocispec.Platform{OS: ver.Os, Architecture: ver.Arch})
 	for _, sv := range g.Services {
 		if _, ok := hashes[sv.Name]; !ok {
 			continue
@@ -84,9 +124,15 @@ func (s *ComposeService) serviceImageIDs(ctx context.Context, connectionID, proj
 		if ref == "" {
 			continue
 		}
-		if res, err := cli.ImageInspect(ctx, ref); err == nil && res.ID != "" {
-			ids[sv.Name] = res.ID
+		plain, err := cli.ImageInspect(ctx, ref)
+		if err != nil || plain.ID == "" {
+			continue
 		}
+		specific, err := cli.ImageInspect(ctx, ref, plat)
+		if err != nil || specific.ID == "" {
+			continue
+		}
+		ids[sv.Name] = []string{plain.ID, specific.ID}
 	}
 	return ids
 }

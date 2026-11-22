@@ -28,7 +28,7 @@ func Outline(text string) model.ComposeFileOutline {
 		if err != nil {
 			return model.ComposeFileOutline{
 				Services: []model.ComposeOutlineItem{},
-				Error:    yamlError(err),
+				Error:    yamlError(err, text),
 			}
 		}
 		out.Services = append(out.Services, servicesOf(&doc)...)
@@ -68,7 +68,17 @@ func resolveAlias(n *yaml.Node) *yaml.Node {
 	return n
 }
 
-func yamlError(err error) *model.ComposeYAMLError {
+// parserErrorPrefixes start the messages of yaml.v3 parser errors (parserc.go). The library
+// prints the zero-based mark line for those but adds one only to scanner errors, so their
+// printed line is one too low.
+var parserErrorPrefixes = []string{
+	"did not find expected ", "found undefined tag handle", "found duplicate %", "found incompatible YAML",
+}
+
+// yamlError turns a yaml.v3 error into a message and the 1-based line of the mistake.
+// Known limit: for "did not find expected key" and "did not find expected '-' indicator" the
+// library only reports where the surrounding collection starts, so that line is shown.
+func yamlError(err error, text string) *model.ComposeYAMLError {
 	msg := strings.TrimSpace(err.Error())
 	line := 1
 	if m := yamlLineRe.FindStringSubmatch(msg); m != nil {
@@ -76,8 +86,30 @@ func yamlError(err error) *model.ComposeYAMLError {
 			line = n
 		}
 		msg = msg[len(m[0]):]
+		for _, p := range parserErrorPrefixes {
+			if strings.HasPrefix(msg, p) {
+				line++
+				break
+			}
+		}
 	} else {
 		msg = strings.TrimPrefix(msg, "yaml: ")
 	}
+	if strings.HasPrefix(msg, "found a tab character that violates indentation") {
+		line = tabLine(text, line)
+	}
 	return &model.ComposeYAMLError{Line: line, Message: msg}
+}
+
+// tabLine finds the first line from `from` (1-based) whose indentation holds a tab. The
+// library reports where the plain scalar before the tab started, not the tab itself.
+func tabLine(text string, from int) int {
+	lines := strings.Split(text, "\n")
+	for i := from - 1; i >= 0 && i < len(lines); i++ {
+		indent := lines[i][:len(lines[i])-len(strings.TrimLeft(lines[i], " \t"))]
+		if strings.Contains(indent, "\t") {
+			return i + 1
+		}
+	}
+	return from
 }

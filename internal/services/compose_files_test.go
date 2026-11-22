@@ -80,6 +80,17 @@ func TestProjectFiles_ListsConfigThenEnvAndExplainsWhyNot(t *testing.T) {
 	}
 }
 
+func TestProjectFiles_MissingConfigFileCannotBeEdited(t *testing.T) {
+	f := newProjFilesSvc(t, localConn, true, []byte("services: {}\n"))
+	if err := os.Remove(f.cfg); err != nil {
+		t.Fatal(err)
+	}
+	l, err := f.s.ProjectFiles(bg, "c1", "shop")
+	if err != nil || l.CanEdit || !strings.Contains(l.Reason, "not found on this machine: "+f.cfg) {
+		t.Errorf("%+v %v", l, err)
+	}
+}
+
 func TestReadProjectFile_ReturnsLFTextVersionAndReadOnly(t *testing.T) {
 	raw := []byte("\xEF\xBB\xBFservices:\r\n  web: {}\r\n")
 	f := newProjFilesSvc(t, localConn, true, raw)
