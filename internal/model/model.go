@@ -109,6 +109,7 @@ type Container struct {
 	ID           string `json:"id"`
 	Name         string `json:"name"` // without leading slash
 	Image        string `json:"image"`
+	ImageID      string `json:"imageId,omitempty"` // image ID the container runs, as the Engine reports it
 	// State is the raw Engine state: created|running|paused|restarting|removing|exited|dead.
 	State  string `json:"state"`
 	Status string `json:"status"` // Engine human text, e.g. "Up 2 hours (healthy)"
