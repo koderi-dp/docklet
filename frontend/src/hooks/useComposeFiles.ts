@@ -45,6 +45,19 @@ export function useSaveComposeFile(connectionId: string, name: string) {
   });
 }
 
+export const composeApplyPlanKey = (c: string, n: string, profiles: readonly string[]) => ["compose", c, "applyplan", n, profiles.join(",")] as const;
+
+/** What `compose up` would change. Always refetched when used; also on container events (live segment). */
+export function useApplyPlan(connectionId: string | null, name: string, profiles: string[], enabled: boolean) {
+  return useQuery({
+    queryKey: composeApplyPlanKey(connectionId ?? "none", name, profiles),
+    queryFn: () => ComposeService.ApplyPlan(connectionId as string, name, profiles),
+    enabled: !!connectionId && !!name && enabled,
+    staleTime: 0,
+    retry: false,
+  });
+}
+
 const OUTLINE_DELAY_MS = 300;
 
 /** The services of the text and the YAML error that stops it, 300 ms after the last keystroke. */
