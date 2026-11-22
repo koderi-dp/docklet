@@ -137,7 +137,7 @@ export function LogFilterBar({ filter: f, search, result, containerNames, traili
         <div className="flex max-h-[84px] flex-wrap items-center gap-1.5 overflow-y-auto">
           {includes >= 2 && <IncludeMode f={f} />}
           {f.rules.map((r) => (
-            <RuleChip key={r.id} rule={r} count={result.counts[r.id]} onChange={(patch) => f.updateRule(r.id, patch)} onRemove={() => f.removeRule(r.id)} />
+            <RuleChip key={r.id} rule={r} count={result.counts[r.id]} rules={f.rules} containerNames={containerNames} onChange={(patch) => f.updateRule(r.id, patch)} onRemove={() => f.removeRule(r.id)} />
           ))}
           <button type="button" onClick={f.clearAll} className="h-7 rounded px-1.5 text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground" title="Remove all filters and reset levels and time range">
             Clear all
