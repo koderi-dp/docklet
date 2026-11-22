@@ -87,7 +87,7 @@ func containerAction(c Container, wantHash, imageID string) string {
 	switch {
 	case c.Labels[LabelConfigHash] != wantHash:
 		return "recreate"
-	case c.State == "running" && imageID != "" && c.Labels[LabelImage] != "" && c.Labels[LabelImage] != imageID:
+	case imageID != "" && c.Labels[LabelImage] != "" && c.Labels[LabelImage] != imageID:
 		return "recreateImage"
 	case c.State == "exited" || c.State == "created":
 		return "start"
