@@ -200,28 +200,34 @@ func (s *ComposeService) GetProject(ctx context.Context, connectionID, name stri
 }
 
 func (s *ComposeService) project(ctx context.Context, connectionID, name string) (model.ComposeProject, compose.ExecEnv, error) {
+	p, env, _, err := s.projectWithContainers(ctx, connectionID, name)
+	return p, env, err
+}
+
+// projectWithContainers is project plus the containers it listed, for callers that need them too.
+func (s *ComposeService) projectWithContainers(ctx context.Context, connectionID, name string) (model.ComposeProject, compose.ExecEnv, []compose.Container, error) {
 	if name == "" {
-		return model.ComposeProject{}, compose.ExecEnv{}, fmt.Errorf("project name is required")
+		return model.ComposeProject{}, compose.ExecEnv{}, nil, fmt.Errorf("project name is required")
 	}
 	cs, err := s.labelled(ctx, connectionID, name)
 	if err != nil {
-		return model.ComposeProject{}, compose.ExecEnv{}, err
+		return model.ComposeProject{}, compose.ExecEnv{}, nil, err
 	}
 	env, err := s.env(connectionID)
 	if err != nil {
-		return model.ComposeProject{}, compose.ExecEnv{}, err
+		return model.ComposeProject{}, compose.ExecEnv{}, nil, err
 	}
 	recs, err := s.managed(ctx, connectionID)
 	if err != nil {
-		return model.ComposeProject{}, env, err
+		return model.ComposeProject{}, env, nil, err
 	}
 	for _, p := range compose.Merge(connectionID, compose.Discover(connectionID, cs), recs, env) {
 		if p.Name == name {
 			s.assess(ctx, env, &p)
-			return p, env, nil
+			return p, env, cs, nil
 		}
 	}
-	return model.ComposeProject{}, env, fmt.Errorf("Compose project %q was not found on this Engine", name)
+	return model.ComposeProject{}, env, nil, fmt.Errorf("Compose project %q was not found on this Engine", name)
 }
 
 // Capability reports whether and where the Compose CLI can operate the project.

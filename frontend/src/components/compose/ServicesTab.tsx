@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Layers, Play, RotateCw, Square } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -46,7 +46,7 @@ function ActionButtons({ targets, name, busy, onAct, omit }: { targets: Containe
 }
 
 /** Hierarchical service -> container table. Actions are Engine operations via ContainerService. */
-export function ServicesTab({ connectionId, project, containers }: { connectionId: string; project: ComposeProject; containers: Container[] }) {
+export function ServicesTab({ connectionId, project, containers, focusService }: { connectionId: string; project: ComposeProject; containers: Container[]; focusService?: string }) {
   const engine = useProjectEngineBatch(connectionId);
   const verbs = useComposeVerb(connectionId);
   const cap = project.capability;
@@ -63,10 +63,25 @@ export function ServicesTab({ connectionId, project, containers }: { connectionI
     return names.map((n) => ({ name: n, list: (by.get(n) ?? []).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })) }));
   }, [containers, project.services]);
 
+  const wrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!focusService) return;
+    const row = Array.from(wrapRef.current?.querySelectorAll<HTMLElement>("[data-service]") ?? []).find((r) => r.dataset.service === focusService);
+    if (!row) return;
+    row.scrollIntoView({ block: "center", behavior: "smooth" });
+    const ring = ["ring-2", "ring-inset", "ring-primary"];
+    row.classList.add(...ring);
+    const t = window.setTimeout(() => row.classList.remove(...ring), 2000);
+    return () => {
+      window.clearTimeout(t);
+      row.classList.remove(...ring);
+    };
+  }, [focusService]);
+
   if (groups.length === 0) return <p className="p-4 text-muted-foreground">No containers carry this project label{project.managed ? " and the Compose files define no services we could read" : ""}.</p>;
 
   return (
-    <div className="overflow-x-auto rounded-[10px] border border-border bg-card">
+    <div ref={wrapRef} className="overflow-x-auto rounded-[10px] border border-border bg-card">
       <table className="w-full min-w-[720px] border-collapse text-[13px]">
         <thead>
           <tr className="border-b border-border text-left text-xs font-medium text-muted-foreground">
@@ -128,7 +143,7 @@ function ServiceRows({
   const needsUp = list.length === 0 || (running < list.length && composeAvailable);
   return (
     <>
-      <tr className="h-[42px] border-y border-border bg-primary/[0.07]">
+      <tr data-service={name} className="h-[42px] border-y border-border bg-primary/[0.07]">
         <td className="px-3" colSpan={2}>
           <div className="flex items-center gap-2">
             <Layers aria-hidden className="size-4 text-primary" />

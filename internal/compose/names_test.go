@@ -11,3 +11,16 @@ func TestNormalizeProjectName_MatchesComposeRules(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateProfile_AcceptsOnlyTheExactWildcard(t *testing.T) {
+	for _, ok := range []string{"*", "dev", "web-1"} {
+		if err := ValidateProfile(ok); err != nil {
+			t.Errorf("%q should be valid: %v", ok, err)
+		}
+	}
+	for _, bad := range []string{"a*", "**", "", "-x", "*a"} {
+		if err := ValidateProfile(bad); err == nil {
+			t.Errorf("%q should be invalid", bad)
+		}
+	}
+}

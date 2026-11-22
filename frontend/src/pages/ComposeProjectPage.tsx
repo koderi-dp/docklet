@@ -15,6 +15,7 @@ import { ProjectHealthText, ProjectStateBadge } from "@/components/compose/Proje
 import { ProjectTotalsStrip } from "@/components/compose/ProjectTotalsStrip";
 import { ResourcesTab } from "@/components/compose/ResourcesTab";
 import { ServicesTab } from "@/components/compose/ServicesTab";
+import { StructureTab } from "@/components/compose/structure/StructureTab";
 import { WatchTab } from "@/components/compose/watch/WatchTab";
 import { projectContainers, useComposeProject } from "@/hooks/useCompose";
 import { useContainersQuery, useContainerStats } from "@/hooks/useContainers";
@@ -27,7 +28,8 @@ export default function ComposeProjectPage() {
 }
 
 function ProjectView({ connectionId, name }: { connectionId: string; name: string }) {
-  const [tab, setTab] = useState("services");
+  const [tab, setTab] = useState("structure");
+  const [serviceFocus, setServiceFocus] = useState<string | undefined>();
   const navigate = useNavigate();
   const q = useComposeProject(connectionId, name);
   const all = useContainersQuery(connectionId, true);
@@ -38,7 +40,7 @@ function ProjectView({ connectionId, name }: { connectionId: string; name: strin
   const watch = useWatchState(connectionId, name).data;
   const watchActive = watch?.active === true;
   useEffect(() => {
-    if (tab === "watch" && !watchActive) setTab("services");
+    if (tab === "watch" && !watchActive) setTab("structure");
   }, [tab, watchActive]);
 
   const back = (
@@ -68,7 +70,7 @@ function ProjectView({ connectionId, name }: { connectionId: string; name: strin
   const services = (p.services ?? []).map((s) => s.name).filter(Boolean);
 
   return (
-    <div className={cn("h-full overflow-auto p-5", tab === "logs" && "flex flex-col")}>
+    <div className={cn("h-full overflow-auto p-5", (tab === "logs" || tab === "structure") && "flex flex-col")}>
       <PageHeader
         breadcrumb={back}
         title={p.name}
@@ -84,8 +86,12 @@ function ProjectView({ connectionId, name }: { connectionId: string; name: strin
         actions={<ProjectActions connectionId={connectionId} project={p} containers={containers} labels onForgotten={() => (p.notCreated ? navigate("/compose") : undefined)} />}
       />
       <ProjectTotalsStrip connectionId={connectionId} project={p} containers={containers} totals={live.totals.get(name)} idle={live.idle.get(name)} />
-      <Tabs value={tab} onValueChange={setTab} className={cn("gap-3", tab === "logs" && "min-h-[320px] flex-1")}>
+      <Tabs value={tab} onValueChange={(v) => {
+          setTab(v);
+          setServiceFocus(undefined);
+        }} className={cn("gap-3", tab === "logs" && "min-h-[320px] flex-1", tab === "structure" && "min-h-[420px] flex-1")}>
         <TabsList className="w-fit">
+          <TabsTrigger value="structure">Structure</TabsTrigger>
           <TabsTrigger value="services">Services</TabsTrigger>
           <TabsTrigger value="logs">Logs</TabsTrigger>
           <TabsTrigger value="configuration">Configuration</TabsTrigger>
@@ -97,8 +103,20 @@ function ProjectView({ connectionId, name }: { connectionId: string; name: strin
             </TabsTrigger>
           )}
         </TabsList>
+        <TabsContent value="structure" className="min-h-0 data-[state=active]:flex data-[state=active]:flex-col">
+          <StructureTab
+            connectionId={connectionId}
+            project={p}
+            containers={containers}
+            active={tab === "structure"}
+            onShowService={(service) => {
+              setServiceFocus(service);
+              setTab("services");
+            }}
+          />
+        </TabsContent>
         <TabsContent value="services">
-          <ServicesTab connectionId={connectionId} project={p} containers={containers} />
+          <ServicesTab connectionId={connectionId} project={p} containers={containers} focusService={serviceFocus} />
         </TabsContent>
         <TabsContent value="logs" className="min-h-0 data-[state=active]:flex data-[state=active]:flex-col">
           <LogsTab connectionId={connectionId} project={p.name} services={services} active={tab === "logs"} />

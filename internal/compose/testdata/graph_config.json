@@ -1,0 +1,54 @@
+{
+  "name": "shop",
+  "networks": {
+    "default": {"name": "shop_default", "ipam": {}},
+    "backend": {"name": "shop_backend", "ipam": {}}
+  },
+  "services": {
+    "web": {
+      "image": "nginx:1.27",
+      "command": ["nginx", "-g", "daemon-off-secret-command"],
+      "environment": {"SECRET_TOKEN": "s3cr3t-do-not-leak", "MODE": "prod"},
+      "ports": [
+        {"mode": "ingress", "host_ip": "127.0.0.1", "target": 8080, "published": "9260", "protocol": "tcp"},
+        {"mode": "ingress", "target": 443, "published": "9443", "protocol": "tcp"}
+      ],
+      "depends_on": {
+        "api": {"condition": "service_started", "required": true},
+        "postgres": {"condition": "service_healthy", "required": true}
+      },
+      "profiles": null
+    },
+    "api": {
+      "build": {"context": "/src/api", "dockerfile": "Dockerfile"},
+      "command": ["run-api-secret-command"],
+      "environment": {"DB_PASSWORD": "s3cr3t-do-not-leak"},
+      "depends_on": {"postgres": {"condition": "service_healthy", "required": true}},
+      "volumes": [
+        {"type": "bind", "source": "/var/run/docker.sock", "target": "/var/run/docker.sock"}
+      ]
+    },
+    "postgres": {
+      "image": "postgres:16",
+      "volumes": [
+        {"type": "volume", "source": "pgdata", "target": "/var/lib/postgresql/data"}
+      ]
+    },
+    "adminer": {
+      "image": "adminer",
+      "profiles": ["debug"],
+      "depends_on": {"postgres": {"condition": "service_started", "required": true}}
+    },
+    "migrate": {
+      "image": "shop/migrate:latest",
+      "depends_on": {"postgres": {"condition": "service_completed_successfully", "required": true}},
+      "volumes": [
+        {"type": "tmpfs", "target": "/tmp"}
+      ]
+    }
+  },
+  "volumes": {
+    "pgdata": {"name": "shop_pgdata"},
+    "cache": {"name": "shop_cache"}
+  }
+}
