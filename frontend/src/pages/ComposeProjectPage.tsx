@@ -9,6 +9,8 @@ import { ConnectionGate } from "@/components/shared/ConnectionGate";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ConfigTab } from "@/components/compose/ConfigTab";
+import { ComposeFileTab } from "@/components/compose/file/ComposeFileTab";
+import { DiscardChangesDialog } from "@/components/compose/file/DiscardChangesDialog";
 import { LogsTab } from "@/components/compose/LogsTab";
 import { ProjectActions } from "@/components/compose/ProjectActions";
 import { ProjectHealthText, ProjectStateBadge } from "@/components/compose/ProjectStateBadge";
@@ -30,6 +32,8 @@ export default function ComposeProjectPage() {
 function ProjectView({ connectionId, name }: { connectionId: string; name: string }) {
   const [tab, setTab] = useState("structure");
   const [serviceFocus, setServiceFocus] = useState<string | undefined>();
+  const [fileDirty, setFileDirty] = useState(false);
+  const [pendingTab, setPendingTab] = useState<string | null>(null);
   const navigate = useNavigate();
   const q = useComposeProject(connectionId, name);
   const all = useContainersQuery(connectionId, true);
@@ -70,7 +74,7 @@ function ProjectView({ connectionId, name }: { connectionId: string; name: strin
   const services = (p.services ?? []).map((s) => s.name).filter(Boolean);
 
   return (
-    <div className={cn("h-full overflow-auto p-5", (tab === "logs" || tab === "structure") && "flex flex-col")}>
+    <div className={cn("h-full overflow-auto p-5", (tab === "logs" || tab === "structure" || tab === "file") && "flex flex-col")}>
       <PageHeader
         breadcrumb={back}
         title={p.name}
@@ -87,12 +91,14 @@ function ProjectView({ connectionId, name }: { connectionId: string; name: strin
       />
       <ProjectTotalsStrip connectionId={connectionId} project={p} containers={containers} totals={live.totals.get(name)} idle={live.idle.get(name)} />
       <Tabs value={tab} onValueChange={(v) => {
+          if (tab === "file" && v !== "file" && fileDirty) return setPendingTab(v);
           setTab(v);
           setServiceFocus(undefined);
-        }} className={cn("gap-3", tab === "logs" && "min-h-[320px] flex-1", tab === "structure" && "min-h-[420px] flex-1")}>
+        }} className={cn("gap-3", tab === "logs" && "min-h-[320px] flex-1", (tab === "structure" || tab === "file") && "min-h-[420px] flex-1")}>
         <TabsList className="w-fit">
           <TabsTrigger value="structure">Structure</TabsTrigger>
           <TabsTrigger value="services">Services</TabsTrigger>
+          <TabsTrigger value="file">Compose file</TabsTrigger>
           <TabsTrigger value="logs">Logs</TabsTrigger>
           <TabsTrigger value="configuration">Configuration</TabsTrigger>
           <TabsTrigger value="resources">Resources</TabsTrigger>
@@ -118,6 +124,9 @@ function ProjectView({ connectionId, name }: { connectionId: string; name: strin
         <TabsContent value="services">
           <ServicesTab connectionId={connectionId} project={p} containers={containers} focusService={serviceFocus} />
         </TabsContent>
+        <TabsContent value="file" className="min-h-0 data-[state=active]:flex data-[state=active]:flex-col">
+          <ComposeFileTab connectionId={connectionId} project={p} containers={containers} active={tab === "file"} onDirtyChange={setFileDirty} />
+        </TabsContent>
         <TabsContent value="logs" className="min-h-0 data-[state=active]:flex data-[state=active]:flex-col">
           <LogsTab connectionId={connectionId} project={p.name} services={services} active={tab === "logs"} />
         </TabsContent>
@@ -131,6 +140,16 @@ function ProjectView({ connectionId, name }: { connectionId: string; name: strin
           <ResourcesTab connectionId={connectionId} project={p.name} />
         </TabsContent>
       </Tabs>
+      <DiscardChangesDialog
+        open={pendingTab !== null}
+        onKeep={() => setPendingTab(null)}
+        onDiscard={() => {
+          setFileDirty(false);
+          setTab(pendingTab ?? "structure");
+          setServiceFocus(undefined);
+          setPendingTab(null);
+        }}
+      />
     </div>
   );
 }
