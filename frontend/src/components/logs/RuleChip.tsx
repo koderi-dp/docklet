@@ -11,9 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { HIGHLIGHT_COLOURS, ruleError, type HighlightColour, type Rule, type RuleKind, type RuleTarget } from "@/lib/logFilter/rules";
 import { HIGHLIGHT_LABEL, HIGHLIGHT_SWATCH } from "./logColours";
-
-export const KIND_LABEL: Record<RuleKind, string> = { include: "Include", exclude: "Exclude", highlight: "Highlight" };
-export const TARGET_LABEL: Record<RuleTarget, string> = { message: "Message", container: "Container", level: "Level" };
+import { KIND_LABEL, TARGET_LABEL } from "./ruleLabels";
 
 const KIND_STYLE: Record<RuleKind, string> = {
   include: "border-primary/40 bg-primary/10",
