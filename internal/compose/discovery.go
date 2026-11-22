@@ -17,6 +17,8 @@ const (
 	LabelEnvFile    = "com.docker.compose.project.environment_file"
 	LabelOneOff     = "com.docker.compose.oneoff"
 	LabelDependsOn  = "com.docker.compose.depends_on"
+	LabelConfigHash = "com.docker.compose.config-hash"
+	LabelImage      = "com.docker.compose.image"
 )
 
 // Container is the minimal input of discovery: an Engine container with its labels.

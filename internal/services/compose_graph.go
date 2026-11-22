@@ -37,11 +37,16 @@ func graphOrFallback(configOut string, configErr error, canRun bool, reason stri
 			}
 			err = perr
 		}
-		note = "docker compose config failed: " + strings.TrimSpace(firstLine(strings.TrimSpace(err.Error())))
+		note = "docker compose config failed: " + errFirstLine(err)
 	}
 	g := compose.GraphFromContainers(cs)
 	g.Note = note
 	return g
+}
+
+// errFirstLine is the first line of an error's text, for messages shown in one line.
+func errFirstLine(err error) string {
+	return strings.TrimSpace(firstLine(strings.TrimSpace(err.Error())))
 }
 
 func (s *ComposeService) configJSON(ctx context.Context, env compose.ExecEnv, p model.ComposeProject) (string, error) {

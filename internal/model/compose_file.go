@@ -39,6 +39,20 @@ type ComposeFileOutline struct {
 	Error    *ComposeYAMLError    `json:"error"`
 }
 
+// ComposeApplyItem is what `compose up` would do to one service. Action is one of
+// "start", "recreate", "recreateImage", "new", "remove", "unchanged".
+type ComposeApplyItem struct {
+	Service string `json:"service"`
+	Action  string `json:"action"`
+	Detail  string `json:"detail"`
+}
+
+// ComposeApplyPlan is the list of changes Apply would make, or the reason it could not be worked out.
+type ComposeApplyPlan struct {
+	Items []ComposeApplyItem `json:"items"`
+	Error string             `json:"error"`
+}
+
 // ComposeSaveResult is the outcome of saving a file.
 type ComposeSaveResult struct {
 	Saved    bool              `json:"saved"`
