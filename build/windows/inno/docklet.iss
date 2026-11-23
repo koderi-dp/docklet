@@ -49,8 +49,8 @@ ArchitecturesInstallIn64BitMode=arm64
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 #endif
-; Docklet's single-instance mutex (Wails: "wails-app-" + UniqueID + "-sim"); setup asks to close it.
-AppMutex=wails-app-dev.docklet.app-sim
+; A running Docklet is closed through the Restart Manager. No AppMutex: it would stop setup with a
+; "close Docklet first" prompt, and a silent upgrade answers that prompt with Cancel.
 CloseApplications=yes
 RestartApplications=no
 OutputDir={#OutputDir}
