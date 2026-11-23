@@ -38,6 +38,12 @@ func (s *CopyAsService) load(ctx context.Context, connectionID, id string) (load
 	if cli == nil {
 		return loaded{}, fmt.Errorf("connection %q is not available", connectionID)
 	}
+	return loadSpecInputs(ctx, cli, id)
+}
+
+// loadSpecInputs reads what a container's Spec is made from: its inspect data, its image and
+// the Engine's defaults.
+func loadSpecInputs(ctx context.Context, cli *client.Client, id string) (loaded, error) {
 	res, err := cli.ContainerInspect(ctx, id, client.ContainerInspectOptions{})
 	if err != nil {
 		return loaded{}, friendlyError(err)

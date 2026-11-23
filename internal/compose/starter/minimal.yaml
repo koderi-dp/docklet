@@ -1,0 +1,12 @@
+services:
+  app:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    # Usual next keys for a service:
+    # environment:
+    #   KEY: value
+    # volumes:
+    #   - ./data:/data
+    # depends_on:
+    #   - other-service
