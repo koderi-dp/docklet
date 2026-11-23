@@ -51,7 +51,7 @@ export function projectBar(
 export function projectHealthLine(
   containers: readonly Container[],
 ): { text: string; tone: "muted" | "danger" } | undefined {
-  const health = aggregateHealth(containers);
+  const health = aggregateHealth(containers.filter(isRunning));
   const failed = containers.filter(isFailed).length;
   const parts: string[] = [];
   if (health.withHealthcheck > 0) parts.push(`${health.healthy} of ${health.withHealthcheck} healthy`);

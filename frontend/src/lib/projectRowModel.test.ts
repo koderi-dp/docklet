@@ -110,6 +110,17 @@ describe("projectHealthLine", () => {
     });
     expect(projectHealthLine([failed("1")])).toEqual({ text: "1 failed", tone: "danger" });
   });
+  it("ignores the health of containers that are not running", () => {
+    const exitedUnhealthy = (id: string) => c({ id, state: "exited", exitCode: 1, health: "unhealthy" });
+    expect(projectHealthLine([exitedUnhealthy("1"), exitedUnhealthy("2")])).toEqual({
+      text: "2 failed",
+      tone: "danger",
+    });
+    expect(projectHealthLine([running("1", "healthy"), exitedUnhealthy("2")])).toEqual({
+      text: "1 of 1 healthy · 1 failed",
+      tone: "danger",
+    });
+  });
 });
 
 describe("filters", () => {
