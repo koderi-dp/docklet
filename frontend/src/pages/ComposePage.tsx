@@ -10,7 +10,10 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { TableCard } from "@/components/shared/TableCard";
 import { OpenComposeDialog } from "@/components/compose/OpenComposeDialog";
 import { ProjectsTable } from "@/components/compose/ProjectsTable";
-import { useComposeProjects } from "@/hooks/useCompose";
+import { ProjectFilterChips } from "@/components/compose/ProjectFilterChips";
+import { projectContainers, useComposeProjects } from "@/hooks/useCompose";
+import { countProjectFilters, isProjectRunning } from "@/lib/projectRowModel";
+import { useUI } from "@/stores/uiStore";
 import { useComposeDisk } from "@/hooks/useComposeDisk";
 import { useContainersQuery, useContainerStats } from "@/hooks/useContainers";
 import { useProjectTotals } from "@/hooks/useProjectTotals";
@@ -43,6 +46,12 @@ function ComposeView({ connectionId }: { connectionId: string }) {
   const runningIds = useMemo(() => (containers.data ?? []).filter((c) => c.state === "running" && c.composeProject).map((c) => c.id), [containers.data]);
   const { stats } = useContainerStats(connectionId, runningIds, true);
   const live = useProjectTotals(connectionId, containers.data ?? NO_CONTAINERS, stats);
+  const composeFilter = useUI((s) => s.composeFilter);
+  const setComposeFilter = useUI((s) => s.setComposeFilter);
+  const counts = useMemo(
+    () => countProjectFilters(list, (p) => isProjectRunning(p, containers.data ? projectContainers(containers.data, p) : undefined)),
+    [list, containers.data],
+  );
   const [calcDisk, setCalcDisk] = useState(false);
   const disk = useComposeDisk(connectionId, calcDisk);
   const [openFile, setOpenFile] = useState(false);
@@ -82,8 +91,13 @@ function ComposeView({ connectionId }: { connectionId: string }) {
           <p>Projects are discovered from the com.docker.compose.project label of existing containers, or saved with Open Compose File. None were found.</p>
         </EmptyState>
       ) : (
+        <>
+        <div className="mb-3 flex items-center">
+          <ProjectFilterChips counts={counts} value={composeFilter} onChange={setComposeFilter} />
+        </div>
         <TableCard>
           <ProjectsTable
+            filter={composeFilter}
             connectionId={connectionId}
             projects={list}
             containers={containers.data}
@@ -91,6 +105,7 @@ function ComposeView({ connectionId }: { connectionId: string }) {
             disk={{ data: disk.data, loading: disk.isFetching, requested: calcDisk || !!disk.data, onCalculate: () => (calcDisk ? void disk.refetch() : setCalcDisk(true)) }}
           />
         </TableCard>
+        </>
       )}
     </div>
   );

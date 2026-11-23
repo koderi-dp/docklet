@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { ConnectionProfile } from "@bindings/model";
+import type { ProjectFilter } from "@/lib/projectRowModel";
 import { DEFAULT_TEXT_SIZE, normalizeTextSize, type TextSize } from "@/lib/textSize";
 
 export type ContainerViewMode = "grouped" | "flat";
@@ -87,6 +88,10 @@ interface UIState {
   removeConnectionId: string | null;
   setRemoveConnectionId: (id: string | null) => void;
 
+  /** Compose list filter; kept while the app runs, not persisted. */
+  composeFilter: ProjectFilter;
+  setComposeFilter: (f: ProjectFilter) => void;
+
   containerView: ContainerViewMode;
   setContainerView: (v: ContainerViewMode) => void;
   /** Collapsed Compose groups, keyed `${connectionId}::${project}`. */
@@ -152,6 +157,8 @@ export const useUI = create<UIState>()(
       openConnectionDialog: (connectionDialog) => set({ connectionDialog }),
       removeConnectionId: null,
       setRemoveConnectionId: (removeConnectionId) => set({ removeConnectionId }),
+      composeFilter: "all",
+      setComposeFilter: (composeFilter) => set({ composeFilter }),
       containerView: "grouped",
       setContainerView: (containerView) => set({ containerView }),
       collapsedGroups: {},
