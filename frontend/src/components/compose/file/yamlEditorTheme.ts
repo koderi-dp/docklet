@@ -59,6 +59,22 @@ export const yamlTheme = EditorView.theme({
   ".cm-panel.cm-search button.cm-button:hover": { backgroundColor: "var(--accent)" },
   ".cm-panel.cm-search [name=close]": { color: "var(--muted-foreground)", backgroundColor: "transparent" },
   ".cm-tooltip": { backgroundColor: "var(--popover)", color: "var(--popover-foreground)", border: "1px solid var(--border)" },
+  ".cm-tooltip.cm-tooltip-autocomplete": { borderRadius: "8px", overflow: "hidden", boxShadow: "0 8px 24px rgb(0 0 0 / 0.18)" },
+  ".cm-tooltip.cm-tooltip-autocomplete > ul": { fontFamily: mono, fontSize: "12px", maxHeight: "16em" },
+  ".cm-tooltip.cm-tooltip-autocomplete > ul > li": { padding: "3px 8px", lineHeight: "1.5" },
+  ".cm-tooltip-autocomplete ul li[aria-selected]": { backgroundColor: "var(--accent)", color: "var(--accent-foreground)" },
+  ".cm-completionLabel": { color: "inherit" },
+  ".cm-completionMatchedText": { textDecoration: "none", fontWeight: "600", color: "var(--primary)" },
+  ".cm-completionDetail": { color: "var(--muted-foreground)", fontStyle: "normal", marginLeft: "12px" },
+  ".cm-completionIcon": { display: "none" },
+  ".cm-tooltip.cm-completionInfo": {
+    maxWidth: "340px",
+    padding: "6px 10px",
+    fontFamily: "var(--font-sans)",
+    fontSize: "12px",
+    lineHeight: "1.5",
+    borderRadius: "8px",
+  },
 });
 
 export const yamlHighlight = HighlightStyle.define([

@@ -12,16 +12,25 @@ interface Props {
   onChange: (text: string) => void;
   onSave: () => void;
   jumpTo?: { line: number; nonce: number };
+  /** Suggestions for this editor's language, e.g. composeCompletion(). It may change while the editor lives. */
+  completion?: Extension;
 }
 
 /** A CodeMirror 6 view that is created once; callbacks and props reach it through refs and effects. */
-export function YamlEditor({ value, readOnly, onChange, onSave, jumpTo }: Props) {
+export function YamlEditor({ value, readOnly, onChange, onSave, jumpTo, completion }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const extensions = useRef<Extension | null>(null);
   const readOnlyCompartment = useRef(new Compartment());
-  const latest = useRef({ value, readOnly, onChange, onSave });
-  latest.current = { value, readOnly, onChange, onSave };
+  const completionCompartment = useRef(new Compartment());
+  const latest = useRef({ value, readOnly, onChange, onSave, completion });
+  latest.current = { value, readOnly, onChange, onSave, completion };
+  /** The parts of the state that follow props: rebuilt whenever a new document replaces the state. */
+  const dynamic = () => [
+    readOnlyCompartment.current.of(EditorState.readOnly.of(latest.current.readOnly)),
+    // Before basicSetup, so these suggestions take the place of its default completion.
+    completionCompartment.current.of(latest.current.completion ?? []),
+  ];
 
   useEffect(() => {
     const ext: Extension = [
@@ -56,7 +65,7 @@ export function YamlEditor({ value, readOnly, onChange, onSave, jumpTo }: Props)
     const v = new EditorView({
       state: EditorState.create({
         doc: latest.current.value,
-        extensions: [ext, readOnlyCompartment.current.of(EditorState.readOnly.of(latest.current.readOnly))],
+        extensions: [dynamic(), ext],
       }),
       parent: host.current as HTMLElement,
     });
@@ -74,7 +83,7 @@ export function YamlEditor({ value, readOnly, onChange, onSave, jumpTo }: Props)
     v.setState(
       EditorState.create({
         doc: value,
-        extensions: [extensions.current as Extension, readOnlyCompartment.current.of(EditorState.readOnly.of(latest.current.readOnly))],
+        extensions: [dynamic(), extensions.current as Extension],
       }),
     );
   }, [value]);
@@ -82,6 +91,10 @@ export function YamlEditor({ value, readOnly, onChange, onSave, jumpTo }: Props)
   useEffect(() => {
     view.current?.dispatch({ effects: readOnlyCompartment.current.reconfigure(EditorState.readOnly.of(readOnly)) });
   }, [readOnly]);
+
+  useEffect(() => {
+    view.current?.dispatch({ effects: completionCompartment.current.reconfigure(completion ?? []) });
+  }, [completion]);
 
   useEffect(() => {
     const v = view.current;

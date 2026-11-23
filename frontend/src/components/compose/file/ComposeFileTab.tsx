@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import type { ComposeFileRef, ComposeProject, Container } from "@bindings/model";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useComposeFile, useComposeFiles, useFileOutline, useInvalidateAfterSave, useSaveComposeFile } from "@/hooks/useComposeFiles";
+import { useImagesQuery } from "@/hooks/useImages";
+import { imageNames } from "@/lib/composeComplete/projectValues";
 import { afterSave, barState, isDirty, pickFile, type EditState } from "@/lib/composeFileState";
 import { errorMessage, toastError } from "@/lib/errors";
 import { DiscardChangesDialog } from "./DiscardChangesDialog";
@@ -12,6 +14,7 @@ import { SaveConflictDialog } from "./SaveConflictDialog";
 import { ServiceOutline } from "./ServiceOutline";
 import { useRevealService, type RevealRequest } from "./useRevealService";
 import { useUnsavedGuard } from "./useUnsavedGuard";
+import { composeCompletion } from "./composeCompletion";
 import { YamlEditor } from "./YamlEditor";
 
 interface Props {
@@ -64,6 +67,16 @@ function FileEditor({ connectionId, name, files, active, onDirtyChange, panel, p
   const dirty = ready && isDirty(loaded.loadedText, loaded.text);
   const outline = useFileOutline(loaded?.text ?? "", ready && !readOnly);
   const guard = useUnsavedGuard(dirty);
+
+  // Compose suggestions for an editable file. The engine's images reach them through a ref, so a
+  // new image list does not rebuild the editor's extensions.
+  const images = useImagesQuery(connectionId, active && ready && !readOnly);
+  const imageList = useRef<string[]>([]);
+  imageList.current = useMemo(
+    () => imageNames((images.data ?? []).map((i) => (i.dangling || !i.repository || !i.tag ? [] : [`${i.repository}:${i.tag}`]))),
+    [images.data],
+  );
+  const completion = useMemo(() => composeCompletion(() => imageList.current), []);
 
   // A file arrives: take it when it is a different file, or a newer version while nothing is unsaved.
   const data = read.data;
@@ -189,6 +202,7 @@ function FileEditor({ connectionId, name, files, active, onDirtyChange, panel, p
               onChange={(text) => patch({ text, error: null })}
               onSave={() => doSave(false)}
               jumpTo={jump}
+              completion={readOnly ? undefined : completion}
             />
           )}
         </div>
