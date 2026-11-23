@@ -8,7 +8,7 @@ import type { DiskState } from "./ProjectsTable";
 type DiskEntry = NonNullable<NonNullable<DiskState["data"]>["projects"]>[number];
 
 function DiskPart({ disk, entry }: { disk: DiskState; entry: DiskEntry | undefined }) {
-  if (!disk.requested) {
+  if (!disk.loading && !disk.data) {
     return (
       <button
         type="button"
@@ -48,13 +48,14 @@ export function ProjectResourcesCell({
   );
   if (totals && totals.running > 0) {
     return (
-      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-        <span className="text-muted-foreground">CPU</span> <CpuTotal totals={totals} />
-        <span className="text-muted-foreground">·</span>
-        <span className="text-muted-foreground">Mem</span> <MemoryTotal totals={totals} />
-        <span className="text-muted-foreground">·</span>
+      <div className="flex flex-col gap-0.5">
+        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+          <span className="text-muted-foreground">CPU</span> <CpuTotal totals={totals} />
+          <span className="text-muted-foreground">·</span>
+          <span className="text-muted-foreground">Mem</span> <MemoryTotal totals={totals} />
+          <IdleChip idle={idle} totals={totals} />
+        </div>
         {diskPart}
-        <IdleChip idle={idle} totals={totals} />
       </div>
     );
   }

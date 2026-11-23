@@ -24,7 +24,7 @@ interface Props {
   connectionId: string;
   project: ComposeProject;
   containers: readonly Container[];
-  /** Header variant shows text labels, table rows icon-only. */
+  /** Header variant shows text labels, table rows a labelled Start/Stop button plus the overflow menu. */
   labels?: boolean;
   /** Called after a managed project was forgotten (e.g. to leave its page). */
   onForgotten?: () => void;
@@ -83,7 +83,7 @@ export function ProjectActions({ connectionId, project, containers, labels, onFo
     </>
   );
 
-  // Table-row variant: ONE primary action (Up) + a single overflow menu with everything else (fixed-width column).
+  // Table-row variant: a labelled Start/Stop button + a single overflow menu with everything else (fixed-width column).
   if (!labels) {
     const reasonFor = (verb: ComposeVerb) =>
       baseReason ?? (notCreated && (verb === "down" || verb === "restart") ? NOT_CREATED : undefined);
