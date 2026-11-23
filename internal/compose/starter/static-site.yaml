@@ -1,0 +1,9 @@
+services:
+  site:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      # The folder next to this file that holds index.html
+      - ./site:/usr/share/nginx/html:ro
+    restart: unless-stopped

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useComposeLocation, useCreateComposeProject, useNewFilePreview } from "@/hooks/useCompose";
+import { useComposeLocation, useCreateComposeProject, useNewFilePreview, useNewFileTemplates } from "@/hooks/useCompose";
 import { errorMessage } from "@/lib/errors";
 import { createBlocked, defaultProjectName, nameState as nameStateOf, previewWanted, type NameState, type NewSourceKind } from "@/lib/newComposeFile";
 import { NewComposeSource, type NewComposeSourceProps } from "./NewComposeSource";
@@ -172,6 +172,9 @@ export function NewComposeDialog({ connectionId, open, onOpenChange, projects, c
   const [source, setSource] = useState<NewSourceKind>("minimal");
   const [ticked, setTicked] = useState<ReadonlySet<string>>(new Set());
   const [includeSecrets, setIncludeSecrets] = useState(false);
+  const templates = useNewFileTemplates(open).data ?? [];
+  const [pickedTemplate, setPickedTemplate] = useState("");
+  const template = pickedTemplate || templates[0]?.id || "";
   const [result, setResult] = useState<{ existingFile?: string; error?: string }>({});
 
   // The name follows the folder until the user types one.
@@ -188,8 +191,14 @@ export function NewComposeDialog({ connectionId, open, onOpenChange, projects, c
   }, [open, state, name]);
 
   const src = useMemo(
-    () => ({ kind: source, containerIds: source === "containers" ? [...ticked] : [], includeSecrets: source === "containers" && includeSecrets }) as ComposeNewSource,
-    [source, ticked, includeSecrets],
+    () =>
+      ({
+        kind: source,
+        template: source === "template" ? template : "",
+        containerIds: source === "containers" ? [...ticked] : [],
+        includeSecrets: source === "containers" && includeSecrets,
+      }) as ComposeNewSource,
+    [source, template, ticked, includeSecrets],
   );
   const wanted = open && !!loc.data?.available && previewWanted({ name, source, ticked: ticked.size });
   const pv = useNewFilePreview(connectionId, name, src, wanted);
@@ -211,6 +220,7 @@ export function NewComposeDialog({ connectionId, open, onOpenChange, projects, c
     setSource("minimal");
     setTicked(new Set());
     setIncludeSecrets(false);
+    setPickedTemplate("");
     setResult({});
     offeredFor.current = null;
   };
@@ -273,9 +283,9 @@ export function NewComposeDialog({ connectionId, open, onOpenChange, projects, c
           }}
           includeSecrets={includeSecrets}
           onIncludeSecrets={edit(setIncludeSecrets)}
-          templates={[]}
-          template=""
-          onTemplate={noop}
+          templates={templates}
+          template={template}
+          onTemplate={edit(setPickedTemplate)}
           preview={preview}
           result={result}
           blocked={blocked}

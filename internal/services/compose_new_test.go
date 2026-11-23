@@ -111,3 +111,21 @@ func TestNewFilePreview_RejectsBadInput(t *testing.T) {
 		}
 	}
 }
+
+func TestNewFilePreview_Template(t *testing.T) {
+	s, calls := newFileSvc(t)
+	p, err := s.NewFilePreview(context.Background(), "c1", "shop", model.ComposeNewSource{Kind: "template", Template: "web-postgres"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, _ := starter.Template("web-postgres", "shop")
+	if p.Text != want || want == "" {
+		t.Fatalf("got: %s", p.Text)
+	}
+	if calls.Load() != 0 {
+		t.Fatal("a template needs nothing from the engine")
+	}
+	if got := s.NewFileTemplates(); len(got) != 3 || got[0].ID != "web-postgres" || got[0].Title != "Web app + PostgreSQL" {
+		t.Fatalf("templates: %+v", got)
+	}
+}

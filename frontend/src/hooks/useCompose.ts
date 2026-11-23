@@ -271,3 +271,8 @@ export function useCreateComposeProject(connectionId: string) {
     },
   });
 }
+
+/** The ready-made starting files; they ship with the app, so they are fetched once. */
+export function useNewFileTemplates(enabled: boolean) {
+  return useQuery({ queryKey: ["compose", "newfile-templates"], queryFn: () => ComposeService.NewFileTemplates(), enabled, staleTime: Infinity, retry: false });
+}

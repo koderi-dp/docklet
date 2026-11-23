@@ -24,3 +24,9 @@ type ComposeCreateResult struct {
 	// ExistingFile is the Compose file already in the folder; nothing was written.
 	ExistingFile string `json:"existingFile,omitempty"`
 }
+
+// ComposeTemplate is a ready-made starting file for a new Compose project.
+type ComposeTemplate struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+}

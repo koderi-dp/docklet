@@ -24,7 +24,11 @@ func (s *ComposeService) NewFilePreview(ctx context.Context, connectionID, name 
 	case "minimal":
 		out.Text = starter.Minimal(name)
 	case "template":
-		return model.ComposeNewPreview{}, fmt.Errorf("unknown template %q", src.Template)
+		text, err := starter.Template(src.Template, name)
+		if err != nil {
+			return model.ComposeNewPreview{}, err
+		}
+		out.Text = text
 	case "containers":
 		f, err := s.fileFromContainers(ctx, connectionID, name, src)
 		if err != nil {
@@ -36,6 +40,9 @@ func (s *ComposeService) NewFilePreview(ctx context.Context, connectionID, name 
 	}
 	return out, nil
 }
+
+// NewFileTemplates lists the templates a new Compose file can start from.
+func (s *ComposeService) NewFileTemplates() []model.ComposeTemplate { return starter.Templates() }
 
 // fileFromContainers inspects the containers in the given order and renders them as one file.
 func (s *ComposeService) fileFromContainers(ctx context.Context, connectionID, name string, src model.ComposeNewSource) (runspec.ComposeFile, error) {
