@@ -37,6 +37,13 @@ describe("composeSource", () => {
 
   it("offers images after image:", () => expect(labels(run("services:\n  web:\n    image: |", ["nginx:1.27"]))).toEqual(["nginx:1.27"]));
 
+  it("shows a name too long for the list in full beside it", () => {
+    const long = "992382845977.dkr.ecr.eu-central-1.amazonaws.com/studio/orchestration-api:v28.0.876.0";
+    const options = run("services:\n  web:\n    image: |", [long, "nginx:1.27"])!.options;
+    expect(options.find((o) => o.label === long)!.info).toBe(long);
+    expect(options.find((o) => o.label === "nginx:1.27")!.info).toBeUndefined();
+  });
+
   it("reads the image list on every call", () => {
     const images: string[] = [];
     const state = EditorState.create({ doc: "services:\n  web:\n    image: " });

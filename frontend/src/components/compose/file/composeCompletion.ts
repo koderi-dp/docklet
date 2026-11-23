@@ -10,6 +10,9 @@ const VALID_FOR = /^[\w.:/-]*$/;
 /** Names from the project rank above what the schema lists. */
 const PROJECT_BOOST = 10;
 
+/** Labels longer than this do not fit the list's width (see yamlEditorTheme). */
+const LONG_LABEL = 48;
+
 /**
  * Compose suggestions for the cursor position: keys and fixed values from the Compose schema,
  * plus names from the open file and the engine's images. `images` is read on every call, so the
@@ -31,7 +34,9 @@ export function composeSource(images: () => readonly string[]): (ctx: Completion
       for (const s of list) {
         if (seen.has(s.label)) continue;
         seen.add(s.label);
-        options.push({ label: s.label, detail: s.detail, info: s.info, type, boost, apply: apply?.(s.label) });
+        // The list cuts a long name short, so the selected one is shown in full beside it.
+        const info = s.info ?? (s.label.length > LONG_LABEL ? s.label : undefined);
+        options.push({ label: s.label, detail: s.detail, info, type, boost, apply: apply?.(s.label) });
       }
     };
 

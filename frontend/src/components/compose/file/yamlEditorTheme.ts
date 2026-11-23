@@ -59,8 +59,10 @@ export const yamlTheme = EditorView.theme({
   ".cm-panel.cm-search button.cm-button:hover": { backgroundColor: "var(--accent)" },
   ".cm-panel.cm-search [name=close]": { color: "var(--muted-foreground)", backgroundColor: "transparent" },
   ".cm-tooltip": { backgroundColor: "var(--popover)", color: "var(--popover-foreground)", border: "1px solid var(--border)" },
-  ".cm-tooltip.cm-tooltip-autocomplete": { borderRadius: "8px", overflow: "hidden", boxShadow: "0 8px 24px rgb(0 0 0 / 0.18)" },
-  ".cm-tooltip.cm-tooltip-autocomplete > ul": { fontFamily: mono, fontSize: "12px", maxHeight: "16em" },
+  // The panel beside the list (.cm-completionInfo) is a child of this element, so the corners are
+  // rounded on the list itself: clipping here would hide the panel.
+  ".cm-tooltip.cm-tooltip-autocomplete": { borderRadius: "8px", boxShadow: "0 8px 24px rgb(0 0 0 / 0.18)" },
+  ".cm-tooltip.cm-tooltip-autocomplete > ul": { fontFamily: mono, fontSize: "12px", maxHeight: "16em", maxWidth: "min(460px, 90vw)", borderRadius: "7px" },
   ".cm-tooltip.cm-tooltip-autocomplete > ul > li": { padding: "3px 8px", lineHeight: "1.5" },
   ".cm-tooltip-autocomplete ul li[aria-selected]": { backgroundColor: "var(--accent)", color: "var(--accent-foreground)" },
   ".cm-completionLabel": { color: "inherit" },
@@ -69,6 +71,7 @@ export const yamlTheme = EditorView.theme({
   ".cm-completionIcon": { display: "none" },
   ".cm-tooltip.cm-completionInfo": {
     maxWidth: "340px",
+    overflowWrap: "anywhere",
     padding: "6px 10px",
     fontFamily: "var(--font-sans)",
     fontSize: "12px",

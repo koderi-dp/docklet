@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueries, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { Events } from "@wailsio/runtime";
 import { ConnectionService } from "@bindings/services";
 import { ConnectionState, type ConnectionProfile, type ConnectionStatus } from "@bindings/model";
@@ -85,18 +85,29 @@ function blankStatus(id: string, state: ConnectionState, error?: string): Connec
   } as ConnectionStatus;
 }
 
+/** Runs one connection attempt and keeps the cached status in step with it. */
+export async function connectAndTrack(qc: QueryClient, id: string, connect: (id: string) => Promise<ConnectionStatus>): Promise<void> {
+  const connecting = () => qc.setQueryData(statusKey(id), blankStatus(id, ConnectionState.StateConnecting));
+  connecting();
+  // A status read still under way describes the connection before this attempt. Left alone, its
+  // "connected" answer would open the pages while the backend is reconnecting, and their first
+  // requests would fail. Cancelling restores the status from before the read, so it is set again.
+  await qc.cancelQueries({ queryKey: statusKey(id) });
+  connecting();
+  try {
+    qc.setQueryData(statusKey(id), await connect(id));
+  } catch (e) {
+    qc.setQueryData(statusKey(id), blankStatus(id, ConnectionState.StateError, errorMessage(e)));
+  }
+}
+
 /** Selects a connection and starts a connection attempt. */
 export function useSelectConnection() {
   const qc = useQueryClient();
   const set = useUI((s) => s.setActiveConnection);
   return async (id: string) => {
     set(id);
-    qc.setQueryData(statusKey(id), blankStatus(id, ConnectionState.StateConnecting));
-    try {
-      qc.setQueryData(statusKey(id), await ConnectionService.Connect(id));
-    } catch (e) {
-      qc.setQueryData(statusKey(id), blankStatus(id, ConnectionState.StateError, errorMessage(e)));
-    }
+    await connectAndTrack(qc, id, (c) => ConnectionService.Connect(c));
   };
 }
 

@@ -1,7 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { basicSetup } from "codemirror";
 import { Compartment, EditorState, Prec, type Extension } from "@codemirror/state";
-import { EditorView, keymap } from "@codemirror/view";
+import { EditorView, keymap, repositionTooltips } from "@codemirror/view";
 import { indentLess } from "@codemirror/commands";
 import { yaml } from "@codemirror/lang-yaml";
 import { yamlThemeExtensions } from "./yamlEditorTheme";
@@ -28,7 +28,7 @@ export function YamlEditor({ value, readOnly, onChange, onSave, jumpTo, completi
   /** The parts of the state that follow props: rebuilt whenever a new document replaces the state. */
   const dynamic = () => [
     readOnlyCompartment.current.of(EditorState.readOnly.of(latest.current.readOnly)),
-    // Before basicSetup, so these suggestions take the place of its default completion.
+    // Listed before basicSetup: of two autocompletion configurations the first one's settings win.
     completionCompartment.current.of(latest.current.completion ?? []),
   ];
 
@@ -95,6 +95,13 @@ export function YamlEditor({ value, readOnly, onChange, onSave, jumpTo, completi
   useEffect(() => {
     view.current?.dispatch({ effects: completionCompartment.current.reconfigure(completion ?? []) });
   }, [completion]);
+
+  // The parent can move the editor without resizing the window, e.g. when the error line above it
+  // appears while typing. An open suggestion list is placed in window coordinates, so it is placed
+  // again after every render.
+  useLayoutEffect(() => {
+    if (view.current) repositionTooltips(view.current);
+  });
 
   useEffect(() => {
     const v = view.current;
