@@ -12,6 +12,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useComposeVerb, useProjectEngineBatch, type ComposeVerb, type UpOptions } from "@/hooks/useCompose";
 import { partitionByEligibility } from "@/lib/actionEligibility";
+import { aggregateState } from "@/lib/composeGrouping";
 import type { ComposeProject, Container } from "@bindings/model";
 import { useProjectFolderMenu } from "@/components/host/useProjectFolderMenu";
 import { DownDialog } from "./DownDialog";
@@ -23,7 +24,7 @@ interface Props {
   connectionId: string;
   project: ComposeProject;
   containers: readonly Container[];
-  /** Header variant shows text labels, table rows icon-only. */
+  /** Header variant shows text labels, table rows a labelled Start/Stop button plus the overflow menu. */
   labels?: boolean;
   /** Called after a managed project was forgotten (e.g. to leave its page). */
   onForgotten?: () => void;
@@ -82,11 +83,13 @@ export function ProjectActions({ connectionId, project, containers, labels, onFo
     </>
   );
 
-  // Table-row variant: ONE primary action (Up) + a single overflow menu with everything else (fixed-width column).
+  // Table-row variant: a labelled Start/Stop button + a single overflow menu with everything else (fixed-width column).
   if (!labels) {
     const reasonFor = (verb: ComposeVerb) =>
       baseReason ?? (notCreated && (verb === "down" || verb === "restart") ? NOT_CREATED : undefined);
-    const upReason = reasonFor("up");
+    const stopping = !notCreated && aggregateState(containers) === "running";
+    const primaryReason = stopping ? baseReason : reasonFor("up");
+    const primaryHint = stopping ? "Stop the project's services (docker compose stop)" : VERBS[0].hint;
     return (
       <div className="flex flex-nowrap items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
         <Tooltip>
@@ -94,17 +97,18 @@ export function ProjectActions({ connectionId, project, containers, labels, onFo
             <span className="inline-flex">
               <Button
                 variant="outline"
-                size="icon"
-                className="size-7"
-                disabled={!!upReason}
-                aria-label={`Compose Up ${project.name}`}
-                onClick={() => onVerb("up")}
+                size="sm"
+                className="h-7 gap-1 px-2.5 text-xs"
+                disabled={!!primaryReason}
+                aria-label={`${stopping ? "Stop" : "Start"} ${project.name}`}
+                onClick={() => (stopping ? void verbs.run("stop", project.name) : onVerb("up"))}
               >
-                <Play className="size-3.5" />
+                {stopping ? <Square className="size-3.5" /> : <Play className="size-3.5" />}
+                {stopping ? "Stop" : "Start"}
               </Button>
             </span>
           </TooltipTrigger>
-          <TooltipContent className="max-w-sm">{upReason ?? `${VERBS[0].hint}. Runs on: ${cap.executionLocation}`}</TooltipContent>
+          <TooltipContent className="max-w-sm">{primaryReason ?? `${primaryHint}. Runs on: ${cap.executionLocation}`}</TooltipContent>
         </Tooltip>
         <DropdownMenu>
           <Tooltip>
