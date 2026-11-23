@@ -81,9 +81,33 @@ func (s Spec) serviceName() string {
 	return n
 }
 
-// ToCompose renders a `services:` snippet (plus the top-level volumes and networks it needs).
-func ToCompose(s Spec, o Options) string {
-	svc := mapNode()
+// renderCtx carries the choices that differ between a one-service snippet and a whole file.
+type renderCtx struct {
+	o Options
+	// secretVar names the variable a secret env value is replaced by.
+	secretVar func(key string) string
+	// volKey and netKey may give a top-level key another name when it is already taken by a
+	// different resource; nil keeps the key.
+	volKey, netKey func(key, actual string) string
+}
+
+func (c renderCtx) vol(key, actual string) string {
+	if c.volKey == nil {
+		return key
+	}
+	return c.volKey(key, actual)
+}
+
+func (c renderCtx) net(key, actual string) string {
+	if c.netKey == nil {
+		return key
+	}
+	return c.netKey(key, actual)
+}
+
+// buildService renders one service and the top-level volumes and networks it needs (nil when none).
+func buildService(s Spec, c renderCtx) (svc, topVolumes, topNetworks *yaml.Node) {
+	svc = mapNode()
 	put(svc, "image", s.Image)
 	if s.Name != "" && s.ComposeProject == "" {
 		put(svc, "container_name", s.Name)
@@ -102,8 +126,8 @@ func ToCompose(s Spec, o Options) string {
 	if len(s.Env) > 0 {
 		env := mapNode()
 		for _, e := range s.Env {
-			if e.Secret && !o.IncludeSecrets {
-				put(env, e.Key, "${"+secretVarName(e.Key)+"}")
+			if e.Secret && !c.o.IncludeSecrets {
+				put(env, e.Key, "${"+c.secretVar(e.Key)+"}")
 			} else {
 				put(env, e.Key, escDollar(e.Value))
 			}
@@ -123,7 +147,7 @@ func ToCompose(s Spec, o Options) string {
 	if len(s.Expose) > 0 {
 		put(svc, "expose", s.Expose)
 	}
-	vols, topVolumes := composeVolumes(s)
+	vols, topVolumes := composeVolumes(s, c)
 	if len(vols.Content) > 0 {
 		put(svc, "volumes", vols)
 	}
@@ -136,9 +160,26 @@ func ToCompose(s Spec, o Options) string {
 	if len(tmpfs) > 0 {
 		put(svc, "tmpfs", escAll(tmpfs))
 	}
-	topNetworks := composeNetworks(svc, s)
+	topNetworks = composeNetworks(svc, s, c)
 	composeSettings(svc, s)
+	return svc, topVolumes, topNetworks
+}
 
+func encodeCompose(root *yaml.Node, notes []string) string {
+	var buf bytes.Buffer
+	enc := yaml.NewEncoder(&buf)
+	enc.SetIndent(2)
+	_ = enc.Encode(root)
+	_ = enc.Close()
+	if len(notes) > 0 {
+		buf.WriteString("# not included: " + strings.Join(notes, "; ") + "\n")
+	}
+	return buf.String()
+}
+
+// ToCompose renders a `services:` snippet (plus the top-level volumes and networks it needs).
+func ToCompose(s Spec, o Options) string {
+	svc, topVolumes, topNetworks := buildService(s, renderCtx{o: o, secretVar: secretVarName})
 	root := mapNode()
 	services := mapNode()
 	put(services, s.serviceName(), svc)
@@ -149,15 +190,7 @@ func ToCompose(s Spec, o Options) string {
 	if topNetworks != nil {
 		put(root, "networks", topNetworks)
 	}
-	var buf bytes.Buffer
-	enc := yaml.NewEncoder(&buf)
-	enc.SetIndent(2)
-	_ = enc.Encode(root)
-	_ = enc.Close()
-	if notes := composeNotIncluded(s); len(notes) > 0 {
-		buf.WriteString("# not included: " + strings.Join(notes, "; ") + "\n")
-	}
-	return buf.String()
+	return encodeCompose(root, composeNotIncluded(s))
 }
 
 func composeNotIncluded(s Spec) []string {
@@ -171,7 +204,7 @@ func composeNotIncluded(s Spec) []string {
 	return out
 }
 
-func composeVolumes(s Spec) (*yaml.Node, *yaml.Node) {
+func composeVolumes(s Spec, c renderCtx) (*yaml.Node, *yaml.Node) {
 	list := &yaml.Node{Kind: yaml.SequenceNode}
 	var top *yaml.Node
 	for _, m := range s.Mounts {
@@ -191,6 +224,9 @@ func composeVolumes(s Spec) (*yaml.Node, *yaml.Node) {
 			key, named := m.Source, true
 			if suffix, ok := strings.CutPrefix(m.Source, s.ComposeProject+"_"); ok && s.ComposeProject != "" && suffix != "" {
 				key, named = suffix, false
+			}
+			if k := c.vol(key, m.Source); k != key {
+				key, named = k, true // a renamed key must still point at the existing volume
 			}
 			if top == nil {
 				top = mapNode()
@@ -219,9 +255,9 @@ func hasKey(m *yaml.Node, key string) bool {
 	return false
 }
 
-func composeNetworks(svc *yaml.Node, s Spec) *yaml.Node {
+func composeNetworks(svc *yaml.Node, s Spec, c renderCtx) *yaml.Node {
 	switch {
-	case s.NetworkMode == "host" || s.NetworkMode == "none" || strings.HasPrefix(s.NetworkMode, "container:"):
+	case s.NetworkMode == "host" || s.NetworkMode == "none" || strings.HasPrefix(s.NetworkMode, "container:") || strings.HasPrefix(s.NetworkMode, "service:"):
 		put(svc, "network_mode", s.NetworkMode)
 		return nil
 	case len(s.Networks) == 0:
@@ -241,6 +277,13 @@ func composeNetworks(svc *yaml.Node, s Spec) *yaml.Node {
 	full := mapNode()
 	for _, n := range s.Networks {
 		key, external := s.composeNetKey(n.Name)
+		implicit := key == "default" && !external
+		renamed := false
+		if !implicit {
+			if k := c.net(key, n.Name); k != key {
+				key, renamed = k, true
+			}
+		}
 		names = append(names, key)
 		entry := &yaml.Node{Kind: yaml.MappingNode, Style: yaml.FlowStyle}
 		if len(n.Aliases) > 0 {
@@ -248,7 +291,7 @@ func composeNetworks(svc *yaml.Node, s Spec) *yaml.Node {
 			put(entry, "aliases", n.Aliases)
 		}
 		put(full, key, entry)
-		if key == "default" && !external {
+		if implicit {
 			continue // the implicit project network
 		}
 		if top == nil {
@@ -257,9 +300,9 @@ func composeNetworks(svc *yaml.Node, s Spec) *yaml.Node {
 		def := mapNode()
 		if external {
 			put(def, "external", true)
-			if key != n.Name {
-				put(def, "name", n.Name)
-			}
+		}
+		if (external || renamed) && key != n.Name {
+			put(def, "name", n.Name)
 		}
 		put(top, key, def)
 	}
