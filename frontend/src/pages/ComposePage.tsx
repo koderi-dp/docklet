@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FileText, Layers } from "lucide-react";
+import { FilePlus, FileText, Layers } from "lucide-react";
 import { toast } from "sonner";
 import { Events } from "@wailsio/runtime";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { ConnectionGate } from "@/components/shared/ConnectionGate";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { TableCard } from "@/components/shared/TableCard";
+import { NewComposeDialog } from "@/components/compose/NewComposeDialog";
 import { OpenComposeDialog } from "@/components/compose/OpenComposeDialog";
 import { ProjectsTable } from "@/components/compose/ProjectsTable";
 import { ProjectFilterChips } from "@/components/compose/ProjectFilterChips";
@@ -55,6 +56,7 @@ function ComposeView({ connectionId }: { connectionId: string }) {
   const [calcDisk, setCalcDisk] = useState(false);
   const disk = useComposeDisk(connectionId, calcDisk);
   const [openFile, setOpenFile] = useState(false);
+  const [newFile, setNewFile] = useState(false);
   const [dropped, setDropped] = useState<string[] | undefined>();
   const onDrop = useCallback((files: string[]) => {
     setDropped(files);
@@ -68,11 +70,17 @@ function ComposeView({ connectionId }: { connectionId: string }) {
         title="Compose"
         subtitle="Manage multi-service applications. Drop a Compose file here to add it."
         actions={
-          <Button size="sm" variant="outline" onClick={() => setOpenFile(true)}>
-            <FileText className="size-3.5" /> Open Compose File
-          </Button>
+          <>
+            <Button size="sm" variant="outline" onClick={() => setNewFile(true)}>
+              <FilePlus className="size-3.5" /> New Compose File
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setOpenFile(true)}>
+              <FileText className="size-3.5" /> Open Compose File
+            </Button>
+          </>
         }
       />
+      <NewComposeDialog connectionId={connectionId} open={newFile} onOpenChange={setNewFile} projects={list} containers={containers.data ?? undefined} onOpenExisting={(path) => onDrop([path])} />
       <OpenComposeDialog connectionId={connectionId} open={openFile} onOpenChange={setOpenFile} initialFiles={dropped} />
       {projects.isLoading ? (
         <TableCard>
@@ -89,6 +97,9 @@ function ComposeView({ connectionId }: { connectionId: string }) {
       ) : list.length === 0 ? (
         <EmptyState icon={<Layers />} title="No Compose projects on this Engine">
           <p>Projects are discovered from the com.docker.compose.project label of existing containers, or saved with Open Compose File. None were found.</p>
+          <Button className="mt-3" size="sm" onClick={() => setNewFile(true)}>
+            <FilePlus className="size-3.5" /> New Compose File
+          </Button>
         </EmptyState>
       ) : (
         <>

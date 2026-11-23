@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -37,8 +37,13 @@ export default function ComposeProjectPage() {
   return <ConnectionGate>{({ connectionId }) => <ProjectView connectionId={connectionId} name={projectName} />}</ConnectionGate>;
 }
 
+/** Tabs a link may open directly; the rest depend on state the page works out itself. */
+const LINKABLE_TABS = ["structure", "services", "file", "logs", "configuration", "resources"];
+
 function ProjectView({ connectionId, name }: { connectionId: string; name: string }) {
-  const [tab, setTab] = useState("structure");
+  // A link may ask for a tab (the New Compose File dialog opens the file tab).
+  const asked = (useLocation().state as { tab?: unknown } | null)?.tab;
+  const [tab, setTab] = useState(typeof asked === "string" && LINKABLE_TABS.includes(asked) ? asked : "structure");
   const [serviceFocus, setServiceFocus] = useState<string | undefined>();
   const [serviceFilter, setServiceFilter] = useState<ServiceFilter>("all");
   useEffect(() => setServiceFilter("all"), [name]);

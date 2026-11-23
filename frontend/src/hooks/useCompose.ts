@@ -1,8 +1,8 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ComposeService } from "@bindings/services";
-import type { ComposeProject, Container } from "@bindings/model";
+import type { ComposeNewSource, ComposeProject, Container } from "@bindings/model";
 import { confirmComposeUp } from "@/components/ports/portGuard";
 import { useContainerAction } from "@/hooks/useContainers";
 import { useInvalidateOnEvents } from "@/hooks/queryUtils";
@@ -232,4 +232,42 @@ export function useProjectEngineBatch(connectionId: string) {
 
 export function projectContainers(all: readonly Container[] | null | undefined, p: Pick<ComposeProject, "name">): Container[] {
   return (all ?? []).filter((c) => c.composeProject === p.name);
+}
+
+const PREVIEW_DELAY_MS = 300;
+
+/**
+ * The text a new Compose file would get. The arguments must hold still for a moment before the
+ * backend is asked; `current` says the data belongs to the arguments given now.
+ */
+export function useNewFilePreview(connectionId: string, name: string, source: ComposeNewSource, enabled: boolean) {
+  const args = JSON.stringify([name, source]);
+  const [settled, setSettled] = useState(args);
+  useEffect(() => {
+    const t = setTimeout(() => setSettled(args), PREVIEW_DELAY_MS);
+    return () => clearTimeout(t);
+  }, [args]);
+  const query = useQuery({
+    queryKey: ["compose", connectionId, "newfile", settled],
+    queryFn: () => {
+      const [n, s] = JSON.parse(settled) as [string, ComposeNewSource];
+      return ComposeService.NewFilePreview(connectionId, n, s);
+    },
+    enabled: enabled && settled === args,
+    retry: false,
+    staleTime: 0,
+    gcTime: 0,
+  });
+  return { ...query, current: settled === args };
+}
+
+/** Writes compose.yaml and saves the project; the result says when the folder already has a Compose file. */
+export function useCreateComposeProject(connectionId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { dir: string; name: string; text: string }) => ComposeService.CreateProject(connectionId, v.dir, v.name, v.text),
+    onSuccess: (r) => {
+      if (r.project) void qc.invalidateQueries({ queryKey: ["compose", connectionId] });
+    },
+  });
 }

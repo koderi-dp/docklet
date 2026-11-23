@@ -60,3 +60,15 @@ export function createBlocked(a: {
   if (!a.previewReady) return "Preparing the preview…";
   return undefined;
 }
+
+/** Whether a preview should be requested: never for a bad name or an empty container choice. */
+export function previewWanted(a: { name: string; source: NewSourceKind; ticked: number }): boolean {
+  if (a.name === "" || nameProblem(a.name)) return false;
+  return !(a.source === "containers" && a.ticked === 0);
+}
+
+/** Running containers first, each group by name. Returns a new list. */
+export function orderContainers<T extends { name: string; state: string }>(containers: readonly T[]): T[] {
+  const running = (c: T) => (c.state === "running" ? 0 : 1);
+  return [...containers].sort((a, b) => running(a) - running(b) || a.name.localeCompare(b.name));
+}
