@@ -22,10 +22,11 @@ type fakeDaemon struct {
 	serverVer   string
 	mu          sync.Mutex
 	streamEnded chan struct{}
+	done        chan struct{} // closed by close(): every /events stream, also one opened later, ends
 }
 
 func newFakeDaemon(ver string) *fakeDaemon {
-	d := &fakeDaemon{events: make(chan struct{}, 16), serverVer: ver, streamEnded: make(chan struct{}, 16)}
+	d := &fakeDaemon{events: make(chan struct{}, 16), serverVer: ver, streamEnded: make(chan struct{}, 16), done: make(chan struct{})}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/_ping", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("API-Version", "1.45")
@@ -54,6 +55,8 @@ func newFakeDaemon(ver string) *fakeDaemon {
 		for {
 			select {
 			case <-r.Context().Done():
+				return
+			case <-d.done:
 				return
 			case <-d.events:
 				w.Write([]byte(`{"Type":"container","Action":"start","Actor":{"ID":"abc"}}` + "\n"))
@@ -127,9 +130,12 @@ func waitFor(t *testing.T, cond func() bool, what string) {
 	t.Fatalf("timed out waiting for: %s", what)
 }
 
-// close shuts the fake daemon down. Open event streams are cut first: httptest's Close waits for
-// active requests, and a stream still held by a connected Manager would make it wait forever.
+// close shuts the fake daemon down. Event streams end first: httptest's Close waits for active
+// requests, and a stream held by a still-connected Manager would make it wait forever. Cutting the
+// connections alone is not enough, because the Manager reconnects within milliseconds and the new
+// stream would be active when Close starts waiting; done ends that one too.
 func (d *fakeDaemon) close() {
+	close(d.done)
 	d.srv.CloseClientConnections()
 	d.srv.Close()
 }
