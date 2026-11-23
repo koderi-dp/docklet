@@ -15,6 +15,11 @@ export function engineSh(script: string): string {
   return compose(["exec", "-T", "engine", "sh", "-ec", script]);
 }
 
+/** Runs a shell script inside the Docklet container: where Compose files of a TCP connection live. */
+export function dockletSh(script: string): string {
+  return compose(["exec", "-T", "docklet", "sh", "-ec", script]);
+}
+
 /** Runs `docker …` against the test engine and returns trimmed output. */
 export function engineDocker(...args: string[]): string {
   return compose(["exec", "-T", "engine", "docker", ...args]).trim();
