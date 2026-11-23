@@ -33,6 +33,8 @@ type ComposeService struct {
 
 	// runner executes CLI commands; nil means the real process runner (tests inject a fake).
 	runner compose.Runner
+	// creator makes new project files; nil means the execution environment's own (tests inject a fake).
+	creator compose.FileCreator
 
 	watchMu sync.Mutex
 	watches map[string]*watchRun // connection + project -> live or ended watch

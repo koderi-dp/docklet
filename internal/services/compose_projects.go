@@ -109,15 +109,8 @@ func (s *ComposeService) AddProject(ctx context.Context, connectionID string, co
 	if err := compose.ValidateProjectName(name); err != nil {
 		return model.ComposeProject{}, fmt.Errorf("%w (lower-case letters, digits, - and _; must start with a letter or digit)", err)
 	}
-	req := compose.Request{Project: name, ConfigFiles: cfg, EnvFiles: envf, WorkingDir: dir, Verb: compose.VerbConfig, ConfigMode: "quiet"}
-	cmd, err := compose.BuildCommand(env, req)
-	if err != nil {
+	if err := s.validateConfig(ctx, env, name, cfg, envf, dir); err != nil {
 		return model.ComposeProject{}, err
-	}
-	cctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-	if _, err := s.run().Output(cctx, cmd); err != nil {
-		return model.ComposeProject{}, fmt.Errorf("the Compose files are not valid (docker compose config -q): %w", err)
 	}
 	if _, err := s.Projects.SaveComposeProject(ctx, appdb.ComposeProjectRecord{
 		ConnectionID: connectionID, Name: name, WorkingDir: dir, ConfigFiles: cfg, EnvFiles: envf,
@@ -126,6 +119,21 @@ func (s *ComposeService) AddProject(ctx context.Context, connectionID string, co
 	}
 	p, _, err := s.project(ctx, connectionID, name)
 	return p, err
+}
+
+// validateConfig runs `docker compose config -q` on the files where the CLI runs.
+func (s *ComposeService) validateConfig(ctx context.Context, env compose.ExecEnv, name string, cfg, envf []string, dir string) error {
+	req := compose.Request{Project: name, ConfigFiles: cfg, EnvFiles: envf, WorkingDir: dir, Verb: compose.VerbConfig, ConfigMode: "quiet"}
+	cmd, err := compose.BuildCommand(env, req)
+	if err != nil {
+		return err
+	}
+	cctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	if _, err := s.run().Output(cctx, cmd); err != nil {
+		return fmt.Errorf("the Compose files are not valid (docker compose config -q): %w", err)
+	}
+	return nil
 }
 
 // RemoveProject forgets a managed project record. It never runs Compose and never

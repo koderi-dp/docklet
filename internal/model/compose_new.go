@@ -17,3 +17,10 @@ type ComposeNewPreview struct {
 	SecretKeys  []string `json:"secretKeys"`
 	NotIncluded []string `json:"notIncluded"`
 }
+
+// ComposeCreateResult is the outcome of creating a new Compose file. Exactly one field is set.
+type ComposeCreateResult struct {
+	Project *ComposeProject `json:"project,omitempty"`
+	// ExistingFile is the Compose file already in the folder; nothing was written.
+	ExistingFile string `json:"existingFile,omitempty"`
+}
