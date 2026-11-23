@@ -4,6 +4,12 @@ A fast, lightweight desktop app for managing the Docker Engines you already have
 
 ![Containers grouped by Compose project](docs/screenshots/containers.png)
 
+## Why I built it
+
+I made Docklet for my own setup. On my work machine Docker Desktop is ruled out by its licence, I didn't want to switch to Podman, and Rancher Desktop's interface felt too bare for everyday use. I also didn't want to run a container whose job is to manage my other containers. Kiri came closest to what I was looking for, but I ran into problems with it on ARM and with my test containers, so I gave up on it.
+
+What I wanted was a simple, good-looking desktop app that connects to the container engines already installed, including Docker inside WSL, and lets me see my containers, follow their logs and do the daily work without changing how anything is installed. That's what Docklet is.
+
 ## Why Docklet
 
 - **Works with your existing Docker.** Connect to Docker in WSL2, a local socket, a remote host over SSH, or TCP with TLS. Switch between engines from the top bar.
@@ -27,7 +33,11 @@ A fast, lightweight desktop app for managing the Docker Engines you already have
 
 **Compose**
 - Up, Down, Start, Stop, Restart, Pull and Build, for a whole project or one service
+- Project list with each project's state, a bar of its containers, resource use, a Start or Stop button, and Running and Stopped filters
 - Open a compose file from disk and start it right away
+- Edit the compose file in a YAML editor, see what Apply would change, then apply it
+- A dependency graph of the project's services; selecting one shows its line in the editor
+- One row per container on the Services tab, with filters, image size and creation time
 - Open the project in your editor or file manager
 - Compose watch: start it, see what was synced or rebuilt, and stop it
 - CPU, memory and disk use per project
@@ -52,6 +62,7 @@ A fast, lightweight desktop app for managing the Docker Engines you already have
 - Optional alerts when a container crashes, runs out of memory or turns unhealthy
 - Command palette (Ctrl/Cmd+K)
 - Dark and light themes, adjustable text size
+- Runs as a single instance: starting it again brings the open window to the front
 
 ![Logs from several containers with search and filters](docs/screenshots/logs.png)
 
@@ -79,7 +90,7 @@ Windows is the main platform. Linux and macOS builds are new and have had little
 - A Docker Engine you can reach: for example Docker installed in WSL2, on this machine, or on a server.
 - Or Podman with its API socket or machine running (tested with Podman 6 on Windows; Linux and macOS sockets are detected but untested). Docklet never starts or changes a Podman machine; update checks, BuildKit builds and build-cache cleanup are not available on Podman.
 - For Compose actions: the Docker CLI with the Compose plugin, on the machine where your compose files live.
-- For SSH connections: an OpenSSH client.
+- For SSH connections: the OpenSSH client (`ssh`), which comes with Windows 10 and 11, macOS and most Linux distributions, and the Docker CLI on the remote host. Password and passphrase prompts need OpenSSH 8.4 or newer; key-based login works with any version.
 
 ## Build from source
 
