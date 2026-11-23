@@ -51,7 +51,9 @@ func main() {
 		Name:        "Docklet",
 		Description: "Desktop client for existing Docker Engines",
 		Services:    rt.bound,
-		Assets:      application.AssetOptions{Handler: application.AssetFileServerFS(assets)},
+		// The window is attached after New; a launch that arrives before that has nothing to show yet.
+		SingleInstance: singleInstance(rt.showWindow),
+		Assets:         application.AssetOptions{Handler: application.AssetFileServerFS(assets)},
 		Mac: application.MacOptions{
 			ApplicationShouldTerminateAfterLastWindowClosed: true,
 		},

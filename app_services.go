@@ -127,6 +127,13 @@ func (r *appRuntime) buildServices(osNotifications *notifications.NotificationSe
 	}
 }
 
+// showWindow brings the main window to the front; a no-op until attach has wired the window.
+func (r *appRuntime) showWindow() {
+	if r.tray.Window != nil {
+		r.tray.ShowWindow()
+	}
+}
+
 // startHidden: the window starts hidden only when the tray can bring it back.
 func (r *appRuntime) startHidden() bool {
 	return r.settings.ShowTrayIcon && r.settings.StartMinimizedToTray
