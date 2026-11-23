@@ -71,14 +71,14 @@ jobs:
 
       - uses: ./.github/actions/setup
 
-      - name: Install NSIS
+      - name: Install Inno Setup
         shell: bash
         run: |
           set -euo pipefail
-          if ! command -v makensis > /dev/null 2>&1 && [ ! -x "/c/Program Files (x86)/NSIS/makensis.exe" ]; then
-            choco install nsis -y --no-progress
+          if ! command -v iscc > /dev/null 2>&1 && [ ! -x "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" ]; then
+            choco install innosetup -y --no-progress
           fi
-          echo 'C:\Program Files (x86)\NSIS' >> "$GITHUB_PATH"
+          echo 'C:\Program Files (x86)\Inno Setup 6' >> "$GITHUB_PATH"
 
       # `wails3 package VERSION=...` embeds the version (-X docklet/internal/version.Version) in the binary.
       # The architecture is chosen with GOARCH; both builds write bin/docklet.exe and

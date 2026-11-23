@@ -5,7 +5,7 @@ Docklet is built with Wails v3, Go, React, TypeScript, Tailwind and shadcn/ui.
 ## Prerequisites
 
 - Go 1.26+, Node 22+, and the Wails v3 CLI: `go install github.com/wailsapp/wails/v3/cmd/wails3@v3.1.0`
-- Windows installer: NSIS (`makensis`)
+- Windows installer: Inno Setup 6.3 or later (`iscc` on PATH, or pass `ISCC=<path to ISCC.exe>`); `FORMAT=nsis` still builds the old NSIS installer
 - Linux: `build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev`
 
 ## Run and build

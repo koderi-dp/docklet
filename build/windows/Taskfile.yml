@@ -96,13 +96,30 @@ tasks:
 
   package:
     summary: Packages the application
+    desc: |
+      FORMAT=inno (default) builds the Inno Setup installer, FORMAT=nsis the old NSIS one, FORMAT=msix an MSIX package.
     cmds:
-      - task: '{{if eq (.FORMAT | default "nsis") "msix"}}create:msix:package{{else}}create:nsis:installer{{end}}'
+      - task: '{{if eq .FORMAT "msix"}}create:msix:package{{else if eq .FORMAT "nsis"}}create:nsis:installer{{else}}create:inno:installer{{end}}'
         vars:
           INSTALL_SCOPE: '{{.INSTALL_SCOPE | default "machine"}}'
     vars:
-      FORMAT: '{{.FORMAT | default "nsis"}}'
+      FORMAT: '{{.FORMAT | default "inno"}}'
       INSTALL_SCOPE: '{{.INSTALL_SCOPE | default "machine"}}'
+
+  create:inno:installer:
+    summary: Creates the Inno Setup installer (bin/docklet-<arch>-installer.exe)
+    desc: |
+      Needs Inno Setup 6.3 or later. ISCC is the compiler's path when it is not on PATH, e.g.
+      ISCC="$LOCALAPPDATA/Programs/Inno Setup 6/ISCC.exe".
+    dir: build/windows/inno
+    deps:
+      - task: build
+    cmds:
+      - wails3 generate webview2bootstrapper -dir "{{.ROOT_DIR}}/build/windows/nsis"
+      - '"{{.ISCC}}" /Q /DAppVersion={{.VERSION}} /DArch={{.ARCH}} /DSourceExe="{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}.exe" /DOutputDir="{{.ROOT_DIR}}/{{.BIN_DIR}}" docklet.iss'
+    vars:
+      ARCH: '{{.ARCH | default ARCH}}'
+      ISCC: '{{.ISCC | default "iscc"}}'
 
   generate:syso:
     summary: Generates Windows `.syso` file
@@ -179,17 +196,15 @@ tasks:
       - wails3 tool sign --input "{{.BIN_DIR}}/{{.APP_NAME}}.exe" {{if .SIGN_CERTIFICATE}}--certificate "{{.SIGN_CERTIFICATE}}"{{end}} {{if .SIGN_THUMBPRINT}}--thumbprint "{{.SIGN_THUMBPRINT}}"{{end}} {{if .TIMESTAMP_SERVER}}--timestamp "{{.TIMESTAMP_SERVER}}"{{end}}
 
   sign:installer:
-    summary: Signs the NSIS installer
+    summary: Signs the installer
     desc: |
-      Creates and signs the NSIS installer.
+      Creates and signs the Inno Setup installer.
       Set SIGN_CERTIFICATE or SIGN_THUMBPRINT to override the certificate
       configured globally via `wails3 setup` (~/.config/wails/defaults.yaml).
       Password is retrieved from system keychain (run: wails3 setup signing)
     deps:
-      - task: create:nsis:installer
-        vars:
-          INSTALL_SCOPE: '{{.INSTALL_SCOPE | default "machine"}}'
+      - task: create:inno:installer
     vars:
-      INSTALL_SCOPE: '{{.INSTALL_SCOPE | default "machine"}}'
+      ARCH: '{{.ARCH | default ARCH}}'
     cmds:
-      - wails3 tool sign --input "build/windows/nsis/{{.APP_NAME}}-installer.exe" {{if .SIGN_CERTIFICATE}}--certificate "{{.SIGN_CERTIFICATE}}"{{end}} {{if .SIGN_THUMBPRINT}}--thumbprint "{{.SIGN_THUMBPRINT}}"{{end}} {{if .TIMESTAMP_SERVER}}--timestamp "{{.TIMESTAMP_SERVER}}"{{end}}
+      - wails3 tool sign --input "{{.BIN_DIR}}/{{.APP_NAME}}-{{.ARCH}}-installer.exe" {{if .SIGN_CERTIFICATE}}--certificate "{{.SIGN_CERTIFICATE}}"{{end}} {{if .SIGN_THUMBPRINT}}--thumbprint "{{.SIGN_THUMBPRINT}}"{{end}} {{if .TIMESTAMP_SERVER}}--timestamp "{{.TIMESTAMP_SERVER}}"{{end}}
