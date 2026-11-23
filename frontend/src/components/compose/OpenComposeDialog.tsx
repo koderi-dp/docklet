@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CheckCircle2, FolderOpen, Info, Plus, X } from "lucide-react";
+import { CheckCircle2, Plus } from "lucide-react";
 import { toast } from "sonner";
-import { DialogService } from "@bindings/services";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -10,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAddComposeProject, useComposeLocation, useComposeVerb } from "@/hooks/useCompose";
 import { errorMessage } from "@/lib/errors";
+import { ComposeLocationBox, PathRow } from "./pathFields";
 
 interface Props {
   connectionId: string;
@@ -20,47 +20,6 @@ interface Props {
   initialFiles?: string[];
 }
 
-
-/** One path row: a text field (typed or picked) and a native picker button. */
-function FileRow({
-  value,
-  onChange,
-  onRemove,
-  placeholder,
-  title,
-  pattern,
-  label,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  onRemove?: () => void;
-  placeholder: string;
-  title: string;
-  pattern: string;
-  label: string;
-}) {
-  const pick = async () => {
-    try {
-      const p = await DialogService.PickFile(title, label, pattern);
-      if (p) onChange(p);
-    } catch (e) {
-      toast.error("Could not open the file dialog", { description: errorMessage(e) });
-    }
-  };
-  return (
-    <div className="flex items-center gap-1.5">
-      <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} spellCheck={false} className="h-8 font-mono text-xs" aria-label={label} />
-      <Button type="button" size="sm" variant="outline" onClick={() => void pick()}>
-        <FolderOpen className="size-3.5" /> Browse
-      </Button>
-      {onRemove && (
-        <Button type="button" size="icon" variant="ghost" className="size-8" onClick={onRemove} aria-label="Remove this file" title="Remove this file">
-          <X className="size-3.5" />
-        </Button>
-      )}
-    </div>
-  );
-}
 
 /** Registers a managed Compose project: validates the files where the CLI runs, then saves the record. */
 export function OpenComposeDialog({ connectionId, open, onOpenChange, onAdded, initialFiles }: Props) {
@@ -127,32 +86,18 @@ export function OpenComposeDialog({ connectionId, open, onOpenChange, onAdded, i
         </DialogHeader>
 
         <div className="space-y-3 text-sm">
-          <div className="rounded-md border border-border bg-muted/40 p-3 text-xs">
-            <div>
-              <span className="text-muted-foreground">Files are read, and Compose runs, on: </span>
-              <span className="font-medium">{l ? l.executionLocation : "—"}</span>
-            </div>
-            {l?.pathNote && (
-              <p className="mt-1 flex gap-1.5 text-muted-foreground">
-                <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden /> {l.pathNote}
-              </p>
-            )}
-            {l?.warning && <p className="mt-1 text-warning">{l.warning}</p>}
-            {l && !l.available && <p className="mt-1 text-destructive">{l.reason}</p>}
-            {loc.error && <p className="mt-1 text-destructive">{(loc.error as Error).message}</p>}
-          </div>
+          <ComposeLocationBox location={l} error={loc.error} />
 
           <div className="space-y-1.5">
             <Label>Compose file(s) — later files override earlier ones</Label>
             {files.map((f, i) => (
-              <FileRow
+              <PathRow
                 key={i}
                 value={f}
                 onChange={(v) => setFiles((fs) => fs.map((x, j) => (j === i ? v : x)))}
                 onRemove={files.length > 1 ? () => setFiles((fs) => fs.filter((_, j) => j !== i)) : undefined}
                 placeholder={l?.kind === "wsl" ? "/home/user/app/compose.yaml" : "Absolute path to compose.yaml"}
-                title="Choose a Compose file"
-                pattern="*.yml;*.yaml"
+                pick={{ kind: "file", title: "Choose a Compose file", pattern: "*.yml;*.yaml" }}
                 label="Compose file"
               />
             ))}
@@ -163,7 +108,7 @@ export function OpenComposeDialog({ connectionId, open, onOpenChange, onAdded, i
 
           <div className="space-y-1.5">
             <Label>Environment file (optional)</Label>
-            <FileRow value={envFile} onChange={setEnvFile} placeholder="Path to a .env file" title="Choose an environment file" pattern="" label="Environment file" />
+            <PathRow value={envFile} onChange={setEnvFile} placeholder="Path to a .env file" pick={{ kind: "file", title: "Choose an environment file", pattern: "" }} label="Environment file" />
           </div>
 
           <div className="space-y-1.5">
