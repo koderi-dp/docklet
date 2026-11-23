@@ -17,11 +17,14 @@ export function ProjectStateBadge({
   containers,
   className,
   notCreated,
+  hideNotes = false,
 }: {
   containers: readonly Container[];
   className?: string;
   /** Managed project with no containers yet: shown as "Not created", never as "Stopped". */
   notCreated?: boolean;
+  /** Leave out the one-shot notes ("1 completed"): the Compose list shows them in its status bar summary. */
+  hideNotes?: boolean;
 }) {
   const state = aggregateState(containers);
   if (notCreated) {
@@ -31,7 +34,7 @@ export function ProjectStateBadge({
       </Badge>
     );
   }
-  const notes = oneShotNotes(countOneShots(containers));
+  const notes = hideNotes ? [] : oneShotNotes(countOneShots(containers));
   return (
     <span className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
       <Badge variant="outline" className={cn("gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium", TONE[state], className)}>
