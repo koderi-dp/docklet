@@ -2,6 +2,8 @@ package compose
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -82,8 +84,9 @@ func (w WSLFS) MakeDir(ctx context.Context, dir string) (bool, error) {
 	return true, nil
 }
 
-// CreateFile writes through a shell with noclobber set, so a file that appears between the
-// existence check and the write is still not replaced.
+// CreateFile writes the data under a temp name next to the target and hard-links it into place.
+// A link never replaces an existing file, so a file that appears meanwhile is kept, and a write
+// that fails or times out leaves nothing at the real path.
 func (w WSLFS) CreateFile(ctx context.Context, p string, data []byte) error {
 	if err := w.check(p); err != nil {
 		return err
@@ -91,8 +94,22 @@ func (w WSLFS) CreateFile(ctx context.Context, p string, data []byte) error {
 	if w.test(ctx, "-e", p) {
 		return fmt.Errorf("%s: %w", p, ErrFileExists)
 	}
-	_, err := w.run(ctx, data, "sh", "-c", `set -C; cat > "$1"`, "sh", p)
-	return err
+	var rnd [4]byte
+	if _, err := rand.Read(rnd[:]); err != nil {
+		return err
+	}
+	tmp := path.Join(path.Dir(p), "."+path.Base(p)+"."+hex.EncodeToString(rnd[:])+".tmp")
+	defer w.cleanup(tmp)
+	if _, err := w.run(ctx, data, "dd", "of="+tmp, "status=none"); err != nil {
+		return err
+	}
+	if _, err := w.run(ctx, nil, "ln", "--", tmp, p); err != nil {
+		if w.test(ctx, "-e", p) {
+			return fmt.Errorf("%s: %w", p, ErrFileExists)
+		}
+		return err
+	}
+	return nil
 }
 
 func (w WSLFS) Remove(ctx context.Context, p string) error {

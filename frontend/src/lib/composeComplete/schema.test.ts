@@ -38,6 +38,12 @@ describe("valuesAt", () => {
   });
   it("the supplement applies to services only", () => expect(valuesAt(["volumes", "data"], "restart")).toEqual([]));
   it("booleans", () => expect(labels(valuesAt(["services", "web"], "privileged"))).toEqual(["false", "true"]));
+  it("never throws for keys named like built-in object members", () => {
+    for (const key of ["constructor", "toString", "valueOf", "__proto__", "hasOwnProperty"]) {
+      expect(valuesAt(["services", "web"], key)).toEqual([]);
+      expect(keysAt(["services", "web", key])).toEqual([]);
+    }
+  });
   it("no fixed values for free text", () => expect(valuesAt(["services", "web"], "image")).toEqual([]));
 });
 

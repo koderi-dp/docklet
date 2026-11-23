@@ -14,6 +14,9 @@ type Node = Record<string, unknown>;
 
 const ROOT = composeSpec as unknown as Node;
 
+/** Own properties only: a key called "constructor" must not reach Object.prototype. */
+const own = (o: object, key: string) => Object.prototype.hasOwnProperty.call(o, key);
+
 const isNode = (v: unknown): v is Node => typeof v === "object" && v !== null && !Array.isArray(v);
 
 function pointer(ref: string): Node | null {
@@ -59,7 +62,7 @@ function step(nodes: Node[], seg: string): Node[] {
       continue;
     }
     const props = n.properties;
-    if (isNode(props) && isNode(props[seg])) {
+    if (isNode(props) && own(props, seg) && isNode(props[seg])) {
       next.push(props[seg] as Node);
       continue;
     }
@@ -136,6 +139,9 @@ export function valuesAt(path: readonly string[], key: string | undefined): Sugg
       labels.add("false");
     }
   }
-  if (key !== undefined && path.length === 2 && path[0] === "services") for (const v of SERVICE_VALUES[key] ?? []) labels.add(v);
+  if (key !== undefined && path.length === 2 && path[0] === "services") {
+    // Own entries only: a key called "constructor" must not reach Object.prototype.
+    for (const v of own(SERVICE_VALUES, key) ? SERVICE_VALUES[key] : []) labels.add(v);
+  }
   return [...labels].map((label) => ({ label })).sort(byLabel);
 }

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -89,18 +90,89 @@ func (r *absentRunner) Output(_ context.Context, c Command) (string, error) {
 	return "", nil
 }
 
-func TestWSLCreateFile_UsesNoclobber(t *testing.T) {
-	r := &absentRunner{} // test -e fails: the file does not exist
+// scriptRunner records commands and fails the ones fail() picks.
+type scriptRunner struct {
+	cmds []Command
+	fail func(c Command) bool
+}
+
+func (r *scriptRunner) Run(context.Context, Command, func(string)) error { return nil }
+func (r *scriptRunner) Output(_ context.Context, c Command) (string, error) {
+	r.cmds = append(r.cmds, c)
+	if r.fail != nil && r.fail(c) {
+		return "", errors.New("exit status 1")
+	}
+	return "", nil
+}
+
+func isCmd(c Command, name string) bool { return len(c.Args) > 3 && c.Args[3] == name }
+
+// The file is written under a temp name and then hard-linked into place: a link never replaces
+// an existing file, and a failed write leaves nothing at the real path.
+func TestWSLCreateFile_WritesTempThenLinks(t *testing.T) {
+	r := &scriptRunner{fail: func(c Command) bool { return isCmd(c, "test") }} // nothing exists yet
 	data := []byte("services: {}\n")
 	if err := (WSLFS{Distro: "Ubuntu", Runner: r}).CreateFile(context.Background(), "/p/compose.yaml", data); err != nil {
 		t.Fatal(err)
 	}
-	if len(r.cmds) != 2 {
+	if len(r.cmds) != 4 {
 		t.Fatalf("got %v", r.cmds)
 	}
-	want := []string{"wsl.exe", "-d", "Ubuntu", "--exec", "sh", "-c", `set -C; cat > "$1"`, "sh", "/p/compose.yaml"}
-	if !reflect.DeepEqual(wslArgs(r.cmds[1]), want) || !bytes.Equal(r.cmds[1].Stdin, data) {
-		t.Fatalf("got %v stdin %q", wslArgs(r.cmds[1]), r.cmds[1].Stdin)
+	pre := []string{"wsl.exe", "-d", "Ubuntu", "--exec"}
+	dd := wslArgs(r.cmds[1])
+	tmp := strings.TrimPrefix(dd[len(dd)-2], "of=")
+	if !reflect.DeepEqual(dd[:5], append(append([]string{}, pre...), "dd")) || dd[len(dd)-1] != "status=none" || !bytes.Equal(r.cmds[1].Stdin, data) {
+		t.Fatalf("dd: %v", dd)
+	}
+	if !strings.HasPrefix(tmp, "/p/.compose.yaml.") || !strings.HasSuffix(tmp, ".tmp") {
+		t.Fatalf("tmp %q", tmp)
+	}
+	if want := append(append([]string{}, pre...), "ln", "--", tmp, "/p/compose.yaml"); !reflect.DeepEqual(wslArgs(r.cmds[2]), want) {
+		t.Fatalf("ln: %v", wslArgs(r.cmds[2]))
+	}
+	if want := append(append([]string{}, pre...), "rm", "-f", "--", tmp); !reflect.DeepEqual(wslArgs(r.cmds[3]), want) {
+		t.Fatalf("rm: %v", wslArgs(r.cmds[3]))
+	}
+	for _, c := range r.cmds {
+		if contains(c.Args, "sh") {
+			t.Fatalf("no shell may be involved: %v", c.Args)
+		}
+	}
+}
+
+func TestWSLCreateFile_FailedWriteLeavesNothing(t *testing.T) {
+	r := &scriptRunner{fail: func(c Command) bool { return isCmd(c, "test") || isCmd(c, "dd") }}
+	err := (WSLFS{Distro: "Ubuntu", Runner: r}).CreateFile(context.Background(), "/p/compose.yaml", []byte("x"))
+	if err == nil || errors.Is(err, ErrFileExists) {
+		t.Fatalf("want the write error, got %v", err)
+	}
+	last := wslArgs(r.cmds[len(r.cmds)-1])
+	if len(last) < 7 || last[4] != "rm" || !strings.HasSuffix(last[len(last)-1], ".tmp") {
+		t.Fatalf("the temp file must be removed: %v", r.cmds)
+	}
+	for _, c := range r.cmds {
+		if isCmd(c, "ln") {
+			t.Fatal("nothing may be linked into place after a failed write")
+		}
+	}
+}
+
+func TestWSLCreateFile_FileAppearsDuringWrite(t *testing.T) {
+	tests := 0
+	r := &scriptRunner{fail: func(c Command) bool {
+		if isCmd(c, "test") {
+			tests++
+			return tests == 1 // absent before the write, present after the link failed
+		}
+		return isCmd(c, "ln")
+	}}
+	err := (WSLFS{Distro: "Ubuntu", Runner: r}).CreateFile(context.Background(), "/p/compose.yaml", []byte("x"))
+	if !errors.Is(err, ErrFileExists) {
+		t.Fatalf("want ErrFileExists, got %v", err)
+	}
+	last := wslArgs(r.cmds[len(r.cmds)-1])
+	if last[4] != "rm" || !strings.HasSuffix(last[len(last)-1], ".tmp") {
+		t.Fatalf("the temp file must be removed: %v", r.cmds)
 	}
 }
 
@@ -110,7 +182,7 @@ func TestWSLCreateFile_ExistingFile(t *testing.T) {
 	if !errors.Is(err, ErrFileExists) {
 		t.Fatalf("want ErrFileExists, got %v", err)
 	}
-	if len(r.cmds) != 1 || contains(r.cmds[0].Args, "sh") {
+	if len(r.cmds) != 1 || !isCmd(r.cmds[0], "test") {
 		t.Fatalf("nothing may be written: %v", r.cmds)
 	}
 }

@@ -56,6 +56,10 @@ func (s *ComposeService) CreateProject(ctx context.Context, connectionID, dir, n
 	if fs.FileExists(ctx, dir) {
 		return none, fmt.Errorf("%s is a file, not a folder", dir)
 	}
+	// A pasted file path would otherwise become a folder called compose.yaml.
+	if base := strings.ToLower(baseName(env, dir)); strings.HasSuffix(base, ".yaml") || strings.HasSuffix(base, ".yml") {
+		return none, fmt.Errorf("%s looks like a file name; choose the folder the file should be in", dir)
+	}
 
 	name = strings.TrimSpace(name)
 	if err := compose.ValidateProjectName(name); err != nil {
@@ -95,9 +99,6 @@ func (s *ComposeService) CreateProject(ctx context.Context, connectionID, dir, n
 		p = parent
 	}
 	creator := s.creatorFor(env)
-	if _, err := creator.MakeDir(ctx, dir); err != nil {
-		return none, err
-	}
 	file := compose.JoinPath(env.Kind, dir, newComposeFileName)
 	// undo removes what this call put on disk; it must work even when ctx is already cancelled.
 	undo := func(fileWritten bool) {
@@ -108,6 +109,10 @@ func (s *ComposeService) CreateProject(ctx context.Context, connectionID, dir, n
 		for _, d := range missing {
 			_ = creator.Remove(bg, d) // only empty folders go
 		}
+	}
+	if _, err := creator.MakeDir(ctx, dir); err != nil {
+		undo(false) // parents may exist by now even though the last folder failed
+		return none, err
 	}
 	if err := creator.CreateFile(ctx, file, []byte(text)); err != nil {
 		undo(false)

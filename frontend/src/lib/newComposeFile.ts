@@ -72,3 +72,14 @@ export function orderContainers<T extends { name: string; state: string }>(conta
   const running = (c: T) => (c.state === "running" ? 0 : 1);
   return [...containers].sort((a, b) => running(a) - running(b) || a.name.localeCompare(b.name));
 }
+
+/**
+ * The ticked containers that still exist. A container removed while the dialog is open drops out
+ * of the selection instead of staying ticked where nobody can untick it. While the list is still
+ * loading (undefined) the selection is kept as it is.
+ */
+export function presentIds(ticked: ReadonlySet<string>, containers: readonly { id: string }[] | undefined): ReadonlySet<string> {
+  if (!containers) return ticked;
+  const ids = new Set(containers.map((c) => c.id));
+  return new Set([...ticked].filter((id) => ids.has(id)));
+}

@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useComposeLocation, useCreateComposeProject, useNewFilePreview, useNewFileTemplates } from "@/hooks/useCompose";
 import { errorMessage } from "@/lib/errors";
-import { createBlocked, defaultProjectName, nameState as nameStateOf, previewWanted, type NameState, type NewSourceKind } from "@/lib/newComposeFile";
+import { createBlocked, defaultProjectName, nameState as nameStateOf, presentIds, previewWanted, type NameState, type NewSourceKind } from "@/lib/newComposeFile";
 import { NewComposeSource, type NewComposeSourceProps } from "./NewComposeSource";
 import { ComposeLocationBox, PathRow } from "./pathFields";
 
@@ -170,7 +170,9 @@ export function NewComposeDialog({ connectionId, open, onOpenChange, projects, c
   const [dir, setDir] = useState("");
   const [typedName, setTypedName] = useState<string | null>(null);
   const [source, setSource] = useState<NewSourceKind>("minimal");
-  const [ticked, setTicked] = useState<ReadonlySet<string>>(new Set());
+  const [tickedIds, setTicked] = useState<ReadonlySet<string>>(new Set());
+  // Only containers that still exist count: one removed meanwhile cannot be unticked by hand.
+  const ticked = useMemo(() => presentIds(tickedIds, containers), [tickedIds, containers]);
   const [includeSecrets, setIncludeSecrets] = useState(false);
   const templates = useNewFileTemplates(open).data ?? [];
   const [pickedTemplate, setPickedTemplate] = useState("");

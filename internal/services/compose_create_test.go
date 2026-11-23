@@ -280,3 +280,41 @@ func TestCreateProject_NeedsStoreAndValidName(t *testing.T) {
 		t.Error("something was written")
 	}
 }
+
+// halfDirCreator creates the parent folder for real and then fails, as mkdir does when only the
+// last part of a path is not allowed.
+type halfDirCreator struct{ compose.LocalFS }
+
+func (halfDirCreator) MakeDir(_ context.Context, dir string) (bool, error) {
+	if err := os.MkdirAll(filepath.Dir(dir), 0o755); err != nil {
+		return false, err
+	}
+	return false, errors.New("the folder name is not allowed")
+}
+
+func TestCreateProject_FailedFolderCreationLeavesNothing(t *testing.T) {
+	s := createSvc(t, &fakeRunner{}, &fakeStore{}, "")
+	s.creator = halfDirCreator{}
+	root := t.TempDir()
+	_, err := s.CreateProject(context.Background(), "c1", filepath.Join(root, "new", "bad"), "shop", newFileText)
+	if err == nil || !strings.Contains(err.Error(), "not allowed") {
+		t.Fatalf("got %v", err)
+	}
+	if got := dirEntries(t, root); len(got) != 0 {
+		t.Fatalf("the parent folder this call created was left behind: %v", got)
+	}
+}
+
+func TestCreateProject_RejectsAFileNameAsFolder(t *testing.T) {
+	root := t.TempDir()
+	for _, name := range []string{"compose.yaml", "docker-compose.yml", "Stack.YAML"} {
+		st := &fakeStore{}
+		_, err := createSvc(t, &fakeRunner{}, st, "").CreateProject(context.Background(), "c1", filepath.Join(root, "app", name), "shop", newFileText)
+		if err == nil || !strings.Contains(err.Error(), "choose the folder") {
+			t.Errorf("%s: got %v", name, err)
+		}
+		if len(st.recs) != 0 || len(dirEntries(t, root)) != 0 {
+			t.Errorf("%s: something was written", name)
+		}
+	}
+}

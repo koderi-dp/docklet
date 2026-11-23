@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ComposeLocation, Container } from "@bindings/model";
-import { orderContainers, previewWanted, type NameState } from "@/lib/newComposeFile";
+import { orderContainers, presentIds, previewWanted, type NameState } from "@/lib/newComposeFile";
 import { NewComposeBody, type NewComposeBodyProps } from "./NewComposeDialog";
 
 vi.mock("@bindings/services", () => ({ ComposeService: {}, DialogService: {} }));
@@ -133,4 +133,10 @@ describe("orderContainers", () => {
     orderContainers(containers);
     expect(containers[0].name).toBe("zeta");
   });
+});
+
+describe("presentIds", () => {
+  it("drops ticked containers that no longer exist", () => expect([...presentIds(new Set(["c1", "gone"]), containers)]).toEqual(["c1"]));
+  it("keeps the selection while the container list is still loading", () => expect([...presentIds(new Set(["c1", "gone"]), undefined)]).toEqual(["c1", "gone"]));
+  it("keeps the order in which containers were ticked", () => expect([...presentIds(new Set(["c2", "c1"]), containers)]).toEqual(["c2", "c1"]));
 });
