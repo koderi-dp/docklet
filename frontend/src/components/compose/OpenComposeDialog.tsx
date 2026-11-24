@@ -92,6 +92,7 @@ export function OpenComposeDialog({ connectionId, open, onOpenChange, onAdded, i
             <Label>Compose file(s) — later files override earlier ones</Label>
             {files.map((f, i) => (
               <PathRow
+                connectionId={connectionId}
                 key={i}
                 value={f}
                 onChange={(v) => setFiles((fs) => fs.map((x, j) => (j === i ? v : x)))}
@@ -108,7 +109,7 @@ export function OpenComposeDialog({ connectionId, open, onOpenChange, onAdded, i
 
           <div className="space-y-1.5">
             <Label>Environment file (optional)</Label>
-            <PathRow value={envFile} onChange={setEnvFile} placeholder="Path to a .env file" pick={{ kind: "file", title: "Choose an environment file", pattern: "" }} label="Environment file" />
+            <PathRow connectionId={connectionId} value={envFile} onChange={setEnvFile} placeholder="Path to a .env file" pick={{ kind: "file", title: "Choose an environment file", pattern: "" }} label="Environment file" />
           </div>
 
           <div className="space-y-1.5">

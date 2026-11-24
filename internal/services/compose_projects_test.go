@@ -234,7 +234,7 @@ func TestRemoveProject_OnlyForgetsTheRecordAndNeverRunsCompose(t *testing.T) {
 func TestLocation_ReportsExecutionEnvironmentAndPathNote(t *testing.T) {
 	s := newSvc(&fakeRunner{}, &fakeStore{})
 	l, err := s.Location(context.Background(), "wsl")
-	if err != nil || !l.Available || l.Kind != "wsl" || l.ExecutionLocation != "WSL: Ubuntu" || !strings.Contains(l.PathNote, `\\wsl$\Ubuntu`) {
+	if err != nil || !l.Available || l.Kind != "wsl" || l.ExecutionLocation != "WSL: Ubuntu" || !strings.Contains(l.PathNote, `"Ubuntu"`) {
 		t.Errorf("wsl: %+v %v", l, err)
 	}
 	l, _ = s.Location(context.Background(), "ssh")

@@ -27,16 +27,23 @@ func (e *appEmitter) Emit(name string, data any) {
 // wailsPicker implements services.FilePicker with native dialogs.
 type wailsPicker struct{ app *application.App }
 
-func (p *wailsPicker) OpenFile(title, filterName, pattern string) (string, error) {
+func (p *wailsPicker) OpenFile(title, dir, filterName, pattern string) (string, error) {
 	d := p.app.Dialog.OpenFile().SetTitle(title).CanChooseFiles(true)
+	if dir != "" {
+		d = d.SetDirectory(dir)
+	}
 	if pattern != "" {
 		d = d.AddFilter(filterName, pattern)
 	}
 	return d.PromptForSingleSelection()
 }
 
-func (p *wailsPicker) OpenDirectory(title string) (string, error) {
-	return p.app.Dialog.OpenFile().SetTitle(title).CanChooseFiles(false).CanChooseDirectories(true).PromptForSingleSelection()
+func (p *wailsPicker) OpenDirectory(title, dir string) (string, error) {
+	d := p.app.Dialog.OpenFile().SetTitle(title).CanChooseFiles(false).CanChooseDirectories(true)
+	if dir != "" {
+		d = d.SetDirectory(dir)
+	}
+	return d.PromptForSingleSelection()
 }
 
 func (p *wailsPicker) SaveFile(title, defaultName string) (string, error) {

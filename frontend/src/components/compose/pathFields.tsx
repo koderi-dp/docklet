@@ -1,6 +1,6 @@
 import { FolderOpen, Info, X } from "lucide-react";
 import { toast } from "sonner";
-import { DialogService } from "@bindings/services";
+import { ComposeService } from "@bindings/services";
 import type { ComposeLocation } from "@bindings/model";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,8 +28,12 @@ export function ComposeLocationBox({ location: l, error }: { location: ComposeLo
 
 export type PathPick = { kind: "file"; title: string; pattern: string } | { kind: "folder"; title: string };
 
-/** One path row: a text field (typed or picked) and a native picker button for a file or a folder. */
+/**
+ * One path row: a text field (typed or picked) and a native picker button for a file or a folder.
+ * The picker belongs to the connection: for WSL it opens inside the distribution and gives a Linux path.
+ */
 export function PathRow({
+  connectionId,
   value,
   onChange,
   onRemove,
@@ -37,6 +41,7 @@ export function PathRow({
   label,
   pick,
 }: {
+  connectionId: string;
   value: string;
   onChange: (v: string) => void;
   onRemove?: () => void;
@@ -46,10 +51,10 @@ export function PathRow({
 }) {
   const browse = async () => {
     try {
-      const p = pick.kind === "folder" ? await DialogService.PickDirectory(pick.title) : await DialogService.PickFile(pick.title, label, pick.pattern);
+      const p = pick.kind === "folder" ? await ComposeService.PickPath(connectionId, "folder", pick.title, "", "") : await ComposeService.PickPath(connectionId, "file", pick.title, label, pick.pattern);
       if (p) onChange(p);
     } catch (e) {
-      toast.error(pick.kind === "folder" ? "Could not open the folder dialog" : "Could not open the file dialog", { description: errorMessage(e) });
+      toast.error(pick.kind === "folder" ? "Could not choose the folder" : "Could not choose the file", { description: errorMessage(e) });
     }
   };
   return (

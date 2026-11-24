@@ -13,6 +13,7 @@ const containers = [
 ] as Container[];
 
 const base: NewComposeBodyProps = {
+  connectionId: "c1",
   location: { available: true, managedAvailable: true, executionLocation: "This machine" } as ComposeLocation,
   dir: "C:\\apps\\shop",
   onDir: () => {},

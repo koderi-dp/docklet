@@ -103,7 +103,7 @@ func (r *appRuntime) buildServices(osNotifications *notifications.NotificationSe
 				Saved: []model.ConnectionProfile{}, WSL: model.WSLReport{Distros: []model.WSLDistroReport{}, Detail: "No WSL distributions are installed (or WSL itself is not installed)."}}
 		}
 	}
-	composeSvc := &services.ComposeService{Engines: m, Events: e, Ops: o, Profiles: m, Projects: r.db}
+	composeSvc := &services.ComposeService{Engines: m, Events: e, Ops: o, Profiles: m, Projects: r.db, Picker: r.picker}
 	return []application.Service{
 		application.NewService(connections),
 		application.NewService(containers),

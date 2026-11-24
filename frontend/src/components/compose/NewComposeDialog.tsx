@@ -23,6 +23,7 @@ export interface NewComposePreview {
 }
 
 export interface NewComposeBodyProps extends NewComposeSourceProps {
+  connectionId: string;
   location: ComposeLocation | undefined;
   locationError?: unknown;
   dir: string;
@@ -77,6 +78,7 @@ export function NewComposeBody(p: NewComposeBodyProps) {
         <div className="space-y-1.5">
           <Label>Folder</Label>
           <PathRow
+            connectionId={p.connectionId}
             value={p.dir}
             onChange={p.onDir}
             placeholder={p.location?.kind === "wsl" ? "/home/user/app" : "Absolute path to the project folder"}
@@ -263,6 +265,7 @@ export function NewComposeDialog({ connectionId, open, onOpenChange, projects, c
           </DialogDescription>
         </DialogHeader>
         <NewComposeBody
+          connectionId={connectionId}
           location={loc.data}
           locationError={loc.error}
           dir={dir}

@@ -56,7 +56,7 @@ func (s *ComposeService) Location(ctx context.Context, connectionID string) (mod
 	}
 	switch env.Kind {
 	case compose.KindWSL:
-		loc.PathNote = fmt.Sprintf("Files are read inside the WSL distribution %q. Pick a file through \\\\wsl$\\%s\\... (converted to its Linux path) or type a Linux path such as /home/user/app/compose.yaml. Other Windows paths (C:\\...) are rejected, never translated.", env.Distro, env.Distro)
+		loc.PathNote = fmt.Sprintf("Files are read inside the WSL distribution %q. Browse opens there and fills in the Linux path; you can also type one, such as /home/user/app/compose.yaml. Windows paths (C:\\...) are rejected, never translated.", env.Distro)
 	case compose.KindLocal:
 		loc.PathNote = "Files are read from this machine; use absolute paths."
 	}
