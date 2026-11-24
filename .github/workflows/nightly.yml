@@ -1,0 +1,120 @@
+name: Nightly
+
+# Builds installers from main once a day and publishes them as the single rolling pre-release "nightly".
+# Each build replaces the previous one (files, notes and the tag). Nothing is built when main has not
+# changed since the last nightly. Run it by hand with "force" to rebuild the same commit.
+# Release flow for tagged versions: release.yml. The platform builds are shared: build.yml.
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Build even if main has not changed since the last nightly"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Is there something new?
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      build: ${{ steps.c.outputs.build }}
+      version: ${{ steps.c.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - id: c
+        name: Compare main with the last nightly and pick a version
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          set -euo pipefail
+          # The nightly is a pre-release of the next patch version after the newest stable tag.
+          last="$(git tag --list 'v*.*.*' --sort=-v:refname | grep -v -- '-' | head -n 1)"
+          last="${last#v}"
+          IFS=. read -r major minor patch <<< "${last:-0.0.0}"
+          version="$major.$minor.$((patch + 1))-nightly.$(date -u +%Y%m%d).${GITHUB_SHA::7}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+          built=""
+          if body="$(gh release view nightly --json body --jq .body 2>/dev/null)"; then
+            built="$(grep -o 'Commit: [0-9a-f]\{40\}' <<< "$body" | head -n 1 | cut -d' ' -f2 || true)"
+          fi
+          if [[ "$built" == "$GITHUB_SHA" && "$FORCE" != "true" ]]; then
+            echo "main is still at $GITHUB_SHA, the commit of the current nightly: nothing to build."
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Building $version (last nightly: ${built:-none})."
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  # The gate: the whole CI workflow runs on the commit being built.
+  ci:
+    name: CI
+    needs: check
+    if: needs.check.outputs.build == 'true'
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    name: Build
+    needs: [check, ci]
+    uses: ./.github/workflows/build.yml
+    with:
+      version: ${{ needs.check.outputs.version }}
+
+  # Replaces the whole nightly release (and moves its tag) so only one ever exists.
+  publish:
+    name: Publish nightly
+    needs: [check, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      VERSION: ${{ needs.check.outputs.version }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+          sha256sum -- * > checksums.txt
+          ls -l
+
+      - name: Replace the nightly release
+        shell: bash
+        run: |
+          set -euo pipefail
+          notes="Automatic build of main, version $VERSION. Unsigned and untested by users: use a tagged release for anything that matters.
+
+          Commit: $GITHUB_SHA"
+          if gh release view nightly > /dev/null 2>&1; then
+            gh release delete nightly --cleanup-tag --yes
+          fi
+          gh release create nightly dist/* --prerelease --target "$GITHUB_SHA" \
+            --title "Docklet nightly" --notes "$notes"

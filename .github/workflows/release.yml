@@ -56,154 +56,20 @@ jobs:
     name: CI
     uses: ./.github/workflows/ci.yml
 
-  # Required. One installer per architecture, one after the other.
-  # amd64 and arm64 are built unless the repository variable WINDOWS_ARCHES says otherwise, e.g. 'amd64'.
-  windows:
-    name: Windows (${{ vars.WINDOWS_ARCHES || 'amd64 arm64' }})
+  # Builds every platform; Windows is required, Linux arm64 and macOS are optional (see build.yml).
+  build:
+    name: Build
     needs: [prepare, ci]
-    runs-on: windows-latest
-    timeout-minutes: 45
-    env:
-      VERSION: ${{ needs.prepare.outputs.version }}
-      ARCHES: ${{ vars.WINDOWS_ARCHES || 'amd64 arm64' }}
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: ./.github/actions/setup
-
-      - name: Install Inno Setup
-        shell: bash
-        run: |
-          set -euo pipefail
-          if ! command -v iscc > /dev/null 2>&1 && [ ! -x "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" ]; then
-            choco install innosetup -y --no-progress
-          fi
-          echo 'C:\Program Files (x86)\Inno Setup 6' >> "$GITHUB_PATH"
-
-      # `wails3 package VERSION=...` embeds the version (-X docklet/internal/version.Version) in the binary.
-      # The architecture is chosen with GOARCH; both builds write bin/docklet.exe and
-      # bin/docklet-<arch>-installer.exe, so each output is renamed straight away.
-      # Signing: no certificate is available. Sign the .exe before packaging and the installer after
-      # (`wails3 task windows:sign` / `windows:sign:installer`, see build/windows/Taskfile.yml).
-      - name: Package
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p dist
-          for arch in $ARCHES; do
-            GOARCH="$arch" wails3 package "VERSION=$VERSION"
-            if [[ "$arch" == "amd64" ]]; then
-              reported="$(./bin/docklet.exe --version)"
-              echo "$reported"
-              echo "$reported" | grep -qx "Docklet $VERSION"
-            fi
-            mv bin/docklet.exe "dist/docklet-$VERSION-windows-$arch.exe"
-            mv "bin/docklet-$arch-installer.exe" "dist/docklet-$VERSION-windows-$arch-installer.exe"
-          done
-          ls -l dist
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: release-windows
-          path: dist/*
-          if-no-files-found: error
-          retention-days: 1
-
-  # Required. Linux packages: AppImage and .deb. arm64 runs on GitHub's ubuntu-24.04-arm runner and is optional.
-  linux:
-    name: Linux (${{ matrix.arch }})
-    needs: [prepare, ci]
-    runs-on: ${{ matrix.runner }}
-    continue-on-error: ${{ matrix.optional }}
-    timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { arch: amd64, runner: ubuntu-24.04, appimage_arch: x86_64, optional: false }
-          - { arch: arm64, runner: ubuntu-24.04-arm, appimage_arch: aarch64, optional: true }
-    env:
-      VERSION: ${{ needs.prepare.outputs.version }}
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Install system packages
-        shell: bash
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev file
-
-      - uses: ./.github/actions/setup
-
-      # Only the AppImage and the .deb are published (the scaffold can also make .rpm and Arch packages).
-      # Names produced by the tools are matched with globs and renamed to the release asset names.
-      - name: Package (AppImage and deb)
-        shell: bash
-        env:
-          GIT_COMMITTER_NAME: Danijel
-        run: |
-          set -euo pipefail
-          wails3 task linux:create:appimage "VERSION=$VERSION"
-          wails3 task linux:create:deb "VERSION=$VERSION"
-          # The profile that lets WebKit's sandbox start on Ubuntu 24.04 must be in the package.
-          # Capture the listing first: `grep -q` exits at the first match and would make dpkg-deb fail under pipefail.
-          deb_contents="$(dpkg-deb -c bin/*.deb)"
-          grep -q ' ./etc/apparmor.d/docklet$' <<< "$deb_contents"
-          reported="$(./bin/docklet --version)"
-          echo "$reported"
-          echo "$reported" | grep -qx "Docklet $VERSION"
-          ls -l bin
-          mkdir -p dist
-          appimage=$(ls bin/*.AppImage | head -n 1)
-          deb=$(ls bin/*.deb | head -n 1)
-          mv "$appimage" "dist/docklet-$VERSION-linux-${{ matrix.arch }}.AppImage"
-          mv "$deb" "dist/docklet-$VERSION-linux-${{ matrix.arch }}.deb"
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: release-linux-${{ matrix.arch }}
-          path: dist/*
-          if-no-files-found: error
-          retention-days: 1
-
-  # Optional: if the macOS build fails, the release goes out without it.
-  macos:
-    name: macOS (arm64)
-    needs: [prepare, ci]
-    runs-on: macos-latest
-    continue-on-error: true
-    timeout-minutes: 45
-    env:
-      VERSION: ${{ needs.prepare.outputs.version }}
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: ./.github/actions/setup
-
-      # Signing and notarisation would go here (no Apple certificate is available).
-      - name: Package .app
-        shell: bash
-        run: |
-          set -euo pipefail
-          wails3 package "VERSION=$VERSION"
-          mkdir -p dist
-          ditto -c -k --keepParent bin/docklet.app "dist/docklet-$VERSION-macos-arm64.zip"
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: release-macos-arm64
-          path: dist/*
-          if-no-files-found: error
-          retention-days: 1
+    uses: ./.github/workflows/build.yml
+    with:
+      version: ${{ needs.prepare.outputs.version }}
 
   # Publishes the release from whatever the build jobs produced. Only Windows must succeed (Linux and macOS
   # builds are new and unproven): other platforms are included when they produced an artifact, skipped otherwise.
   release:
     name: Create GitHub Release
-    needs: [prepare, windows, linux, macos]
-    if: ${{ always() && needs.windows.result == 'success' }}
+    needs: [prepare, build]
+    if: ${{ always() && needs.build.result == 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
