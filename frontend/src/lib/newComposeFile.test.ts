@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ComposeLocation, ComposeProject } from "@bindings/model";
-import { createBlocked, defaultProjectName, folderName, nameProblem, nameState, type NameState } from "./newComposeFile";
+import { onWindowsDrive, createBlocked, defaultProjectName, folderName, nameProblem, nameState, type NameState } from "./newComposeFile";
 
 describe("folderName", () => {
   it.each([
@@ -67,4 +67,18 @@ describe("createBlocked", () => {
     expect(createBlocked({ ...ok, previewReady: false })).toBe("Preparing the preview…");
     expect(createBlocked({ ...ok, dir: "", previewReady: false })).toBe("Choose a folder");
   });
+});
+
+describe("onWindowsDrive", () => {
+  it.each([
+    ["C:\\Source\\dv", true],
+    ["d:/apps/compose.yaml", true],
+    ["/mnt/c/Source/dv", true],
+    ["/mnt/c", true],
+    [" /mnt/d/x ", true],
+    ["/mnt/wsl/share", false],
+    ["/home/dev/app", false],
+    ["\\\\wsl.localhost\\Ubuntu\\home\\dev", false],
+    ["", false],
+  ])("%s -> %s", (path, want) => expect(onWindowsDrive(path)).toBe(want));
 });

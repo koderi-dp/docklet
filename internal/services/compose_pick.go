@@ -4,19 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
+	"runtime"
 	"strings"
 	"time"
 
 	"docklet/internal/compose"
-	"docklet/internal/hostopen"
-	"docklet/internal/model"
 )
 
 // PickPath opens the native dialog for a Compose file ("file") or folder ("folder") of a
-// connection and returns the choice as the path the Compose CLI will use. For a WSL connection
-// the dialog opens inside the distribution, in the user's home folder, and the picked share path
-// comes back as its Linux path; a folder outside the distribution is refused right here.
+// connection and returns the choice as the path the Compose CLI will use: for a WSL connection
+// that is the Linux path inside the distribution, also for a file on a Windows drive.
 // An empty result means the user cancelled.
 func (s *ComposeService) PickPath(ctx context.Context, connectionID, kind, title, filterName, pattern string) (string, error) {
 	if kind != "file" && kind != "folder" {
@@ -29,43 +26,62 @@ func (s *ComposeService) PickPath(ctx context.Context, connectionID, kind, title
 	if err != nil {
 		return "", err
 	}
-	dir := ""
-	if env.Kind == compose.KindWSL {
-		dir = s.wslStartDir(ctx, env.Distro)
-	}
 	var p string
 	if kind == "folder" {
-		p, err = s.Picker.OpenDirectory(title, dir)
+		p, err = s.Picker.OpenDirectory(title)
 	} else {
-		p, err = s.Picker.OpenFile(title, dir, filterName, pattern)
+		p, err = s.Picker.OpenFile(title, filterName, pattern)
 	}
 	if err != nil || p == "" || env.Kind != compose.KindWSL {
 		return p, err
 	}
-	return compose.ConvertWSLPath(env.Distro, p)
+	return s.wslPath(ctx, env.Distro, p)
 }
 
-// wslStartDir is the distribution's share folder to open the dialog in: the default user's home
-// folder, the distribution's root when the home folder is not known, "" when neither is reachable.
-func (s *ComposeService) wslStartDir(ctx context.Context, distro string) string {
-	stat := s.pickStat
-	if stat == nil {
-		stat = func(p string) (bool, bool) {
-			fi, err := os.Stat(p)
-			return err == nil && fi.IsDir(), err == nil
-		}
+// wslPath turns a typed or picked path into the Linux path inside the distribution. A Windows
+// drive path is translated by the distribution itself (wslpath), so a drive it has not mounted
+// is an error instead of a guess.
+func (s *ComposeService) wslPath(ctx context.Context, distro, p string) (string, error) {
+	cmd, isDrive, err := compose.WSLPathCommand(distro, p)
+	if !isDrive {
+		return compose.ConvertWSLPath(distro, p)
 	}
-	cctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	if err != nil {
+		return "", err
+	}
+	cctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	home, err := s.run().Output(cctx, compose.Command{Name: "wsl.exe", Args: []string{"-d", distro, "--exec", "sh", "-c", `printf %s "$HOME"`}})
-	conn := hostopen.Conn{Type: model.ConnWSL, Distro: distro}
-	for _, linux := range []string{strings.TrimSpace(home), "/"} {
-		if err != nil && linux != "/" {
+	out, err := s.run().Output(cctx, cmd)
+	linux := strings.TrimSpace(out)
+	if err != nil || !strings.HasPrefix(linux, "/") {
+		return "", fmt.Errorf("%q is a Windows path that the WSL distribution %q cannot reach. The Compose CLI runs inside that distribution, so the drive must be mounted there (normally under /mnt)", strings.TrimSpace(p), distro)
+	}
+	return compose.ConvertWSLPath(distro, linux)
+}
+
+// normalizeFiles turns the paths a user gave into the form the Compose CLI reads, without
+// empty entries and duplicates.
+func (s *ComposeService) normalizeFiles(ctx context.Context, env compose.ExecEnv, in []string, kind string) ([]string, error) {
+	out := make([]string, 0, len(in))
+	seen := map[string]bool{}
+	for _, f := range in {
+		if strings.TrimSpace(f) == "" {
 			continue
 		}
-		if r := hostopen.Resolve("windows", conn, linux, stat); r.Exists && r.IsDir {
-			return r.Path
+		var p string
+		var err error
+		if env.Kind == compose.KindWSL {
+			p, err = s.wslPath(ctx, env.Distro, f)
+		} else {
+			p, err = compose.AbsLocalPath(runtime.GOOS, f)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", kind, err)
+		}
+		if !seen[p] {
+			seen[p] = true
+			out = append(out, p)
 		}
 	}
-	return ""
+	return out, nil
 }

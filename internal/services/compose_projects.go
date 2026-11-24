@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"runtime"
 	"strings"
 	"time"
 
@@ -56,7 +55,7 @@ func (s *ComposeService) Location(ctx context.Context, connectionID string) (mod
 	}
 	switch env.Kind {
 	case compose.KindWSL:
-		loc.PathNote = fmt.Sprintf("Files are read inside the WSL distribution %q. Browse opens there and fills in the Linux path; you can also type one, such as /home/user/app/compose.yaml. Windows paths (C:\\...) are rejected, never translated.", env.Distro)
+		loc.PathNote = fmt.Sprintf("Files are read inside the WSL distribution %q. Paths are shown as Linux paths there, such as /home/user/app/compose.yaml. A file on a Windows drive works too: C:\\... becomes /mnt/c/...", env.Distro)
 	case compose.KindLocal:
 		loc.PathNote = "Files are read from this machine; use absolute paths."
 	}
@@ -76,14 +75,14 @@ func (s *ComposeService) AddProject(ctx context.Context, connectionID string, co
 	if env.Kind == compose.KindNone {
 		return model.ComposeProject{}, errors.New(env.Reason)
 	}
-	cfg, err := normalizeFiles(env, configFiles, "Compose file")
+	cfg, err := s.normalizeFiles(ctx, env, configFiles, "Compose file")
 	if err != nil {
 		return model.ComposeProject{}, err
 	}
 	if len(cfg) == 0 {
 		return model.ComposeProject{}, errors.New("choose at least one Compose file")
 	}
-	envf, err := normalizeFiles(env, envFiles, "env file")
+	envf, err := s.normalizeFiles(ctx, env, envFiles, "env file")
 	if err != nil {
 		return model.ComposeProject{}, err
 	}
@@ -146,31 +145,6 @@ func (s *ComposeService) RemoveProject(ctx context.Context, connectionID, name s
 		return errors.New("project name is required")
 	}
 	return s.Projects.DeleteComposeProject(ctx, connectionID, name)
-}
-
-func normalizeFiles(env compose.ExecEnv, in []string, kind string) ([]string, error) {
-	out := make([]string, 0, len(in))
-	seen := map[string]bool{}
-	for _, f := range in {
-		if strings.TrimSpace(f) == "" {
-			continue
-		}
-		var p string
-		var err error
-		if env.Kind == compose.KindWSL {
-			p, err = compose.ConvertWSLPath(env.Distro, f)
-		} else {
-			p, err = compose.AbsLocalPath(runtime.GOOS, f)
-		}
-		if err != nil {
-			return nil, fmt.Errorf("%s: %w", kind, err)
-		}
-		if !seen[p] {
-			seen[p] = true
-			out = append(out, p)
-		}
-	}
-	return out, nil
 }
 
 // detectName asks `docker compose config --format json` for the project name and falls

@@ -5,6 +5,7 @@ import type { ComposeLocation } from "@bindings/model";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { errorMessage } from "@/lib/errors";
+import { onWindowsDrive } from "@/lib/newComposeFile";
 
 /** Where the Compose CLI runs for the connection, and how paths must be written there. */
 export function ComposeLocationBox({ location: l, error }: { location: ComposeLocation | undefined; error?: unknown }) {
@@ -26,11 +27,21 @@ export function ComposeLocationBox({ location: l, error }: { location: ComposeLo
   );
 }
 
+/** What to expect from a path on a Windows drive when Compose runs inside WSL; nothing for every other path. */
+export function WindowsDriveNote({ location, paths }: { location: ComposeLocation | undefined; paths: readonly string[] }) {
+  if (location?.kind !== "wsl" || !paths.some(onWindowsDrive)) return null;
+  return (
+    <p className="text-xs text-muted-foreground">
+      This path is on a Windows drive. It works, but WSL reads such files more slowly and <span className="font-mono">docker compose watch</span> can miss changes there.
+    </p>
+  );
+}
+
 export type PathPick = { kind: "file"; title: string; pattern: string } | { kind: "folder"; title: string };
 
 /**
  * One path row: a text field (typed or picked) and a native picker button for a file or a folder.
- * The picker belongs to the connection: for WSL it opens inside the distribution and gives a Linux path.
+ * The picker belongs to the connection: for WSL the picked path comes back as the Linux path inside the distribution.
  */
 export function PathRow({
   connectionId,

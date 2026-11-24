@@ -65,3 +65,20 @@ func DirOf(kind Kind, p string) string {
 	}
 	return filepath.Dir(p)
 }
+
+// WSLPathCommand is the command that asks the distribution for the Linux path of a Windows drive
+// path (C:\...). ok is false for every other path, which ConvertWSLPath handles on its own.
+// The distribution answers from its own mount table, so nothing about /mnt/<drive> is guessed.
+func WSLPathCommand(distro, p string) (cmd Command, ok bool, err error) {
+	p = strings.TrimSpace(p)
+	if !winDriveRe.MatchString(p) {
+		return Command{}, false, nil
+	}
+	if err := validatePath("path", p); err != nil {
+		return Command{}, true, err
+	}
+	if err := ValidateDistro(distro); err != nil {
+		return Command{}, true, err
+	}
+	return Command{Name: "wsl.exe", Args: []string{"-d", distro, "--exec", "wslpath", "-u", p}}, true, nil
+}

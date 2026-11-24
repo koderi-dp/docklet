@@ -6,6 +6,11 @@ export function folderName(dir: string): string {
   return parts.length ? parts[parts.length - 1] : "";
 }
 
+/** Whether a path of a WSL connection is on a Windows drive: typed as C:\... or as the distribution sees it, /mnt/c/... */
+export function onWindowsDrive(path: string): boolean {
+  return /^(?:[A-Za-z]:[\\/]|\/mnt\/[a-z](?:\/|$))/.test(path.trim());
+}
+
 /** The project name Compose derives from a folder name (same rule as compose.NormalizeProjectName in Go). */
 export function defaultProjectName(dir: string): string {
   return folderName(dir)

@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAddComposeProject, useComposeLocation, useComposeVerb } from "@/hooks/useCompose";
 import { errorMessage } from "@/lib/errors";
-import { ComposeLocationBox, PathRow } from "./pathFields";
+import { ComposeLocationBox, PathRow, WindowsDriveNote } from "./pathFields";
 
 interface Props {
   connectionId: string;
@@ -97,7 +97,7 @@ export function OpenComposeDialog({ connectionId, open, onOpenChange, onAdded, i
                 value={f}
                 onChange={(v) => setFiles((fs) => fs.map((x, j) => (j === i ? v : x)))}
                 onRemove={files.length > 1 ? () => setFiles((fs) => fs.filter((_, j) => j !== i)) : undefined}
-                placeholder={l?.kind === "wsl" ? "/home/user/app/compose.yaml" : "Absolute path to compose.yaml"}
+                placeholder={l?.kind === "wsl" ? "/home/user/app/compose.yaml or C:\\apps\\app\\compose.yaml" : "Absolute path to compose.yaml"}
                 pick={{ kind: "file", title: "Choose a Compose file", pattern: "*.yml;*.yaml" }}
                 label="Compose file"
               />
@@ -105,6 +105,7 @@ export function OpenComposeDialog({ connectionId, open, onOpenChange, onAdded, i
             <Button type="button" size="sm" variant="ghost" onClick={() => setFiles((fs) => [...fs, ""])}>
               <Plus className="size-3.5" /> Add another file
             </Button>
+            <WindowsDriveNote location={l} paths={[...files, envFile]} />
           </div>
 
           <div className="space-y-1.5">

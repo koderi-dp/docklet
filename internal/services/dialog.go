@@ -5,9 +5,8 @@ import "context"
 // FilePicker opens native file dialogs. Implemented in main.go on top of Wails.
 // An empty result with a nil error means the user cancelled.
 type FilePicker interface {
-	// dir is the folder the dialog opens in; "" leaves that to the system.
-	OpenFile(title, dir, filterName, pattern string) (string, error)
-	OpenDirectory(title, dir string) (string, error)
+	OpenFile(title, filterName, pattern string) (string, error)
+	OpenDirectory(title string) (string, error)
 	SaveFile(title, defaultName string) (string, error)
 }
 
@@ -19,12 +18,12 @@ type DialogService struct {
 
 // PickFile lets the user choose one existing file. pattern is e.g. "*.yml;*.yaml" ("" = any).
 func (s *DialogService) PickFile(ctx context.Context, title, filterName, pattern string) (string, error) {
-	return s.Picker.OpenFile(title, "", filterName, pattern)
+	return s.Picker.OpenFile(title, filterName, pattern)
 }
 
 // PickDirectory lets the user choose one existing directory.
 func (s *DialogService) PickDirectory(ctx context.Context, title string) (string, error) {
-	return s.Picker.OpenDirectory(title, "")
+	return s.Picker.OpenDirectory(title)
 }
 
 // PickSavePath lets the user choose where to save a new file.

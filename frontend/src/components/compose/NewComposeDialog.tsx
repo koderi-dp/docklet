@@ -10,7 +10,7 @@ import { useComposeLocation, useCreateComposeProject, useNewFilePreview, useNewF
 import { errorMessage } from "@/lib/errors";
 import { createBlocked, defaultProjectName, nameState as nameStateOf, presentIds, previewWanted, type NameState, type NewSourceKind } from "@/lib/newComposeFile";
 import { NewComposeSource, type NewComposeSourceProps } from "./NewComposeSource";
-import { ComposeLocationBox, PathRow } from "./pathFields";
+import { ComposeLocationBox, PathRow, WindowsDriveNote } from "./pathFields";
 
 // CodeMirror stays out of the Compose page's chunk until a preview is shown.
 const YamlEditor = lazy(() => import("./file/YamlEditor").then((m) => ({ default: m.YamlEditor })));
@@ -81,11 +81,12 @@ export function NewComposeBody(p: NewComposeBodyProps) {
             connectionId={p.connectionId}
             value={p.dir}
             onChange={p.onDir}
-            placeholder={p.location?.kind === "wsl" ? "/home/user/app" : "Absolute path to the project folder"}
+            placeholder={p.location?.kind === "wsl" ? "/home/user/app or C:\\apps\\app" : "Absolute path to the project folder"}
             pick={{ kind: "folder", title: "Choose the folder for the new Compose file" }}
             label="Folder"
           />
           <p className="text-xs text-muted-foreground">compose.yaml will be created here. A folder that does not exist yet is created.</p>
+          <WindowsDriveNote location={p.location} paths={[p.dir]} />
         </div>
 
         <div className="space-y-1.5">

@@ -13,7 +13,6 @@ import (
 
 	"docklet/internal/compose"
 	"docklet/internal/engine"
-	"docklet/internal/hostopen"
 	"docklet/internal/model"
 	"docklet/internal/ops"
 )
@@ -34,8 +33,6 @@ type ComposeService struct {
 
 	// Picker opens the native dialogs of PickPath; nil makes PickPath fail clearly.
 	Picker FilePicker
-	// pickStat checks a folder on this machine for PickPath; nil means the real file system.
-	pickStat hostopen.Stat
 
 	// runner executes CLI commands; nil means the real process runner (tests inject a fake).
 	runner compose.Runner

@@ -47,7 +47,7 @@ func (s *ComposeService) CreateProject(ctx context.Context, connectionID, dir, n
 	if strings.TrimSpace(dir) == "" {
 		return none, errors.New("choose a folder")
 	}
-	dirs, err := normalizeFiles(env, []string{dir}, "folder")
+	dirs, err := s.normalizeFiles(ctx, env, []string{dir}, "folder")
 	if err != nil {
 		return none, err
 	}
