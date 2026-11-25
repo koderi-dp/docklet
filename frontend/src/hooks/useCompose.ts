@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ComposeService } from "@bindings/services";
 import type { ComposeNewSource, ComposeProject, Container } from "@bindings/model";
+import { confirmWSLPaths } from "@/components/compose/wslPathGuard";
 import { confirmComposeUp } from "@/components/ports/portGuard";
 import { useContainerAction } from "@/hooks/useContainers";
 import { useInvalidateOnEvents } from "@/hooks/queryUtils";
@@ -135,6 +136,8 @@ export function useComposeVerb(connectionId: string) {
   const run = useCallback(
     async (verb: ComposeVerb, name: string, opts?: { volumes?: boolean; up?: UpOptions; service?: string }) => {
       // Starting a project: say first what already holds its host ports (no dialog when nothing does).
+      // On WSL: offer to fix mounts written as Windows paths before the engine refuses them.
+      if (verb === "up" && !(await confirmWSLPaths(connectionId, name, opts?.up?.profiles ?? []))) return;
       if (verb === "up" && !(await confirmComposeUp(connectionId, name, opts?.service ?? "", opts?.up?.profiles ?? []))) return;
       setBusy((s) => new Set(s).add(name));
       const target = opts?.service ? `${name} / ${opts.service}` : name;
