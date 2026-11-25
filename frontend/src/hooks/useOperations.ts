@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { OperationService } from "@bindings/services";
 import { OperationStatus, type Operation, type OperationLog } from "@bindings/model";
 import { errorMessage } from "@/lib/errors";
+import { failureToastWanted, opToastId } from "@/lib/toastLayer";
 
 /** Per-operation log lines kept client-side (the backend buffer is bigger; the view only needs the tail). */
 export const MAX_LOG_LINES = 1000;
@@ -82,6 +83,10 @@ let started = false;
 function ensureStarted() {
   if (started) return;
   started = true;
+  // Looking at an operation in the panel answers its failure toast: take the toast away.
+  useOpsStore.subscribe((s) => {
+    if (s.panelOpen && s.selectedId) toast.dismiss(opToastId(s.selectedId));
+  });
   Events.On("operation:updated", (ev: { data?: unknown }) => {
     const op = payload<Operation>(ev);
     if (!op?.id) return;
@@ -91,8 +96,9 @@ function ensureStarted() {
     st.upsert(op);
     const justFinished = op.status !== OperationStatus.OpRunning && (!prev || prev.status === OperationStatus.OpRunning);
     if (!justFinished) return;
-    if (op.status === OperationStatus.OpFailed) {
+    if (op.status === OperationStatus.OpFailed && failureToastWanted(useOpsStore.getState(), op.id)) {
       toast.error(`${op.title} failed`, {
+        id: opToastId(op.id),
         description: op.error || undefined,
         duration: Infinity,
         closeButton: true,

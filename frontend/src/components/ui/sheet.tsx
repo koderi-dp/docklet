@@ -2,6 +2,7 @@ import * as React from "react"
 import { cn } from "cn"
 import { XIcon } from "lucide-react"
 import { Dialog as SheetPrimitive } from "radix-ui"
+import { keepOpenForToasts } from "@/lib/toastLayer"
 
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
   return <SheetPrimitive.Root data-slot="sheet" {...props} />
@@ -11,6 +12,8 @@ function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
 function SheetContent({
   className,
   children,
+  onPointerDownOutside,
+  onInteractOutside,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content>) {
   return (
@@ -25,6 +28,15 @@ function SheetContent({
           "fixed inset-y-0 right-0 z-50 flex w-full max-w-full flex-col border-l bg-background shadow-lg duration-200 outline-none data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right data-[state=open]:animate-in data-[state=open]:slide-in-from-right",
           className
         )}
+        // A toast lies over the panel: pressing it must not count as pressing outside.
+        onPointerDownOutside={(e) => {
+          keepOpenForToasts(e)
+          onPointerDownOutside?.(e)
+        }}
+        onInteractOutside={(e) => {
+          keepOpenForToasts(e)
+          onInteractOutside?.(e)
+        }}
         {...props}
       >
         {children}

@@ -30,8 +30,27 @@ const Toaster = ({ ...props }: ToasterProps) => {
           "--normal-text": "var(--popover-foreground)",
           "--normal-border": "var(--border)",
           "--border-radius": "var(--radius)",
+          "--width": "420px",
+          // The close button sits on the top right corner, where a close button is expected.
+          "--toast-close-button-start": "unset",
+          "--toast-close-button-end": "0",
+          "--toast-close-button-transform": "translate(35%, -35%)",
         } as React.CSSProperties
       }
+      toastOptions={{
+        classNames: {
+          // An open dialog or panel turns pointer events off for the rest of the page; a toast
+          // lies over it and must stay clickable.
+          // The ! modifiers win over sonner's own layout rules.
+          toast: "pointer-events-auto! flex-wrap! items-start! gap-y-2!",
+          icon: "mt-0.5",
+          // The text takes the full row, so a long message is not squeezed beside the button.
+          content: "min-w-0 basis-[calc(100%-2rem)]!",
+          title: "break-words",
+          description: "line-clamp-4 break-words",
+          actionButton: "ml-auto!",
+        },
+      }}
       {...props}
     />
   )
