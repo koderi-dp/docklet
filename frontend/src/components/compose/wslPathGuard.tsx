@@ -38,7 +38,7 @@ export async function confirmWSLPaths(connectionId: string, project: string, pro
 
 function Issue({ issue: i }: { issue: ComposeWSLPathIssue }) {
   return (
-    <li className="space-y-1.5 px-3 py-2.5">
+    <li className="min-w-0 space-y-1.5 px-3 py-2.5">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 font-mono text-xs">
         <span className="break-all">{i.source}</span>
         {i.linuxPath && (
@@ -59,9 +59,9 @@ function Issue({ issue: i }: { issue: ComposeWSLPathIssue }) {
       </div>
       {i.problem && <p className="text-xs text-warning">{i.problem}</p>}
       {!i.problem && i.newLine !== i.oldLine && (
-        <div className="overflow-x-auto rounded border border-border bg-muted/40 px-2 py-1.5 font-mono text-[11px] leading-5">
-          <div className="whitespace-pre text-muted-foreground line-through decoration-muted-foreground/50">{i.oldLine.trim()}</div>
-          <div className="whitespace-pre text-foreground">{i.newLine.trim()}</div>
+        <div className="space-y-1 rounded border border-border bg-muted/40 px-2 py-1.5 font-mono text-[11px] leading-5">
+          <div className="break-all text-muted-foreground line-through decoration-muted-foreground/50">{i.oldLine.trim()}</div>
+          <div className="break-all text-foreground">{i.newLine.trim()}</div>
         </div>
       )}
       {!i.problem && i.newLine === i.oldLine && <p className="text-xs text-muted-foreground">The Compose file already uses this variable; only its value is set.</p>}
@@ -74,12 +74,12 @@ export function WSLPathBody({ project, report }: { project: string; report: Comp
   const issues = report.issues ?? [];
   const n = issues.length;
   return (
-    <div className="space-y-3 text-sm">
+    <div className="min-w-0 space-y-3 text-sm">
       <p className="text-muted-foreground">
         Project <span className="font-medium text-foreground">{project}</span> runs inside a WSL distribution, where the engine is Linux. It refuses {n === 1 ? "this mount" : "these mounts"} because{" "}
         {n === 1 ? "it is" : "they are"} written as {n === 1 ? "a Windows path" : "Windows paths"}.
       </p>
-      <ul className="max-h-64 divide-y divide-border overflow-auto rounded-md border border-border">
+      <ul className="max-h-[45vh] divide-y divide-border overflow-x-hidden overflow-y-auto rounded-md border border-border">
         {issues.map((i) => (
           <Issue key={`${i.service}:${i.target}`} issue={i} />
         ))}
