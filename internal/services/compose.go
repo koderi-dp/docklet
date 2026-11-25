@@ -15,6 +15,7 @@ import (
 	"docklet/internal/engine"
 	"docklet/internal/model"
 	"docklet/internal/ops"
+	"docklet/internal/registryauth"
 )
 
 // ComposeService is bound to the frontend. Projects are discovered from container
@@ -33,6 +34,10 @@ type ComposeService struct {
 
 	// Picker opens the native dialogs of PickPath; nil makes PickPath fail clearly.
 	Picker FilePicker
+
+	// Registry finds the registry sign-ins used to pull images before the CLI runs; nil means the
+	// Docker config of this computer plus the sign-ins saved in Docklet.
+	Registry *registryauth.Resolver
 
 	// runner executes CLI commands; nil means the real process runner (tests inject a fake).
 	runner compose.Runner

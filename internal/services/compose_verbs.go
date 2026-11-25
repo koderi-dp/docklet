@@ -107,6 +107,22 @@ func (s *ComposeService) start(ctx context.Context, connectionID, name string, r
 		ConnectionID: connectionID, Resource: name, Cancellable: true,
 	}, func(ctx context.Context, h *ops.Handle) error {
 		defer s.emitChanged(connectionID)
+		pulled, left, err := s.prePull(ctx, connectionID, env, r, h)
+		if err != nil {
+			return fmt.Errorf("%s failed: %w", title, err)
+		}
+		if r.Verb == compose.VerbPull && len(pulled) > 0 {
+			// The CLI would pull those images again without the sign-in and fail: give it the rest only.
+			if len(left) == 0 {
+				h.Log("Every image was pulled with a saved sign-in; nothing is left for docker compose pull")
+				return nil
+			}
+			rest := r
+			rest.Services = left
+			if cmd, err = compose.BuildCommand(env, rest); err != nil {
+				return err
+			}
+		}
 		h.Log("$ " + cmd.Name + " " + strings.Join(cmd.Args, " "))
 		var tail errTail
 		if err := runner.Run(ctx, cmd, func(l string) { tail.add(l); h.Log(l) }); err != nil {

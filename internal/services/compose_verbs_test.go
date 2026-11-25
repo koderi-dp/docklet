@@ -8,6 +8,7 @@ import (
 	"docklet/internal/appdb"
 	"docklet/internal/model"
 	"docklet/internal/ops"
+	"docklet/internal/registryauth"
 )
 
 // newVerbSvc returns a ComposeService with one managed project "shop" on connection c1
@@ -26,6 +27,8 @@ func newVerbSvc(t *testing.T) (*ComposeService, *fakeRunner, *ops.Manager) {
 		Engines: fakeProvider{cli}, Events: &recEmitter{}, Ops: m, runner: runner,
 		Projects: &fakeStore{recs: []appdb.ComposeProjectRecord{{ConnectionID: "c1", Name: "shop", WorkingDir: dir, ConfigFiles: []string{cfg}}}},
 		Profiles: fakeProfiles{"c1": {ID: "c1", Type: model.ConnTCP, Endpoint: "tcp://127.0.0.1:2375"}},
+		// Never the sign-ins of the machine the tests run on.
+		Registry: &registryauth.Resolver{ConfigDir: dir},
 	}
 	return s, runner, m
 }
