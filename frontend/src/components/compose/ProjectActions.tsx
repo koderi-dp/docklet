@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowDownToLine, Download, EllipsisVertical, Hammer, Layers, Play, RotateCw, Square, Trash2 } from "lucide-react";
+import { ArrowDownToLine, Copy, Download, EllipsisVertical, Hammer, Layers, Pencil, Play, RotateCw, Square, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -15,7 +15,10 @@ import { partitionByEligibility } from "@/lib/actionEligibility";
 import { aggregateState } from "@/lib/composeGrouping";
 import type { ComposeProject, Container } from "@bindings/model";
 import { useProjectFolderMenu } from "@/components/host/useProjectFolderMenu";
+import { renameUnavailable } from "@/lib/cloneProject";
+import { CloneProjectDialog } from "./CloneProjectDialog";
 import { DownDialog } from "./DownDialog";
+import { RenameProjectDialog } from "./RenameProjectDialog";
 import { ForgetProjectDialog } from "./ForgetProjectDialog";
 import { UpOptionsPopover } from "./UpOptionsPopover";
 import { WatchHeaderControl, WatchMenuItem } from "./watch/WatchHeaderControl";
@@ -28,6 +31,8 @@ interface Props {
   labels?: boolean;
   /** Called after a managed project was forgotten (e.g. to leave its page). */
   onForgotten?: () => void;
+  /** Called after the project got a new name (e.g. to open its page under that name). */
+  onRenamed?: (name: string) => void;
 }
 
 const VERBS: { verb: ComposeVerb; label: string; icon: React.ReactNode; hint: string }[] = [
@@ -42,12 +47,14 @@ const VERBS: { verb: ComposeVerb; label: string; icon: React.ReactNode; hint: st
  * Compose CLI verbs are enabled only when the project's capability says the CLI can run;
  * Engine batch start/stop/restart of containers is always available and labelled as such.
  */
-export function ProjectActions({ connectionId, project, containers, labels, onForgotten }: Props) {
+export function ProjectActions({ connectionId, project, containers, labels, onForgotten, onRenamed }: Props) {
   const verbs = useComposeVerb(connectionId);
   const engine = useProjectEngineBatch(connectionId);
   const [confirmDown, setConfirmDown] = useState(false);
   const [confirmForget, setConfirmForget] = useState(false);
   const [watchOpen, setWatchOpen] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [cloneOpen, setCloneOpen] = useState(false);
   const cap = project.capability;
   const busy = verbs.isBusy(project.name);
   const folderItems = useProjectFolderMenu(connectionId, project.workingDir, project.configFiles ?? []);
@@ -59,8 +66,28 @@ export function ProjectActions({ connectionId, project, containers, labels, onFo
 
   const onVerb = (verb: ComposeVerb) => (verb === "down" ? setConfirmDown(true) : void verbs.run(verb, project.name));
 
+  const renameReason = renameUnavailable(project);
+  const cloneReason = !cap.canRun ? cap.reason || "Compose CLI is not available for this project" : undefined;
+  // Saved projects only: these act on Docklet's saved entry and the project folder, not on the Engine.
+  const managedItems = project.managed && (
+    <>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem disabled={!!renameReason} title={renameReason ?? "Give the saved project another name"} onSelect={() => setRenameOpen(true)}>
+        <Pencil /> Rename…
+      </DropdownMenuItem>
+      <DropdownMenuItem disabled={!!cloneReason} title={cloneReason ?? "Copy the project folder and save the copy under another name"} onSelect={() => setCloneOpen(true)}>
+        <Copy /> Clone…
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => setConfirmForget(true)}>
+        <Trash2 /> Forget project…
+      </DropdownMenuItem>
+    </>
+  );
+
   const dialogs = (
     <>
+      <RenameProjectDialog connectionId={connectionId} project={project.name} open={renameOpen} onOpenChange={setRenameOpen} onRenamed={onRenamed} />
+      <CloneProjectDialog connectionId={connectionId} project={project.name} open={cloneOpen} onOpenChange={setCloneOpen} />
       <ForgetProjectDialog
         connectionId={connectionId}
         project={project.name}
@@ -157,14 +184,7 @@ export function ProjectActions({ connectionId, project, containers, labels, onFo
               );
             })}
             {folderItems}
-            {project.managed && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={() => setConfirmForget(true)}>
-                  <Trash2 /> Forget project…
-                </DropdownMenuItem>
-              </>
-            )}
+            {managedItems}
           </DropdownMenuContent>
         </DropdownMenu>
         {dialogs}
@@ -231,14 +251,7 @@ export function ProjectActions({ connectionId, project, containers, labels, onFo
             );
           })}
           {folderItems}
-          {project.managed && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => setConfirmForget(true)}>
-                <Trash2 /> Forget project…
-              </DropdownMenuItem>
-            </>
-          )}
+          {managedItems}
         </DropdownMenuContent>
       </DropdownMenu>
       <DropdownMenu>
@@ -274,25 +287,7 @@ export function ProjectActions({ connectionId, project, containers, labels, onFo
           })}
         </DropdownMenuContent>
       </DropdownMenu>
-      <ForgetProjectDialog
-        connectionId={connectionId}
-        project={project.name}
-        files={project.configFiles ?? []}
-        open={confirmForget}
-        onOpenChange={setConfirmForget}
-        onForgotten={onForgotten}
-      />
-      <DownDialog
-        connectionId={connectionId}
-        project={project.name}
-        containers={containers}
-        open={confirmDown}
-        onOpenChange={setConfirmDown}
-        onConfirm={(o) => {
-          setConfirmDown(false);
-          void verbs.run("down", project.name, { volumes: o.volumes });
-        }}
-      />
+      {dialogs}
     </div>
   );
 }

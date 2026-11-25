@@ -127,7 +127,7 @@ function ProjectView({ connectionId, name }: { connectionId: string; name: strin
                 pending={pendingApply}
               />
             )}
-            <ProjectActions connectionId={connectionId} project={p} containers={containers} labels onForgotten={() => (p.notCreated ? navigate("/compose") : undefined)} />
+            <ProjectActions connectionId={connectionId} project={p} containers={containers} labels onForgotten={() => (p.notCreated ? navigate("/compose") : undefined)} onRenamed={(n) => navigate(`/compose/${encodeURIComponent(n)}`, { replace: true })} />
           </div>
         }
       />
